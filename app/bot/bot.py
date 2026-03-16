@@ -2,7 +2,7 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
-from aiogram.client.default import DefaultBotProperties
+from aiogram.client.default import Default
 from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 # Инициализация бота и диспетчера
 bot = Bot(
     token=settings.BOT_TOKEN,
-    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    default=Default(parse_mode=ParseMode.HTML)
 )
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
