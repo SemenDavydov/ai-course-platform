@@ -2,7 +2,6 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
-from aiogram.client.default import Default
 from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
@@ -17,6 +16,7 @@ from app.models.user import User
 from app.models.course import Course, Lesson
 from app.services.payment import PaymentService
 from app.services.video import VideoService
+from aiogram.client.default import Default
 
 LESSON_DATA = {
     2: ("🎯", "НАЧАЛО", "Начало: подготовка к работе с сервисами"),
