@@ -5,10 +5,8 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import HTMLResponse
 
-from app.api import webhooks
-from app.api import admin
-from app.api.v1 import materials
-from app.api.v1 import bot_api
+from app.api import webhooks, admin
+from app.api.v1 import bot_api, materials
 from app.config import settings
 import logging
 
@@ -16,9 +14,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title=settings.APP_NAME)
-
-templates = Jinja2Templates(directory="app/templates")
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Добавь middleware для сессий (ВАЖНО: добавить до роутеров)
 app.add_middleware(
@@ -29,6 +24,9 @@ app.add_middleware(
     same_site="lax",
     https_only=False  # False для localhost
 )
+
+templates = Jinja2Templates(directory="app/templates")
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Подключаем роутеры
 app.include_router(webhooks.router)
