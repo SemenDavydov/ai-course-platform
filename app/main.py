@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import HTMLResponse
 
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title=settings.APP_NAME)
 
 templates = Jinja2Templates(directory="app/templates")
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Добавь middleware для сессий (ВАЖНО: добавить до роутеров)
 app.add_middleware(
