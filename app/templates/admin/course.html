@@ -1,0 +1,506 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Управление курсом{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-lg shadow mb-8">
+    <div class="px-6 py-4 border-b">
+        <h2 class="text-xl font-bold">Редактирование курса</h2>
+    </div>
+
+    <div class="p-6">
+        <form method="post" action="/admin/course/update">
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Название курса</label>
+                <input type="text" name="title" value="{{ course.title if course else '' }}"
+                       class="shadow border rounded w-full py-2 px-3 text-gray-700" required>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Описание</label>
+                <textarea name="description" rows="10"
+                          class="shadow border rounded w-full py-2 px-3 text-gray-700 font-mono text-sm">{{ course.description if course else '' }}</textarea>
+                <p class="text-xs text-gray-500 mt-1">Поддерживается Markdown</p>
+            </div>
+
+            <div class="mb-4 flex space-x-4">
+                <div class="w-48">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Цена (₽)</label>
+                    <input type="number" name="price" value="{{ course.price if course else 3990 }}"
+                           class="shadow border rounded w-full py-2 px-3 text-gray-700" required>
+                </div>
+
+                <div class="flex items-center">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="is_published" value="true"
+                               {% if course and course.is_published %}checked{% endif %}
+                               class="mr-2">
+                        <span class="text-sm">Опубликован</span>
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Сохранить курс
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="bg-white rounded-lg shadow">
+    <div class="px-6 py-4 border-b flex justify-between items-center">
+        <h2 class="text-xl font-bold">Уроки</h2>
+        <button onclick="showAddLessonModal()"
+                class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+            + Добавить урок
+        </button>
+    </div>
+
+    <div class="p-6 overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr class="bg-gray-50">
+                    <th class="px-4 py-2 text-left">Порядок</th>
+                    <th class="px-4 py-2 text-left">Название</th>
+                    <th class="px-4 py-2 text-left">Описание</th>
+                    <th class="px-4 py-2 text-left">Video ID</th>
+                    <th class="px-4 py-2 text-left">Материалы</th>  <!-- Новая колонка -->
+                    <th class="px-4 py-2 text-left">Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lesson in lessons %}
+                <tr class="border-t hover:bg-gray-50">
+                    <td class="px-4 py-2">{{ lesson.order }}</td>
+                    <td class="px-4 py-2 font-medium">{{ lesson.title }}</td>
+                    <td class="px-4 py-2">
+                        <div class="max-w-xs truncate">{{ lesson.description[:100] }}...</div>
+                    </td>
+                    <td class="px-4 py-2">
+                        {% if lesson.video_id %}
+                        <span class="text-xs font-mono">{{ lesson.video_id[:8] }}...</span>
+                        {% else %}
+                        <span class="text-gray-400">нет видео</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-2">
+                        <div class="flex items-center space-x-2">
+                            <button onclick="showUploadMaterialModal({{ lesson.id }})"
+                            class="text-xs bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded">
+                            + Загрузить
+                            </button>
+
+                            {% if lesson.materials %}
+                            <button onclick="viewMaterials({{ lesson.id }}, '{{ lesson.title|replace('"', '&quot;')|safe }}')"
+                            class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded">
+                            {{ lesson.materials|length }} файлов
+                            </button>
+                            {% else %}
+                            <span class="text-xs text-gray-400">нет файлов</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="px-4 py-2 space-x-2">
+                        <button onclick="editLesson(this)"
+                                data-id="{{ lesson.id }}"
+                                data-title="{{ lesson.title|replace('"', '&quot;')|safe }}"
+                                data-description="{{ lesson.description|replace('"', '&quot;')|safe }}"
+                                data-video="{{ lesson.video_id or '' }}"
+                                data-order="{{ lesson.order }}"
+                                class="text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
+                            ✏️
+                        </button>
+                        <button onclick="deleteLesson({{ lesson.id }})"
+                                class="text-sm bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded">
+                            🗑️
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Модальное окно добавления/редактирования урока -->
+<div id="lessonModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg w-full max-w-2xl max-h-screen overflow-y-auto">
+        <form id="lessonForm" method="post" class="p-6">
+            <h3 id="modalTitle" class="text-xl font-bold mb-4">Добавить урок</h3>
+
+            <input type="hidden" id="lessonId" name="lesson_id">
+
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Порядок</label>
+                <input type="number" id="order" name="order" required
+                       class="shadow border rounded w-full py-2 px-3 text-gray-700">
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Название урока</label>
+                <input type="text" id="title" name="title" required
+                       class="shadow border rounded w-full py-2 px-3 text-gray-700">
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Описание урока</label>
+                <div class="mb-2 flex space-x-2 flex-wrap gap-2">
+                    <button type="button" onclick="insertFormat('**', '**')" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">Жирный</button>
+                    <button type="button" onclick="insertFormat('*', '*')" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">Курсив</button>
+                    <button type="button" onclick="insertBullet()" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">• Маркер</button>
+                    <button type="button" onclick="insertNewline()" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">↵ Абзац</button>
+                    <button type="button" onclick="insertHeader()" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">📌 Заголовок</button>
+                </div>
+                <textarea id="lesson_description" name="description" rows="15"
+                    class="shadow border rounded w-full py-2 px-3 text-gray-700 font-mono text-sm"></textarea>
+                <p class="text-xs text-gray-500 mt-1">
+                    Поддерживается Markdown: **жирный**, *курсив*,
+                    • маркеры (каждый с новой строки),
+                    пустая строка между абзацами
+                </p>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Video ID (из Kinescope)</label>
+                <input type="text" id="video_id" name="video_id"
+                       class="shadow border rounded w-full py-2 px-3 text-gray-700">
+                <p class="text-xs text-gray-500 mt-1">Оставьте пустым, если это текстовый урок</p>
+            </div>
+
+            <div class="flex justify-end space-x-2">
+                <button type="button" onclick="closeModal()"
+                        class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                    Отмена
+                </button>
+                <button type="submit"
+                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                    Сохранить
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Модальное окно загрузки материала -->
+<div id="uploadMaterialModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg w-full max-w-md">
+        <form id="uploadMaterialForm" method="post" enctype="multipart/form-data" class="p-6">
+            <h3 class="text-xl font-bold mb-4">Загрузить материал</h3>
+
+            <input type="hidden" id="materialLessonId" name="lesson_id">
+
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Название материала</label>
+                <input type="text" name="title" required
+                       class="shadow border rounded w-full py-2 px-3 text-gray-700"
+                       placeholder="Например: Конспект лекции 1">
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Файл (PDF)</label>
+                <input type="file" name="file" accept=".pdf,.doc,.docx" required
+                       class="shadow border rounded w-full py-2 px-3 text-gray-700">
+                <p class="text-xs text-gray-500 mt-1">Максимальный размер: 50 МБ</p>
+            </div>
+
+            <div class="flex justify-end space-x-2">
+                <button type="button" onclick="closeUploadModal()"
+                        class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                    Отмена
+                </button>
+                <button type="submit"
+                        class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded">
+                    Загрузить
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Модальное окно просмотра материалов -->
+<div id="viewMaterialsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-2xl m-4">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6 sticky top-0 bg-white pb-4 border-b">
+                <h3 class="text-xl font-bold text-gray-800" id="viewMaterialsTitle">Материалы урока</h3>
+                <button onclick="closeViewMaterialsModal()"
+                        class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+
+            <div id="materialsList" class="space-y-3 min-h-[200px]">
+                <!-- Сюда будут подгружаться материалы -->
+            </div>
+
+            <div class="flex justify-end mt-6 pt-4 border-t border-gray-100 sticky bottom-0 bg-white">
+                <button onclick="closeViewMaterialsModal()"
+                        class="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
+                    Закрыть
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentAction = 'add';
+
+function showAddLessonModal() {
+    currentAction = 'add';
+    document.getElementById('modalTitle').textContent = 'Добавить урок';
+    document.getElementById('lessonForm').reset();
+    document.getElementById('lessonForm').action = '/admin/lessons/add';
+    document.getElementById('lessonModal').classList.remove('hidden');
+    document.getElementById('lessonModal').classList.add('flex');
+}
+
+function editLesson(button) {
+    // Получаем данные из атрибутов data-*
+    const lessonId = button.getAttribute('data-id');
+    const title = button.getAttribute('data-title');
+    const description = button.getAttribute('data-description');
+    const videoId = button.getAttribute('data-video');
+    const order = button.getAttribute('data-order');
+
+    currentAction = 'edit';
+    document.getElementById('modalTitle').textContent = 'Редактировать урок';
+    document.getElementById('lessonForm').action = `/admin/lessons/${lessonId}/update`;
+
+    // Заполняем поля данными урока
+    document.getElementById('order').value = order;
+    document.getElementById('title').value = title;
+    document.getElementById('lesson_description').value = description;
+    document.getElementById('video_id').value = videoId || '';
+
+    document.getElementById('lessonModal').classList.remove('hidden');
+    document.getElementById('lessonModal').classList.add('flex');
+}
+
+async function deleteLesson(lessonId) {
+    if (!confirm('Удалить урок? Это действие нельзя отменить.')) return;
+
+    const form = document.createElement('form');
+    form.method = 'post';
+    form.action = `/admin/lessons/${lessonId}/delete`;
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function closeModal() {
+    document.getElementById('lessonModal').classList.add('hidden');
+    document.getElementById('lessonModal').classList.remove('flex');
+}
+
+function insertFormat(before, after) {
+    const textarea = document.getElementById('lesson_description');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+    const newText = before + selectedText + after;
+    textarea.value = textarea.value.substring(0, start) + newText + textarea.value.substring(end);
+
+    // Возвращаем фокус и выделяем вставленный текст
+    textarea.focus();
+    textarea.setSelectionRange(start + before.length, end + before.length);
+}
+
+function insertBullet() {
+    const textarea = document.getElementById('lesson_description');
+    const start = textarea.selectionStart;
+    const text = textarea.value;
+
+    // Находим начало текущей строки
+    let lineStart = text.lastIndexOf('\n', start - 1) + 1;
+    if (lineStart === -1) lineStart = 0;
+
+    // Вставляем маркер в начало строки
+    const newText = text.substring(0, lineStart) + '• ' + text.substring(lineStart);
+    textarea.value = newText;
+
+    // Устанавливаем курсор после маркера
+    textarea.focus();
+    textarea.setSelectionRange(lineStart + 2, lineStart + 2);
+}
+
+function insertNewline() {
+    const textarea = document.getElementById('lesson_description');
+    const start = textarea.selectionStart;
+    textarea.value = textarea.value.substring(0, start) + '\n\n' + textarea.value.substring(start);
+    textarea.focus();
+    textarea.setSelectionRange(start + 2, start + 2);
+}
+
+function insertHeader() {
+    const textarea = document.getElementById('lesson_description');
+    const start = textarea.selectionStart;
+    const text = textarea.value;
+
+    // Находим начало и конец текущей строки
+    let lineStart = text.lastIndexOf('\n', start - 1) + 1;
+    if (lineStart === -1) lineStart = 0;
+
+    let lineEnd = text.indexOf('\n', lineStart);
+    if (lineEnd === -1) lineEnd = text.length;
+
+    const line = text.substring(lineStart, lineEnd);
+
+    // Оборачиваем строку в звездочки
+    const newText = text.substring(0, lineStart) + '*' + line + '*' + text.substring(lineEnd);
+    textarea.value = newText;
+
+    // Устанавливаем курсор в конец заголовка
+    textarea.focus();
+    textarea.setSelectionRange(lineEnd + 2, lineEnd + 2);
+}
+
+function showUploadMaterialModal(lessonId) {
+    document.getElementById('materialLessonId').value = lessonId;
+    document.getElementById('uploadMaterialForm').reset();
+    document.getElementById('uploadMaterialForm').action = `/admin/lessons/${lessonId}/upload-material`;
+    document.getElementById('uploadMaterialModal').classList.remove('hidden');
+    document.getElementById('uploadMaterialModal').classList.add('flex');
+}
+
+function closeUploadModal() {
+    document.getElementById('uploadMaterialModal').classList.add('hidden');
+    document.getElementById('uploadMaterialModal').classList.remove('flex');
+}
+
+async function viewMaterials(lessonId, lessonTitle) {
+    console.log('=== viewMaterials called ===');
+    console.log('Lesson ID:', lessonId);
+    console.log('Lesson Title:', lessonTitle);
+
+    document.getElementById('viewMaterialsTitle').textContent = `Материалы: ${lessonTitle}`;
+
+    try {
+        console.log('Fetching from:', `/api/v1/materials/lesson/${lessonId}`);
+        const response = await fetch(`/api/v1/materials/lesson/${lessonId}`);
+        console.log('Response status:', response.status);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const materials = await response.json();
+        console.log('Materials received:', materials);
+        console.log('Number of materials:', materials.length);
+
+        const materialsList = document.getElementById('materialsList');
+        console.log('Materials list element:', materialsList);
+
+        if (!materialsList) {
+            console.error('CRITICAL: materialsList element not found!');
+            return;
+        }
+
+        materialsList.innerHTML = '';
+
+        if (materials.length === 0) {
+            materialsList.innerHTML = '<p class="text-gray-500 text-center py-8">Нет материалов</p>';
+            console.log('No materials, showing empty message');
+        } else {
+            console.log('Building HTML for', materials.length, 'materials');
+
+            materials.forEach((material, index) => {
+                console.log(`Processing material ${index}:`, material.title);
+
+                const sizeKB = material.file_size / 1024;
+                const sizeDisplay = sizeKB < 1024
+                    ? sizeKB.toFixed(1) + ' КБ'
+                    : (sizeKB / 1024).toFixed(1) + ' МБ';
+
+                // Определяем иконку в зависимости от типа файла
+                const fileIcon = material.file_type?.includes('pdf') ? 'fa-file-pdf' : 'fa-file-word';
+                const fileColor = material.file_type?.includes('pdf') ? 'text-red-600' : 'text-blue-600';
+
+                const materialHtml = `
+                    <div class="flex items-center justify-between bg-gray-50 p-4 rounded-lg hover:shadow-md transition-all border border-gray-200">
+                        <div class="flex items-center space-x-4">
+                            <i class="fas ${fileIcon} ${fileColor} text-2xl"></i>
+                            <div>
+                                <p class="font-medium text-gray-900">${material.title}</p>
+                                <div class="flex items-center space-x-3 mt-1">
+                                    <span class="text-xs text-gray-600">
+                                        <i class="far fa-file mr-1"></i>${sizeDisplay}
+                                    </span>
+                                    <span class="text-xs text-gray-600">
+                                        <i class="far fa-download mr-1"></i>${material.downloads_count || 0} скачиваний
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <a href="/api/v1/materials/${material.id}/download?token=admin"
+                               target="_blank"
+                               class="text-blue-600 hover:text-blue-800 p-2 hover:bg-blue-100 rounded-lg transition-all"
+                               title="Скачать">
+                                <i class="fas fa-download text-lg"></i>
+                            </a>
+                            <button onclick="deleteMaterial(${material.id}, ${lessonId})"
+                                    class="text-red-600 hover:text-red-800 p-2 hover:bg-red-100 rounded-lg transition-all"
+                                    title="Удалить">
+                                <i class="fas fa-trash text-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                materialsList.innerHTML += materialHtml;
+                console.log(`Added material ${index} to DOM`);
+            });
+        }
+
+        document.getElementById('viewMaterialsModal').classList.remove('hidden');
+        document.getElementById('viewMaterialsModal').classList.add('flex');
+        console.log('Modal shown');
+
+    } catch (error) {
+        console.error('Error in viewMaterials:', error);
+        alert('Ошибка загрузки материалов: ' + error);
+    }
+}
+
+function closeViewMaterialsModal() {
+    document.getElementById('viewMaterialsModal').classList.add('hidden');
+    document.getElementById('viewMaterialsModal').classList.remove('flex');
+}
+
+async function deleteMaterial(materialId, lessonId) {
+    console.log('=== deleteMaterial called ===');
+    console.log('Material ID:', materialId);
+    console.log('Lesson ID:', lessonId);
+
+    if (!confirm('🗑️ Точно удалить этот материал? Это действие нельзя отменить.')) return;
+
+    try {
+        console.log('Sending DELETE request...');
+        const response = await fetch(`/api/v1/materials/${materialId}?lesson_id=${lessonId}`, {
+            method: 'DELETE'
+        });
+
+        console.log('Response status:', response.status);
+
+        if (response.ok) {
+            console.log('Delete successful, refreshing materials list');
+            // Обновляем список материалов
+            const titleElement = document.getElementById('viewMaterialsTitle');
+            const currentTitle = titleElement.textContent.replace('Материалы: ', '');
+            await viewMaterials(lessonId, currentTitle);
+            // Перезагружаем страницу через секунду, чтобы обновились счетчики
+            setTimeout(() => {
+                console.log('Reloading page...');
+                location.reload();
+            }, 1000);
+        } else {
+            const error = await response.text();
+            console.error('Delete failed:', error);
+            alert('❌ Ошибка при удалении: ' + error);
+        }
+    } catch (error) {
+        console.error('Error in deleteMaterial:', error);
+        alert('❌ Ошибка: ' + error);
+    }
+}
+</script>
+{% endblock %}

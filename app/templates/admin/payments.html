@@ -1,0 +1,42 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Платежи{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-lg shadow">
+    <div class="px-6 py-4 border-b">
+        <h2 class="text-xl font-bold">История платежей</h2>
+    </div>
+
+    <div class="p-6">
+        <table class="w-full">
+            <thead>
+                <tr class="bg-gray-50">
+                    <th class="px-4 py-2 text-left">ID</th>
+                    <th class="px-4 py-2 text-left">Пользователь</th>
+                    <th class="px-4 py-2 text-left">Сумма</th>
+                    <th class="px-4 py-2 text-left">Статус</th>
+                    <th class="px-4 py-2 text-left">Дата</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in payments %}
+                <tr class="border-t">
+                    <td class="px-4 py-2">{{ payment.id }}</td>
+                    <td class="px-4 py-2">{{ payment.user.telegram_id if payment.user else payment.user_id }}</td>
+                    <td class="px-4 py-2">{{ payment.amount }} ₽</td>
+                    <td class="px-4 py-2">
+                        {% if payment.status == 'succeeded' %}
+                        <span class="text-green-600">Успешно</span>
+                        {% else %}
+                        <span class="text-yellow-600">{{ payment.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-2">{{ payment.created_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

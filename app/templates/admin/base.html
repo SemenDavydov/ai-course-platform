@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AI Course Admin{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <nav class="bg-white shadow-lg mb-8">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex space-x-4">
+                    <a href="/admin/dashboard" class="text-gray-700 hover:text-gray-900 px-3 py-2">Дашборд</a>
+                    <a href="/admin/users" class="text-gray-700 hover:text-gray-900 px-3 py-2">Пользователи</a>
+                    <a href="/admin/course" class="text-gray-700 hover:text-gray-900 px-3 py-2">Курс</a>
+                    <a href="/admin/payments" class="text-gray-700 hover:text-gray-900 px-3 py-2">Платежи</a>
+                </div>
+                <a href="/admin/logout" class="text-red-600 hover:text-red-800">Выйти</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

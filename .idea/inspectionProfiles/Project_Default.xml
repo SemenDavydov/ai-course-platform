@@ -1,0 +1,83 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="false" level="WARNING" enabled_by_default="false">
+      <option name="ignoredPackages">
+        <list>
+          <option value="python-telegram-bot" />
+          <option value="pillow" />
+          <option value="pytesseract" />
+          <option value="mnemonic" />
+          <option value="bip-utils" />
+          <option value="requests" />
+          <option value="tensorflow" />
+          <option value="keras" />
+          <option value="urllib3" />
+          <option value="h11" />
+          <option value="pip" />
+          <option value="attrs" />
+          <option value="wheel" />
+          <option value="protobuf" />
+          <option value="filelock" />
+          <option value="pytz" />
+          <option value="idna" />
+          <option value="multidict" />
+          <option value="propcache" />
+          <option value="typing_extensions" />
+          <option value="sniffio" />
+          <option value="Pygments" />
+          <option value="rich" />
+          <option value="httpcore" />
+          <option value="httpx" />
+          <option value="zstandard" />
+          <option value="numpy" />
+          <option value="charset-normalizer" />
+          <option value="setuptools" />
+          <option value="cffi" />
+          <option value="scipy" />
+          <option value="threadpoolctl" />
+          <option value="lightgbm" />
+          <option value="packaging" />
+          <option value="platformdirs" />
+          <option value="joblib" />
+          <option value="pandas" />
+          <option value="MarkupSafe" />
+          <option value="python-dateutil" />
+          <option value="aiogram" />
+          <option value="pydantic" />
+          <option value="aiofiles" />
+          <option value="magic-filter" />
+          <option value="certifi" />
+          <option value="aiohttp" />
+          <option value="pydantic_core" />
+          <option value="yarl" />
+          <option value="aiosignal" />
+          <option value="frozenlist" />
+          <option value="aiohappyeyeballs" />
+          <option value="scikit-learn" />
+          <option value="tornado" />
+          <option value="colorama" />
+          <option value="tzlocal" />
+          <option value="six" />
+          <option value="anyio" />
+          <option value="annotated-types" />
+          <option value="APScheduler" />
+          <option value="cachetools" />
+          <option value="trove-classifiers" />
+          <option value="more-itertools" />
+          <option value="build" />
+          <option value="keras-nightly" />
+          <option value="neural" />
+          <option value="beautifulsoup4" />
+        </list>
+      </option>
+    </inspection_tool>
+    <inspection_tool class="PyUnresolvedReferencesInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredIdentifiers">
+        <list>
+          <option value="PyQt5.*" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>

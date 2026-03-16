@@ -1,0 +1,42 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Дашборд{% endblock %}
+
+{% block content %}
+<script>
+    console.log('Dashboard loaded, cookies:', document.cookie);
+</script>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-gray-500 text-sm font-medium">Всего пользователей</h3>
+        <p class="text-3xl font-bold">{{ stats.users }}</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-gray-500 text-sm font-medium">Оплативших</h3>
+        <p class="text-3xl font-bold">{{ stats.paid_users }}</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-gray-500 text-sm font-medium">Выручка</h3>
+        <p class="text-3xl font-bold">{{ stats.revenue }} ₽</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-gray-500 text-sm font-medium">Уроков в курсе</h3>
+        <p class="text-3xl font-bold">{{ stats.lessons }}</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-bold mb-4">Последние платежи</h2>
+        <!-- Таблица последних платежей -->
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-bold mb-4">Новые пользователи</h2>
+        <!-- Список новых пользователей -->
+    </div>
+</div>
+{% endblock %}
