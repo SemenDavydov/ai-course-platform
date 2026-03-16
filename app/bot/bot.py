@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 # Инициализация бота и диспетчера
 bot = Bot(
     token=settings.BOT_TOKEN,
-    default=Default(parse_mode=ParseMode.HTML)
+    parse_mode=ParseMode.HTML
 )
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
