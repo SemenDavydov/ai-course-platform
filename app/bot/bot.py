@@ -16,7 +16,7 @@ from app.models.user import User
 from app.models.course import Course, Lesson
 from app.services.payment import PaymentService
 from app.services.video import VideoService
-from aiogram.client.default import Default
+from app.services.shortener import URLShortener
 
 LESSON_DATA = {
     1: ("🎯", "НАЧАЛО", "Начало: подготовка к работе с сервисами"),
@@ -432,11 +432,30 @@ async def process_lesson(callback: CallbackQuery, db: AsyncSession):
         token_param = query_params.get('token', [None])[0]
 
         if token_param:
-            video_url = f"{settings.SITE_URL}/api/v1/bot/video/{lesson.video_id}?token={token_param}"
-            buttons.append([InlineKeyboardButton(text="▶️ СМОТРЕТЬ ВИДЕО", url=video_url)])
+            long_url = f"{settings.SITE_URL}/api/v1/bot/video/{lesson.video_id}?token={token_param}"
 
-    buttons.append([InlineKeyboardButton(text="◀️ К УРОКАМ", callback_data="course")])
-    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+            shortener = URLShortener()
+            short_url = await shortener.shorten(long_url)
+
+            # Если сокращение удалось, используем короткую ссылку
+            display_url = short_url if short_url else long_url
+
+            lesson_text = (
+                f"*{lesson.title}*\n\n"
+                f"{lesson.description}\n\n"
+                f"🔗 *Ссылка на видео:*\n"
+                f"`{display_url}`\n\n"
+            )
+
+            # Для кнопки тоже используем короткую ссылку
+            button_url = short_url if short_url else long_url
+
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="▶️ СМОТРЕТЬ ВИДЕО", url=button_url)],
+                    [InlineKeyboardButton(text="◀️ К УРОКАМ", callback_data="course")]
+                ]
+            )
 
     await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
 

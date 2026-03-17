@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     SECRET_KEY: str
     ADMIN_SECRET_CODE: str = "admin"
+    CLC_API_KEY: str = ""  # API ключ для clc.li
 
     # Database
     DATABASE_URL: str
