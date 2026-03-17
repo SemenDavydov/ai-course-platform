@@ -19,11 +19,11 @@ from app.services.video import VideoService
 from aiogram.client.default import Default
 
 LESSON_DATA = {
-    2: ("🎯", "НАЧАЛО", "Начало: подготовка к работе с сервисами"),
-    3: ("💻", "ЛЕКЦИЯ 1", "Лекция 1: Написание сценария и создание персонажей для генерации"),
-    4: ("🎞️", "ЛЕКЦИЯ 2", "Лекция 2: Создание раскадровок для последующей анимации"),
-    5: ("📽️", "ЛЕКЦИЯ 3", "Лекция 3: Анимация раскадровок и озвучка реплик персонажей внутри сервиса, а также озвучка закадрового голоса"),
-    6: ("👨🏻‍💻", "ЛЕКЦИЯ 4", "Лекция 4: Монтаж целостного видео с помощью CapCut"),
+    1: ("🎯", "НАЧАЛО", "Начало: подготовка к работе с сервисами"),
+    2: ("💻", "ЛЕКЦИЯ 1", "Лекция 1: Написание сценария и создание персонажей для генерации"),
+    3: ("🎞️", "ЛЕКЦИЯ 2", "Лекция 2: Создание раскадровок для последующей анимации"),
+    4: ("📽️", "ЛЕКЦИЯ 3", "Лекция 3: Анимация раскадровок и озвучка реплик персонажей внутри сервиса, а также озвучка закадрового голоса"),
+    5: ("👨🏻‍💻", "ЛЕКЦИЯ 4", "Лекция 4: Монтаж целостного видео с помощью CapCut"),
     7: ("❌", "ОШИБКИ НОВИЧКОВ", "Ошибки новичков, чего стоит избегать в работе на начальных этапах"),
     8: ("🤳🏻", "ПРАВИЛА ХОРОШЕГО ПРОМТА", "Правила хорошего промта"),
 }
@@ -232,13 +232,13 @@ async def process_buy(callback: CallbackQuery, state: FSMContext, db: AsyncSessi
 
 
 @dp.callback_query(lambda c: c.data == "accept_offer")
-async def process_accept_offer(callback: CallbackQuery, db: AsyncSession):
+async def process_accept_offer(callback: CallbackQuery, state: FSMContext, db: AsyncSession):
     user = await get_or_create_user(callback.from_user.id, db)
     user.accepted_offer = True
     await db.commit()
 
     # Перенаправляем на процесс покупки
-    await process_buy(callback, ...)
+    await process_buy(callback, state, db)
 
 # Обработчик ввода email
 @dp.message(Form.waiting_for_email)
