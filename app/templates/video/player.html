@@ -41,7 +41,7 @@
                 <!-- ЛОГОТИП -->
                 <img src="/static/images/logo.png" alt="AI Course Logo" class="h-10 w-auto">
 
-                <a href="https://t.me/DavydovaAIBot" target="_blank" class="flex items-center space-x-2 hover:text-blue-600 transition-colors">
+                <a href="{{ bot_url }}" target="_blank" class="flex items-center space-x-2 hover:text-blue-600 transition-colors">
                     <i class="fab fa-telegram text-2xl text-blue-500"></i>
                     <span class="font-semibold text-gray-800">Вернуться в бот</span>
                 </a>
@@ -80,9 +80,8 @@
                         <div class="relative" style="padding-bottom: 56.25%">
                             <iframe src="{{ embed_url }}"
                                     class="absolute top-0 left-0 w-full h-full"
-                                    allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-                                    frameborder="0"
-                                    allowfullscreen>
+                                    allow="autoplay; encrypted-media"
+                                    frameborder="0">
                             </iframe>
                         </div>
                     </div>

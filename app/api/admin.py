@@ -32,14 +32,9 @@ async def get_current_admin(
         db: AsyncSession = Depends(get_db)
 ) -> User:
     """Проверяет, авторизован ли админ, и возвращает пользователя"""
-    # Добавим отладку
-    print("Cookies received:", request.cookies)
-
     session_token = request.cookies.get("admin_session")
-    print("Session token:", session_token)
 
     if not session_token:
-        print("No session token in cookies")
         raise HTTPException(status_code=303, detail="Redirecting to login")
 
     # Проверяем сессию в БД
@@ -51,16 +46,13 @@ async def get_current_admin(
     session = session_result.scalar_one_or_none()
 
     if not session:
-        print(f"Session not found or expired: {session_token}")
         raise HTTPException(status_code=303, detail="Redirecting to login")
 
     # Получаем пользователя
     user = await db.get(User, session.user_id)
     if not user or user.role not in ["admin", "superadmin"]:
-        print(f"User not found or not admin: {session.user_id}")
         raise HTTPException(status_code=303, detail="Redirecting to login")
 
-    print(f"Admin authenticated: {user.username}")
     return user
 
 
@@ -135,18 +127,13 @@ async def admin_login_post(
     user_result = await db.execute(user_query)
     user = user_result.scalar_one_or_none()
 
-    print(f"Login attempt for user: {username}")
-    print(f"User found: {user is not None}")
-
     if not user or not user.check_password(password):
-        print("Invalid credentials")
         return templates.TemplateResponse(
             "admin/login.html",
             {"request": request, "error": "Неверные учетные данные"}
         )
 
     if user.role not in ["admin", "superadmin"]:
-        print(f"Insufficient role: {user.role}")
         return templates.TemplateResponse(
             "admin/login.html",
             {"request": request, "error": "Недостаточно прав"}
@@ -156,8 +143,6 @@ async def admin_login_post(
     session_token = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(days=1)
 
-    print(f"Creating session with token: {session_token}")
-
     session = AdminSession(
         user_id=user.id,
         session_token=session_token,
@@ -166,18 +151,16 @@ async def admin_login_post(
     db.add(session)
     await db.commit()
 
-    # Устанавливаем cookie с явными параметрами
+    # Устанавливаем cookie
     response.set_cookie(
         key="admin_session",
         value=session_token,
         max_age=86400,
         path="/",
-        httponly=False,  # Временно ставим False для отладки
+        httponly=True,
         secure=False,
         samesite="lax"
     )
-
-    print(f"Cookie set. Headers after set_cookie: {response.headers}")
 
     # Возвращаем RedirectResponse
     redirect_response = RedirectResponse(url="/admin/dashboard", status_code=303)
@@ -186,7 +169,6 @@ async def admin_login_post(
     for key, value in response.headers.items():
         if key.lower() == 'set-cookie':
             redirect_response.headers.append('set-cookie', value)
-            print(f"Cookie forwarded: {value}")
 
     return redirect_response
 
@@ -238,6 +220,23 @@ async def admin_dashboard(
     courses_count = await db.scalar(select(func.count()).select_from(Course))
     lessons_count = await db.scalar(select(func.count()).select_from(Lesson))
 
+    # Последние 5 платежей
+    recent_payments_result = await db.execute(
+        select(Payment)
+        .where(Payment.status == "succeeded")
+        .order_by(Payment.created_at.desc())
+        .limit(5)
+    )
+    recent_payments = recent_payments_result.scalars().all()
+    for p in recent_payments:
+        p.user = await db.get(User, p.user_id)
+
+    # Последние 5 зарегистрированных пользователей
+    recent_users_result = await db.execute(
+        select(User).order_by(User.created_at.desc()).limit(5)
+    )
+    recent_users = recent_users_result.scalars().all()
+
     return templates.TemplateResponse(
         "admin/dashboard.html",
         {
@@ -251,7 +250,9 @@ async def admin_dashboard(
                 "payments_today": payments_today or 0,
                 "courses": courses_count or 0,
                 "lessons": lessons_count or 0
-            }
+            },
+            "recent_payments": recent_payments,
+            "recent_users": recent_users,
         }
     )
 
@@ -386,16 +387,6 @@ async def admin_course(
     )
     lessons = lessons_result.scalars().all()
 
-    # Отладочная информация
-    print("\n=== УРОКИ И МАТЕРИАЛЫ ===")
-    for lesson in lessons:
-        print(f"Урок {lesson.id}: {lesson.title}")
-        if lesson.materials:
-            for m in lesson.materials:
-                print(f"  📎 {m.id}: {m.title}")
-        else:
-            print("  ❌ Нет материалов")
-
     return templates.TemplateResponse(
         "admin/course.html",
         {
@@ -516,8 +507,6 @@ async def upload_material(
 
     db.add(material)
     await db.commit()
-
-    print(f"Материал сохранён: {title} для урока {lesson_id}")
 
     return RedirectResponse(url="/admin/course", status_code=303)
 

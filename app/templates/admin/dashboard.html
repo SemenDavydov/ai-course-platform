@@ -3,40 +3,83 @@
 {% block title %}Дашборд{% endblock %}
 
 {% block content %}
-<script>
-    console.log('Dashboard loaded, cookies:', document.cookie);
-</script>
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-    <div class="bg-white rounded-lg shadow p-6">
+    <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
         <h3 class="text-gray-500 text-sm font-medium">Всего пользователей</h3>
-        <p class="text-3xl font-bold">{{ stats.users }}</p>
+        <p class="text-3xl font-bold text-gray-800">{{ stats.users }}</p>
     </div>
 
-    <div class="bg-white rounded-lg shadow p-6">
+    <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
         <h3 class="text-gray-500 text-sm font-medium">Оплативших</h3>
-        <p class="text-3xl font-bold">{{ stats.paid_users }}</p>
+        <p class="text-3xl font-bold text-gray-800">{{ stats.paid_users }}</p>
     </div>
 
-    <div class="bg-white rounded-lg shadow p-6">
+    <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
         <h3 class="text-gray-500 text-sm font-medium">Выручка</h3>
-        <p class="text-3xl font-bold">{{ stats.revenue }} ₽</p>
+        <p class="text-3xl font-bold text-gray-800">{{ stats.revenue }} ₽</p>
     </div>
 
-    <div class="bg-white rounded-lg shadow p-6">
+    <div class="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
         <h3 class="text-gray-500 text-sm font-medium">Уроков в курсе</h3>
-        <p class="text-3xl font-bold">{{ stats.lessons }}</p>
+        <p class="text-3xl font-bold text-gray-800">{{ stats.lessons }}</p>
     </div>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <div class="bg-white rounded-lg shadow p-6">
         <h2 class="text-xl font-bold mb-4">Последние платежи</h2>
-        <!-- Таблица последних платежей -->
+        {% if recent_payments %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50">
+                        <th class="px-3 py-2 text-left text-gray-500 font-medium">Пользователь</th>
+                        <th class="px-3 py-2 text-left text-gray-500 font-medium">Сумма</th>
+                        <th class="px-3 py-2 text-left text-gray-500 font-medium">Дата</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in recent_payments %}
+                    <tr class="border-t">
+                        <td class="px-3 py-2 text-gray-700">
+                            {% if p.user %}
+                                {{ p.user.username or p.user.telegram_id }}
+                            {% else %}
+                                {{ p.user_id }}
+                            {% endif %}
+                        </td>
+                        <td class="px-3 py-2 font-medium text-green-700">{{ p.amount }} ₽</td>
+                        <td class="px-3 py-2 text-gray-500">{{ p.created_at.strftime('%d.%m %H:%M') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-gray-400 text-sm">Нет платежей</p>
+        {% endif %}
     </div>
 
     <div class="bg-white rounded-lg shadow p-6">
         <h2 class="text-xl font-bold mb-4">Новые пользователи</h2>
-        <!-- Список новых пользователей -->
+        {% if recent_users %}
+        <div class="space-y-2">
+            {% for u in recent_users %}
+            <div class="flex items-center justify-between py-2 border-b last:border-0">
+                <div>
+                    <span class="font-medium text-gray-800">{{ u.username or 'ID ' ~ u.telegram_id }}</span>
+                    {% if u.email %}<span class="text-xs text-gray-400 ml-2">{{ u.email }}</span>{% endif %}
+                </div>
+                <div class="flex items-center space-x-2">
+                    {% if u.has_access %}<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">доступ</span>{% endif %}
+                    <span class="text-xs text-gray-400">{{ u.created_at.strftime('%d.%m') }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-400 text-sm">Нет пользователей</p>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

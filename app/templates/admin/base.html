@@ -5,23 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}AI Course Admin{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="bg-gray-100">
     <nav class="bg-white shadow-lg mb-8">
         <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between items-center h-16">
-                <div class="flex space-x-4">
-                    <a href="/admin/dashboard" class="text-gray-700 hover:text-gray-900 px-3 py-2">Дашборд</a>
-                    <a href="/admin/users" class="text-gray-700 hover:text-gray-900 px-3 py-2">Пользователи</a>
-                    <a href="/admin/course" class="text-gray-700 hover:text-gray-900 px-3 py-2">Курс</a>
-                    <a href="/admin/payments" class="text-gray-700 hover:text-gray-900 px-3 py-2">Платежи</a>
+                <!-- Desktop nav -->
+                <div class="hidden sm:flex space-x-1">
+                    <a href="/admin/dashboard" class="text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md font-medium">Дашборд</a>
+                    <a href="/admin/users" class="text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md font-medium">Пользователи</a>
+                    <a href="/admin/course" class="text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md font-medium">Курс</a>
+                    <a href="/admin/payments" class="text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md font-medium">Платежи</a>
                 </div>
-                <a href="/admin/logout" class="text-red-600 hover:text-red-800">Выйти</a>
+                <!-- Mobile nav toggle -->
+                <button id="nav-toggle" class="sm:hidden p-2 rounded-md text-gray-700 hover:bg-gray-100" onclick="document.getElementById('mobile-menu').classList.toggle('hidden')">
+                    <i class="fas fa-bars text-lg"></i>
+                </button>
+                <a href="/admin/logout" class="text-red-600 hover:text-red-800 font-medium">Выйти</a>
+            </div>
+            <!-- Mobile menu -->
+            <div id="mobile-menu" class="hidden sm:hidden pb-3 border-t border-gray-200 pt-2">
+                <a href="/admin/dashboard" class="block text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-md">Дашборд</a>
+                <a href="/admin/users" class="block text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-md">Пользователи</a>
+                <a href="/admin/course" class="block text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-md">Курс</a>
+                <a href="/admin/payments" class="block text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-md">Платежи</a>
             </div>
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-4">
+    <main class="max-w-7xl mx-auto px-4 pb-8">
         {% block content %}{% endblock %}
     </main>
 </body>

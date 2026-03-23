@@ -194,7 +194,8 @@ async def watch_video(
                 {
                     "request": request,
                     "error": "Недействительная ссылка",
-                    "lesson_title": "Ошибка доступа"
+                    "lesson_title": "Ошибка доступа",
+                    "bot_url": f"https://t.me/{settings.BOT_USERNAME}",
                 }
             )
 
@@ -206,7 +207,8 @@ async def watch_video(
                 {
                     "request": request,
                     "error": "Доступ запрещён",
-                    "lesson_title": "Ошибка доступа"
+                    "lesson_title": "Ошибка доступа",
+                    "bot_url": f"https://t.me/{settings.BOT_USERNAME}",
                 }
             )
 
@@ -234,7 +236,8 @@ async def watch_video(
                 {
                     "request": request,
                     "error": "Видео временно недоступно",
-                    "lesson_title": lesson.title if lesson else "Видео"
+                    "lesson_title": lesson.title if lesson else "Видео",
+                    "bot_url": f"https://t.me/{settings.BOT_USERNAME}",
                 }
             )
         import urllib.parse
@@ -261,6 +264,7 @@ async def watch_video(
                 "user_email": user.email or f"User {user.telegram_id}",
                 "materials": materials,
                 "token": token,
+                "bot_url": f"https://t.me/{settings.BOT_USERNAME}",
                 "error": None
             }
         )
@@ -271,7 +275,8 @@ async def watch_video(
             {
                 "request": request,
                 "error": "Срок действия ссылки истёк (2 часа). Вернитесь в бот за новой ссылкой.",
-                "lesson_title": "Ссылка устарела"
+                "lesson_title": "Ссылка устарела",
+                "bot_url": f"https://t.me/{settings.BOT_USERNAME}",
             }
         )
     except jwt.InvalidTokenError:
@@ -280,16 +285,17 @@ async def watch_video(
             {
                 "request": request,
                 "error": "Недействительная ссылка",
-                "lesson_title": "Ошибка доступа"
+                "lesson_title": "Ошибка доступа",
+                "bot_url": f"https://t.me/{settings.BOT_USERNAME}",
             }
         )
     except Exception as e:
-        print(f"Error in watch_video: {e}")
         return templates.TemplateResponse(
             "video/player.html",
             {
                 "request": request,
                 "error": "Произошла внутренняя ошибка",
-                "lesson_title": "Ошибка"
+                "lesson_title": "Ошибка",
+                "bot_url": f"https://t.me/{settings.BOT_USERNAME}",
             }
         )

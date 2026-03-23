@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import urllib.parse
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
@@ -19,13 +20,13 @@ from app.services.video import VideoService
 from app.services.shortener import URLShortener
 
 LESSON_DATA = {
-    1: ("🎯", "НАЧАЛО", "Начало: подготовка к работе с сервисами"),
-    2: ("💻", "ЛЕКЦИЯ 1", "Лекция 1: Написание сценария и создание персонажей для генерации"),
-    3: ("🎞️", "ЛЕКЦИЯ 2", "Лекция 2: Создание раскадровок для последующей анимации"),
-    4: ("📽️", "ЛЕКЦИЯ 3", "Лекция 3: Анимация раскадровок и озвучка реплик персонажей внутри сервиса, а также озвучка закадрового голоса"),
-    5: ("👨🏻‍💻", "ЛЕКЦИЯ 4", "Лекция 4: Монтаж целостного видео с помощью CapCut"),
-    7: ("❌", "ОШИБКИ НОВИЧКОВ", "Ошибки новичков, чего стоит избегать в работе на начальных этапах"),
-    8: ("🤳🏻", "ПРАВИЛА ХОРОШЕГО ПРОМТА", "Правила хорошего промта"),
+    1: ("🎯", "НАЧАЛО", "Начало: подготовка к работе с сервисом"),
+    2: ("💻", "ЛЕКЦИЯ 1", "Лекция 1: Написание сценария. Правила и реализация проекта"),
+    3: ("🎨", "ЛЕКЦИЯ 2", "Лекция 2: Создание раскадровок для последующей анимации"),
+    4: ("📽️", "ЛЕКЦИЯ 3", "Лекция 3: Анимация раскадровок и озвучка реплик персонажей"),
+    5: ("🎬", "ЛЕКЦИЯ 4", "Лекция 4: Монтаж целостного видео с помощью CapCut"),
+    7: ("❌", "ОШИБКИ НОВИЧКОВ", "Ошибки новичков: чего стоит избегать на начальных этапах"),
+    8: ("🤳🏻", "ПРАВИЛА ПРОМТА", "Правила хорошего промта"),
 }
 
 DEFAULT_LESSON_EMOJI = ("📹", "Урок")
@@ -87,6 +88,12 @@ async def get_or_create_user(telegram_id: int, db: AsyncSession, **kwargs) -> Us
 @dp.message(CommandStart())
 async def cmd_start(message: Message, db: AsyncSession):
     """Обработчик команды /start"""
+    # Проверяем, новый ли пользователь
+    query = select(User).where(User.telegram_id == message.from_user.id)
+    result = await db.execute(query)
+    existing_user = result.scalar_one_or_none()
+    is_new = existing_user is None
+
     user = await get_or_create_user(
         message.from_user.id,
         db,
@@ -95,12 +102,48 @@ async def cmd_start(message: Message, db: AsyncSession):
         last_name=message.from_user.last_name
     )
 
-    # Приветственное сообщение
-    welcome_text = (
-        f"👋 Привет, {message.from_user.first_name}!\n\n"
-    )
+    # Для пользователей с доступом — сразу показываем курс
+    if user.has_access:
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="📖 Перейти к курсу", callback_data="course")],
+                [InlineKeyboardButton(text="📚 О курсе", callback_data="about")],
+            ]
+        )
+        await message.answer(
+            f"👋 С возвращением, {message.from_user.first_name}!\n\n"
+            "✅ У вас есть полный доступ к курсу.",
+            reply_markup=keyboard
+        )
+        return
 
-    # Создаем клавиатуру
+    # Для новых пользователей — прогревающая последовательность
+    if is_new:
+        await message.answer(
+            f"👋 Привет, {message.from_user.first_name}!\n\n"
+            "Меня зовут Елизавета Давыдова — я создаю ИИ-анимации "
+            "и обучаю этому других. Рада видеть тебя здесь! 🎉"
+        )
+        await asyncio.sleep(1.5)
+
+        await message.answer(
+            "🎬 <b>Представь:</b> ты сам создаёшь анимационные ролики для соцсетей — "
+            "без дизайнеров, без сложных программ, прямо с телефона.\n\n"
+            "Именно это я покажу тебе в экспресс-курсе по созданию ИИ-анимаций и изображений."
+        )
+        await asyncio.sleep(2)
+
+        await message.answer(
+            "В курсе ты научишься:\n\n"
+            "🐳 Писать сценарии с помощью <b>DeepSeek</b>\n"
+            "💻 Генерировать изображения и анимации в <b>Grok</b>\n"
+            "📽️ Монтировать ролики в <b>CapCut</b>\n"
+            "🎶 Добавлять закадровую озвучку через <b>Zvukogram</b>\n\n"
+            "Всё — пошагово, с видеоуроками и готовыми материалами 📂"
+        )
+        await asyncio.sleep(1.5)
+
+    # Главное меню (для новых — после прогрева, для вернувшихся — сразу)
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="📚 О курсе", callback_data="about")],
@@ -108,17 +151,17 @@ async def cmd_start(message: Message, db: AsyncSession):
         ]
     )
 
-    # Если у пользователя уже есть доступ, добавляем кнопку перехода к курсу
-    if user.has_access:
-        welcome_text += "✅ У вас уже есть доступ к курсу!"
-        keyboard.inline_keyboard.insert(
-            0,
-            [InlineKeyboardButton(text="📖 Перейти к курсу", callback_data="course")]
+    if is_new:
+        menu_text = (
+            "Хочешь узнать подробнее или сразу приступить? 👇"
         )
     else:
-        welcome_text += "💡 Для получения доступа необходимо приобрести курс."
+        menu_text = (
+            f"👋 Привет, {message.from_user.first_name}!\n\n"
+            "Для получения доступа к курсу нажми «Купить доступ»."
+        )
 
-    await message.answer(welcome_text, reply_markup=keyboard)
+    await message.answer(menu_text, reply_markup=keyboard)
 
 
 # Обработчик кнопки "О курсе"
@@ -233,6 +276,7 @@ async def process_buy(callback: CallbackQuery, state: FSMContext, db: AsyncSessi
 
 @dp.callback_query(lambda c: c.data == "accept_offer")
 async def process_accept_offer(callback: CallbackQuery, state: FSMContext, db: AsyncSession):
+    await callback.answer()
     user = await get_or_create_user(callback.from_user.id, db)
     user.accepted_offer = True
     await db.commit()
@@ -416,17 +460,17 @@ async def process_lesson(callback: CallbackQuery, db: AsyncSession):
     # Получаем данные урока из словаря
     emoji, _, full_title = LESSON_DATA.get(lesson_id, ("📹", "УРОК", "Урок"))
 
-    # БЕРЁМ ТЕКСТ ПРЯМО ИЗ БАЗЫ, УЖЕ ГОТОВЫЙ
-    text = f"{emoji} *{full_title}*\n\n"
-    text += lesson.description  # Здесь уже всё отформатировано в админке
+    text = f"{emoji} *{full_title}*\n\n{lesson.description}"
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ К УРОКАМ", callback_data="course")]
+        ]
+    )
 
-    # Кнопки
-    buttons = []
     if lesson.video_id and lesson.video_id.strip():
         video_service = VideoService()
         jwt_token = await video_service.generate_jwt_link(user, lesson.video_id)
 
-        import urllib.parse
         parsed = urllib.parse.urlparse(jwt_token)
         query_params = urllib.parse.parse_qs(parsed.query)
         token_param = query_params.get('token', [None])[0]
@@ -436,23 +480,17 @@ async def process_lesson(callback: CallbackQuery, db: AsyncSession):
 
             shortener = URLShortener()
             short_url = await shortener.shorten(long_url)
-
-            # Если сокращение удалось, используем короткую ссылку
             display_url = short_url if short_url else long_url
 
-            lesson_text = (
-                f"*{lesson.title}*\n\n"
+            text = (
+                f"{emoji} *{full_title}*\n\n"
                 f"{lesson.description}\n\n"
                 f"🔗 *Ссылка на видео:*\n"
                 f"`{display_url}`\n\n"
             )
-
-            # Для кнопки тоже используем короткую ссылку
-            button_url = short_url if short_url else long_url
-
             keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[
-                    [InlineKeyboardButton(text="▶️ СМОТРЕТЬ ВИДЕО", url=button_url)],
+                    [InlineKeyboardButton(text="▶️ СМОТРЕТЬ ВИДЕО", url=display_url)],
                     [InlineKeyboardButton(text="◀️ К УРОКАМ", callback_data="course")]
                 ]
             )
@@ -473,7 +511,7 @@ async def process_back_to_start(callback: CallbackQuery, db: AsyncSession):
     # Приветственное сообщение
     welcome_text = (
         f"👋 Привет, {callback.from_user.first_name}!\n\n"
-        f"Для того, чтобы узнать подробнее о курске, нажми на кнопку 'О курсе'.\n\n"
+        f"Для того, чтобы узнать подробнее о курсе, нажми на кнопку 'О курсе'.\n\n"
     )
 
     # Создаем клавиатуру

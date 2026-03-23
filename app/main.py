@@ -3,7 +3,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi import Request
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.responses import HTMLResponse
+from starlette.responses import HTMLResponse, FileResponse
 
 from app.api import webhooks, admin
 from app.api.v1 import bot_api, materials
@@ -34,13 +34,23 @@ app.include_router(admin.router)
 app.include_router(bot_api.router)
 app.include_router(materials.router)
 
-@app.get("/")
-async def root():
-    return {
-        "message": f"Welcome to {settings.APP_NAME}",
-        "status": "running",
-        "debug": settings.DEBUG
-    }
+@app.get("/", response_class=HTMLResponse)
+async def root(request: Request):
+    return templates.TemplateResponse("landing.html", {
+        "request": request,
+        "bot_url": f"https://t.me/{settings.BOT_USERNAME}",
+        "app_name": settings.APP_NAME,
+    })
+
+@app.get("/robots.txt", include_in_schema=False)
+async def robots():
+    return FileResponse("app/static/robots.txt", media_type="text/plain")
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+async def sitemap():
+    return FileResponse("app/static/sitemap.xml", media_type="application/xml")
+
 
 @app.get("/offer", response_class=HTMLResponse)
 async def show_offer(request: Request):

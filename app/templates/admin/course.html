@@ -368,50 +368,31 @@ function closeUploadModal() {
 }
 
 async function viewMaterials(lessonId, lessonTitle) {
-    console.log('=== viewMaterials called ===');
-    console.log('Lesson ID:', lessonId);
-    console.log('Lesson Title:', lessonTitle);
-
     document.getElementById('viewMaterialsTitle').textContent = `Материалы: ${lessonTitle}`;
 
     try {
-        console.log('Fetching from:', `/api/v1/materials/lesson/${lessonId}`);
         const response = await fetch(`/api/v1/materials/lesson/${lessonId}`);
-        console.log('Response status:', response.status);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const materials = await response.json();
-        console.log('Materials received:', materials);
-        console.log('Number of materials:', materials.length);
-
         const materialsList = document.getElementById('materialsList');
-        console.log('Materials list element:', materialsList);
 
-        if (!materialsList) {
-            console.error('CRITICAL: materialsList element not found!');
-            return;
-        }
+        if (!materialsList) return;
 
         materialsList.innerHTML = '';
 
         if (materials.length === 0) {
             materialsList.innerHTML = '<p class="text-gray-500 text-center py-8">Нет материалов</p>';
-            console.log('No materials, showing empty message');
         } else {
-            console.log('Building HTML for', materials.length, 'materials');
-
-            materials.forEach((material, index) => {
-                console.log(`Processing material ${index}:`, material.title);
-
+            materials.forEach((material) => {
                 const sizeKB = material.file_size / 1024;
                 const sizeDisplay = sizeKB < 1024
                     ? sizeKB.toFixed(1) + ' КБ'
                     : (sizeKB / 1024).toFixed(1) + ' МБ';
 
-                // Определяем иконку в зависимости от типа файла
                 const fileIcon = material.file_type?.includes('pdf') ? 'fa-file-pdf' : 'fa-file-word';
                 const fileColor = material.file_type?.includes('pdf') ? 'text-red-600' : 'text-blue-600';
 
@@ -447,16 +428,13 @@ async function viewMaterials(lessonId, lessonTitle) {
                     </div>
                 `;
                 materialsList.innerHTML += materialHtml;
-                console.log(`Added material ${index} to DOM`);
             });
         }
 
         document.getElementById('viewMaterialsModal').classList.remove('hidden');
         document.getElementById('viewMaterialsModal').classList.add('flex');
-        console.log('Modal shown');
 
     } catch (error) {
-        console.error('Error in viewMaterials:', error);
         alert('Ошибка загрузки материалов: ' + error);
     }
 }
@@ -467,39 +445,24 @@ function closeViewMaterialsModal() {
 }
 
 async function deleteMaterial(materialId, lessonId) {
-    console.log('=== deleteMaterial called ===');
-    console.log('Material ID:', materialId);
-    console.log('Lesson ID:', lessonId);
-
-    if (!confirm('🗑️ Точно удалить этот материал? Это действие нельзя отменить.')) return;
+    if (!confirm('Точно удалить этот материал? Это действие нельзя отменить.')) return;
 
     try {
-        console.log('Sending DELETE request...');
         const response = await fetch(`/api/v1/materials/${materialId}?lesson_id=${lessonId}`, {
             method: 'DELETE'
         });
 
-        console.log('Response status:', response.status);
-
         if (response.ok) {
-            console.log('Delete successful, refreshing materials list');
-            // Обновляем список материалов
             const titleElement = document.getElementById('viewMaterialsTitle');
             const currentTitle = titleElement.textContent.replace('Материалы: ', '');
             await viewMaterials(lessonId, currentTitle);
-            // Перезагружаем страницу через секунду, чтобы обновились счетчики
-            setTimeout(() => {
-                console.log('Reloading page...');
-                location.reload();
-            }, 1000);
+            setTimeout(() => location.reload(), 1000);
         } else {
             const error = await response.text();
-            console.error('Delete failed:', error);
-            alert('❌ Ошибка при удалении: ' + error);
+            alert('Ошибка при удалении: ' + error);
         }
     } catch (error) {
-        console.error('Error in deleteMaterial:', error);
-        alert('❌ Ошибка: ' + error);
+        alert('Ошибка: ' + error);
     }
 }
 </script>

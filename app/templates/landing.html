@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Экспресс-курс по созданию ИИ анимаций и изображений | Davydova AI</title>
+    <meta name="description" content="Научись создавать профессиональные ИИ-анимации и изображения за несколько дней. Практический экспресс-курс с доступом через Telegram. Автор — Елизавета Давыдова.">
+    <meta name="keywords" content="ИИ анимации, AI изображения, курс по нейросетям, обучение AI, Давыдова">
+    <meta name="author" content="Елизавета Давыдова">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Экспресс-курс по созданию ИИ анимаций и изображений">
+    <meta property="og:description" content="Научись создавать профессиональные ИИ-анимации и изображения. Практический курс — доступ сразу после оплаты.">
+    <meta property="og:image" content="/static/images/logo.png">
+    <meta property="og:url" content="https://davydovaai.ru">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="canonical" href="https://davydovaai.ru">
+    <link rel="icon" type="image/png" href="/static/images/logo.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .gradient-border {
+            border-image: linear-gradient(135deg, #667eea, #764ba2) 1;
+        }
+        .hero-bg {
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+        }
+        .card-hover {
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px -10px rgba(102, 126, 234, 0.25);
+        }
+        .cta-pulse {
+            animation: ctaPulse 2.5s infinite;
+        }
+        @keyframes ctaPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.5); }
+            50% { box-shadow: 0 0 0 14px rgba(102, 126, 234, 0); }
+        }
+        .check-item::before {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            min-width: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            margin-right: 12px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='white'%3E%3Cpath fill-rule='evenodd' d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z' clip-rule='evenodd'/%3E%3C/svg%3E");
+            background-size: cover;
+        }
+        .faq-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        .faq-content.open {
+            max-height: 300px;
+        }
+        html { scroll-behavior: smooth; }
+    </style>
+</head>
+<body class="bg-white text-gray-900 overflow-x-hidden">
+
+<!-- НАВИГАЦИЯ -->
+<nav class="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-sm border-b border-gray-100 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <a href="/" class="flex items-center space-x-2">
+            <img src="/static/images/logo.png" alt="Davydova AI" class="h-9 w-auto">
+        </a>
+        <div class="hidden md:flex items-center space-x-6 text-sm font-medium text-gray-600">
+            <a href="#program" class="hover:text-purple-600 transition-colors">Программа</a>
+            <a href="#about" class="hover:text-purple-600 transition-colors">Об авторе</a>
+            <a href="#price" class="hover:text-purple-600 transition-colors">Стоимость</a>
+            <a href="#faq" class="hover:text-purple-600 transition-colors">FAQ</a>
+        </div>
+        <a href="{{ bot_url }}" target="_blank" rel="noopener"
+           class="gradient-bg text-white text-sm font-semibold px-4 py-2 rounded-full hover:opacity-90 transition-opacity flex items-center space-x-2">
+            <i class="fab fa-telegram"></i>
+            <span>Начать</span>
+        </a>
+    </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero-bg pt-16 min-h-screen flex items-center relative overflow-hidden">
+    <!-- Фоновые декоративные элементы -->
+    <div class="absolute top-1/4 -left-20 w-72 h-72 bg-purple-600/20 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute bottom-1/4 -right-20 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-20 md:py-28 w-full">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            <div class="text-center md:text-left">
+                <div class="inline-flex items-center space-x-2 bg-white/10 text-purple-200 text-xs font-semibold px-4 py-2 rounded-full mb-6 border border-purple-400/30">
+                    <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                    <span>Доступ сразу после оплаты</span>
+                </div>
+
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-6">
+                    Создавай
+                    <span class="gradient-text"> ИИ&nbsp;анимации</span>
+                    <br>и изображения
+                </h1>
+
+                <p class="text-lg text-gray-300 mb-8 leading-relaxed max-w-lg mx-auto md:mx-0">
+                    Экспресс-курс, после которого ты сможешь генерировать профессиональный AI-контент
+                    — даже если никогда не работал с нейросетями.
+                </p>
+
+                <div class="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
+                    <a href="{{ bot_url }}" target="_blank" rel="noopener"
+                       class="cta-pulse gradient-bg text-white font-bold text-lg px-8 py-4 rounded-2xl hover:opacity-90 transition-opacity inline-flex items-center justify-center space-x-3">
+                        <i class="fab fa-telegram text-xl"></i>
+                        <span>Получить доступ</span>
+                    </a>
+                    <a href="#program"
+                       class="border border-white/30 text-white font-semibold text-lg px-8 py-4 rounded-2xl hover:bg-white/10 transition-colors inline-flex items-center justify-center space-x-2">
+                        <span>Программа курса</span>
+                        <i class="fas fa-arrow-down text-sm"></i>
+                    </a>
+                </div>
+
+                <div class="flex items-center justify-center md:justify-start gap-6 mt-10 text-gray-400 text-sm">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-shield-alt text-purple-400"></i>
+                        <span>Безопасная оплата</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-bolt text-yellow-400"></i>
+                        <span>Мгновенный доступ</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Правая колонка — визуал -->
+            <div class="hidden md:flex justify-center">
+                <div class="relative">
+                    <div class="w-80 h-80 gradient-bg rounded-3xl opacity-20 absolute inset-0 blur-xl"></div>
+                    <div class="relative bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
+                        <div class="space-y-4">
+                            <div class="flex items-center gap-3 bg-white/10 rounded-xl p-4">
+                                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0">1</div>
+                                <div>
+                                    <p class="text-white font-semibold text-sm">Инструменты ИИ</p>
+                                    <p class="text-gray-400 text-xs">Grok, DeepSeek, Zvukogram и другие</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 bg-white/10 rounded-xl p-4">
+                                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0">2</div>
+                                <div>
+                                    <p class="text-white font-semibold text-sm">Промпты и техники</p>
+                                    <p class="text-gray-400 text-xs">Готовые шаблоны для любых задач</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 bg-white/10 rounded-xl p-4">
+                                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0">3</div>
+                                <div>
+                                    <p class="text-white font-semibold text-sm">Практика с нуля</p>
+                                    <p class="text-gray-400 text-xs">Пошаговые видеоуроки + материалы</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ДЛЯ КОГО КУРС -->
+<section class="bg-gray-50 py-20">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+        <div class="text-center mb-14">
+            <p class="text-purple-600 font-semibold text-sm uppercase tracking-widest mb-3">Целевая аудитория</p>
+            <h2 class="text-3xl sm:text-4xl font-black text-gray-900">Курс подойдёт, если ты...</h2>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="card-hover bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
+                    <i class="fas fa-user-tie text-purple-600 text-xl"></i>
+                </div>
+                <h3 class="font-bold text-gray-900 mb-2">Предприниматель или фрилансер</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">Хочешь создавать контент для соцсетей, рекламу и презентации без найма дизайнеров и видеографов.</p>
+            </div>
+            <div class="card-hover bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
+                    <i class="fas fa-paint-brush text-blue-600 text-xl"></i>
+                </div>
+                <h3 class="font-bold text-gray-900 mb-2">Дизайнер или контентмейкер</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">Хочешь усилить свой арсенал инструментами ИИ и предлагать клиентам больше возможностей.</p>
+            </div>
+            <div class="card-hover bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                <div class="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center mb-4">
+                    <i class="fas fa-star text-pink-600 text-xl"></i>
+                </div>
+                <h3 class="font-bold text-gray-900 mb-2">Начинающий — с нуля</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">Слышал про нейросети, но не знаешь с чего начать. Курс даёт конкретные шаги без лишней теории.</p>
+            </div>
+            <div class="card-hover bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-4">
+                    <i class="fas fa-store text-green-600 text-xl"></i>
+                </div>
+                <h3 class="font-bold text-gray-900 mb-2">Владелец бизнеса</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">Хочешь снизить расходы на маркетинг, генерируя уникальные визуалы самостоятельно.</p>
+            </div>
+            <div class="card-hover bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center mb-4">
+                    <i class="fas fa-graduation-cap text-yellow-600 text-xl"></i>
+                </div>
+                <h3 class="font-bold text-gray-900 mb-2">Студент или специалист</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">Хочешь добавить актуальный навык в резюме и выделиться среди других кандидатов.</p>
+            </div>
+            <div class="card-hover bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mb-4">
+                    <i class="fas fa-lightbulb text-indigo-600 text-xl"></i>
+                </div>
+                <h3 class="font-bold text-gray-900 mb-2">Любопытный человек</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">Интересуешься технологиями будущего и хочешь быть в числе тех, кто использует ИИ уже сейчас.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ПРОГРАММА КУРСА -->
+<section id="program" class="bg-white py-20">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+        <div class="text-center mb-14">
+            <p class="text-purple-600 font-semibold text-sm uppercase tracking-widest mb-3">Содержание</p>
+            <h2 class="text-3xl sm:text-4xl font-black text-gray-900">Программа курса</h2>
+            <p class="text-gray-500 mt-4 max-w-xl mx-auto">Видеоуроки + дополнительные материалы. Смотри в любое время, с любого устройства через Telegram-бота.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
+            <div class="card-hover flex items-start gap-4 p-5 rounded-2xl border border-gray-100 hover:border-purple-100 transition-colors">
+                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0 text-sm">01</div>
+                <div>
+                    <h3 class="font-bold text-gray-900 mb-1">Введение в мир ИИ-генерации</h3>
+                    <p class="text-gray-500 text-sm">Обзор лучших инструментов 2025 года, их возможности и ограничения. Как выбрать подходящий под задачу.</p>
+                </div>
+            </div>
+
+            <div class="card-hover flex items-start gap-4 p-5 rounded-2xl border border-gray-100 hover:border-purple-100 transition-colors">
+                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0 text-sm">02</div>
+                <div>
+                    <h3 class="font-bold text-gray-900 mb-1">Основы промпт-инжиниринга</h3>
+                    <p class="text-gray-500 text-sm">Как правильно формулировать запросы для получения нужного результата с первого раза.</p>
+                </div>
+            </div>
+
+            <div class="card-hover flex items-start gap-4 p-5 rounded-2xl border border-gray-100 hover:border-purple-100 transition-colors">
+                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0 text-sm">03</div>
+                <div>
+                    <h3 class="font-bold text-gray-900 mb-1">Генерация изображений</h3>
+                    <p class="text-gray-500 text-sm">Создаём реалистичные и художественные изображения. Стили, референсы, постобработка.</p>
+                </div>
+            </div>
+
+            <div class="card-hover flex items-start gap-4 p-5 rounded-2xl border border-gray-100 hover:border-purple-100 transition-colors">
+                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0 text-sm">04</div>
+                <div>
+                    <h3 class="font-bold text-gray-900 mb-1">Анимация и видеогенерация</h3>
+                    <p class="text-gray-500 text-sm">Превращаем статичные изображения в анимацию. Генерируем видео по тексту и изображению.</p>
+                </div>
+            </div>
+
+            <div class="card-hover flex items-start gap-4 p-5 rounded-2xl border border-gray-100 hover:border-purple-100 transition-colors">
+                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0 text-sm">05</div>
+                <div>
+                    <h3 class="font-bold text-gray-900 mb-1">Контент для социальных сетей</h3>
+                    <p class="text-gray-500 text-sm">Создаём Reels, Stories, обложки и посты. Готовые шаблоны под разные ниши.</p>
+                </div>
+            </div>
+
+            <div class="card-hover flex items-start gap-4 p-5 rounded-2xl border border-gray-100 hover:border-purple-100 transition-colors">
+                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0 text-sm">06</div>
+                <div>
+                    <h3 class="font-bold text-gray-900 mb-1">Монетизация и применение</h3>
+                    <p class="text-gray-500 text-sm">Где и как продавать AI-контент. Как встроить ИИ в рабочий процесс и экономить время.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-10 text-center">
+            <a href="{{ bot_url }}" target="_blank" rel="noopener"
+               class="gradient-bg text-white font-bold text-lg px-10 py-4 rounded-2xl hover:opacity-90 transition-opacity inline-flex items-center space-x-3">
+                <i class="fab fa-telegram"></i>
+                <span>Хочу учиться</span>
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- ЧТО ПОЛУЧИШЬ -->
+<section class="bg-gradient-to-br from-purple-50 to-blue-50 py-20">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+        <div class="text-center mb-14">
+            <p class="text-purple-600 font-semibold text-sm uppercase tracking-widest mb-3">Результат</p>
+            <h2 class="text-3xl sm:text-4xl font-black text-gray-900">Что ты получишь</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl mx-auto">
+            <div class="flex items-start space-x-4 check-item bg-white rounded-2xl p-5 shadow-sm">
+                <div>
+                    <p class="font-semibold text-gray-900">Пожизненный доступ к урокам</p>
+                    <p class="text-gray-500 text-sm mt-1">Видеоуроки доступны через Telegram-бота в любое время без ограничений по времени.</p>
+                </div>
+            </div>
+            <div class="flex items-start space-x-4 check-item bg-white rounded-2xl p-5 shadow-sm">
+                <div>
+                    <p class="font-semibold text-gray-900">Материалы и шаблоны</p>
+                    <p class="text-gray-500 text-sm mt-1">Готовые промпты, шпаргалки и рабочие шаблоны к каждому уроку для скачивания.</p>
+                </div>
+            </div>
+            <div class="flex items-start space-x-4 check-item bg-white rounded-2xl p-5 shadow-sm">
+                <div>
+                    <p class="font-semibold text-gray-900">Обновления курса</p>
+                    <p class="text-gray-500 text-sm mt-1">Мир ИИ меняется быстро — все новые уроки и обновления материалов входят в стоимость.</p>
+                </div>
+            </div>
+            <div class="flex items-start space-x-4 check-item bg-white rounded-2xl p-5 shadow-sm">
+                <div>
+                    <p class="font-semibold text-gray-900">Практические навыки</p>
+                    <p class="text-gray-500 text-sm mt-1">Уроки построены по принципу "смотри и повторяй" — ты сразу делаешь, а не только смотришь.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ОБ АВТОРЕ -->
+<section id="about" class="bg-white py-20">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center max-w-4xl mx-auto">
+            <div class="flex justify-center">
+                <div class="relative">
+                    <div class="w-64 h-64 gradient-bg rounded-3xl opacity-20 absolute inset-0 blur-2xl"></div>
+                    <div class="relative w-64 h-64 gradient-bg rounded-3xl flex items-center justify-center">
+                        <img src="/static/images/site.jpg" alt="Елизавета Давыдова" class="w-48 h-48 object-contain">
+                    </div>
+                </div>
+            </div>
+            <div>
+                <p class="text-purple-600 font-semibold text-sm uppercase tracking-widest mb-3">Автор курса</p>
+                <h2 class="text-3xl font-black text-gray-900 mb-4">Елизавета Давыдова</h2>
+                <p class="text-gray-600 leading-relaxed mb-6">
+                    Практик в области ИИ-генерации контента. Помогает предпринимателям, дизайнерам и обычным людям освоить нейросетевые инструменты и применять их в реальных задачах.
+                </p>
+                <div class="space-y-3">
+                    <div class="flex items-center gap-3 text-gray-700">
+                        <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-check text-purple-600 text-sm"></i>
+                        </div>
+                        <span class="text-sm">Опыт работы с нейросетями с 2022 года</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-gray-700">
+                        <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-check text-purple-600 text-sm"></i>
+                        </div>
+                        <span class="text-sm">Преподаёт только то, что применяет сама</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-gray-700">
+                        <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-check text-purple-600 text-sm"></i>
+                        </div>
+                        <span class="text-sm">Следит за актуальностью материалов курса</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ЦЕНА -->
+<section id="price" class="hero-bg py-20">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+        <div class="text-center mb-14">
+            <p class="text-purple-300 font-semibold text-sm uppercase tracking-widest mb-3">Инвестиция</p>
+            <h2 class="text-3xl sm:text-4xl font-black text-white">Стоимость курса</h2>
+            <p class="text-gray-400 mt-4">Единоразовая оплата — пожизненный доступ</p>
+        </div>
+
+        <div class="max-w-md mx-auto">
+            <div class="bg-white/5 border border-white/20 rounded-3xl p-8 backdrop-blur-sm relative overflow-hidden">
+                <div class="absolute top-4 right-4">
+                    <span class="gradient-bg text-white text-xs font-bold px-3 py-1 rounded-full">Полный курс</span>
+                </div>
+
+                <div class="mb-6">
+                    <div class="text-gray-400 text-sm mb-2">Стоимость</div>
+                    <div class="text-5xl font-black text-white">
+                        <!-- Цена подставляется из Telegram-бота -->
+                        <span id="course-price">—</span>
+                        <span class="text-2xl text-gray-400 ml-1">₽</span>
+                    </div>
+                    <p class="text-gray-500 text-sm mt-2">Точная цена — в Telegram-боте</p>
+                </div>
+
+                <ul class="space-y-3 mb-8">
+                    <li class="flex items-center gap-3 text-gray-300 text-sm">
+                        <i class="fas fa-check text-green-400 w-5"></i>
+                        <span>Все видеоуроки курса</span>
+                    </li>
+                    <li class="flex items-center gap-3 text-gray-300 text-sm">
+                        <i class="fas fa-check text-green-400 w-5"></i>
+                        <span>Материалы и шаблоны к урокам</span>
+                    </li>
+                    <li class="flex items-center gap-3 text-gray-300 text-sm">
+                        <i class="fas fa-check text-green-400 w-5"></i>
+                        <span>Пожизненный доступ</span>
+                    </li>
+                    <li class="flex items-center gap-3 text-gray-300 text-sm">
+                        <i class="fas fa-check text-green-400 w-5"></i>
+                        <span>Будущие обновления курса</span>
+                    </li>
+                    <li class="flex items-center gap-3 text-gray-300 text-sm">
+                        <i class="fas fa-check text-green-400 w-5"></i>
+                        <span>Доступ через Telegram-бота</span>
+                    </li>
+                </ul>
+
+                <a href="{{ bot_url }}" target="_blank" rel="noopener"
+                   class="cta-pulse gradient-bg text-white font-bold text-lg px-6 py-4 rounded-2xl hover:opacity-90 transition-opacity w-full flex items-center justify-center space-x-3">
+                    <i class="fab fa-telegram text-xl"></i>
+                    <span>Купить в Telegram</span>
+                </a>
+
+                <p class="text-center text-gray-500 text-xs mt-4 flex items-center justify-center gap-2">
+                    <i class="fas fa-lock text-gray-500"></i>
+                    Безопасная оплата через YooKassa
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" class="bg-gray-50 py-20">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6">
+        <div class="text-center mb-14">
+            <p class="text-purple-600 font-semibold text-sm uppercase tracking-widest mb-3">Вопросы</p>
+            <h2 class="text-3xl sm:text-4xl font-black text-gray-900">Часто задают</h2>
+        </div>
+
+        <div class="space-y-3">
+            <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <button onclick="toggleFaq(this)" class="w-full text-left px-6 py-5 flex items-center justify-between font-semibold text-gray-900 hover:text-purple-600 transition-colors">
+                    <span>Нужны ли технические знания?</span>
+                    <i class="fas fa-chevron-down text-gray-400 transition-transform duration-300"></i>
+                </button>
+                <div class="faq-content px-6">
+                    <p class="text-gray-600 text-sm leading-relaxed pb-5">Нет. Курс создан с нуля — объясняю всё простым языком. Если ты умеешь пользоваться смартфоном, этого достаточно для старта.</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <button onclick="toggleFaq(this)" class="w-full text-left px-6 py-5 flex items-center justify-between font-semibold text-gray-900 hover:text-purple-600 transition-colors">
+                    <span>Как долго у меня будет доступ?</span>
+                    <i class="fas fa-chevron-down text-gray-400 transition-transform duration-300"></i>
+                </button>
+                <div class="faq-content px-6">
+                    <p class="text-gray-600 text-sm leading-relaxed pb-5">Пожизненно. Оплата один раз — доступ навсегда. Все новые уроки и обновления тоже входят.</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <button onclick="toggleFaq(this)" class="w-full text-left px-6 py-5 flex items-center justify-between font-semibold text-gray-900 hover:text-purple-600 transition-colors">
+                    <span>Как проходит обучение?</span>
+                    <i class="fas fa-chevron-down text-gray-400 transition-transform duration-300"></i>
+                </button>
+                <div class="faq-content px-6">
+                    <p class="text-gray-600 text-sm leading-relaxed pb-5">Через Telegram-бота. После оплаты получаешь мгновенный доступ к видеоурокам и материалам. Учишься в своём темпе, когда удобно.</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <button onclick="toggleFaq(this)" class="w-full text-left px-6 py-5 flex items-center justify-between font-semibold text-gray-900 hover:text-purple-600 transition-colors">
+                    <span>Нужны ли платные подписки на сервисы?</span>
+                    <i class="fas fa-chevron-down text-gray-400 transition-transform duration-300"></i>
+                </button>
+                <div class="faq-content px-6">
+                    <p class="text-gray-600 text-sm leading-relaxed pb-5">В курсе показываю как платные, так и бесплатные инструменты. Для начала хватит бесплатных версий — их достаточно, чтобы освоить основы.</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <button onclick="toggleFaq(this)" class="w-full text-left px-6 py-5 flex items-center justify-between font-semibold text-gray-900 hover:text-purple-600 transition-colors">
+                    <span>Как оплатить?</span>
+                    <i class="fas fa-chevron-down text-gray-400 transition-transform duration-300"></i>
+                </button>
+                <div class="faq-content px-6">
+                    <p class="text-gray-600 text-sm leading-relaxed pb-5">Оплата через Telegram-бота банковской картой (Visa, Mastercard, Мир). Обработка платежей — YooKassa. Сразу после оплаты открывается доступ к курсу.</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <button onclick="toggleFaq(this)" class="w-full text-left px-6 py-5 flex items-center justify-between font-semibold text-gray-900 hover:text-purple-600 transition-colors">
+                    <span>Есть ли возврат?</span>
+                    <i class="fas fa-chevron-down text-gray-400 transition-transform duration-300"></i>
+                </button>
+                <div class="faq-content px-6">
+                    <p class="text-gray-600 text-sm leading-relaxed pb-5">Да, условия возврата описаны в <a href="/offer" class="text-purple-600 hover:underline">публичной оферте</a>. Напишите в бот, и мы разберёмся.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ФИНАЛЬНЫЙ CTA -->
+<section class="gradient-bg py-20">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+        <h2 class="text-3xl sm:text-4xl font-black text-white mb-6">
+            Начни создавать<br>AI-контент сегодня
+        </h2>
+        <p class="text-white/80 text-lg mb-10 max-w-xl mx-auto">
+            Присоединяйся к курсу и уже после первого урока у тебя будет своё первое AI-изображение.
+        </p>
+        <a href="{{ bot_url }}" target="_blank" rel="noopener"
+           class="bg-white text-purple-700 font-black text-xl px-12 py-5 rounded-2xl hover:bg-gray-50 transition-colors inline-flex items-center space-x-3 shadow-2xl">
+            <i class="fab fa-telegram text-2xl text-blue-500"></i>
+            <span>Открыть в Telegram</span>
+        </a>
+        <p class="text-white/50 text-sm mt-6">Мгновенный доступ после оплаты</p>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="bg-gray-900 text-gray-400 py-12">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            <div>
+                <img src="/static/images/logo.png" alt="Davydova AI" class="h-10 mb-4">
+                <p class="text-sm leading-relaxed">Экспресс-курс по созданию ИИ анимаций и изображений.</p>
+            </div>
+            <div>
+                <h4 class="text-white font-semibold mb-4 text-sm">Навигация</h4>
+                <ul class="space-y-2 text-sm">
+                    <li><a href="#program" class="hover:text-white transition-colors">Программа</a></li>
+                    <li><a href="#about" class="hover:text-white transition-colors">Об авторе</a></li>
+                    <li><a href="#price" class="hover:text-white transition-colors">Стоимость</a></li>
+                    <li><a href="#faq" class="hover:text-white transition-colors">FAQ</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="text-white font-semibold mb-4 text-sm">Документы</h4>
+                <ul class="space-y-2 text-sm">
+                    <li><a href="/offer" class="hover:text-white transition-colors">Публичная оферта</a></li>
+                    <li><a href="/privacy" class="hover:text-white transition-colors">Политика конфиденциальности</a></li>
+                </ul>
+                <div class="mt-4">
+                    <a href="{{ bot_url }}" target="_blank" rel="noopener"
+                       class="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors">
+                        <i class="fab fa-telegram text-lg"></i>
+                        <span>Telegram-бот</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="border-t border-gray-800 pt-8 text-xs text-gray-600 text-center">
+            <p>© 2026 Давыдова Елизавета Александровна. ИНН: 244403464589. Самозанятый.</p>
+            <p class="mt-1">Все права защищены. Сайт не является публичной офертой — см. <a href="/offer" class="hover:text-gray-400 underline">оферту</a>.</p>
+        </div>
+    </div>
+</footer>
+
+<script>
+    function toggleFaq(btn) {
+        const content = btn.nextElementSibling;
+        const icon = btn.querySelector('i');
+        content.classList.toggle('open');
+        icon.style.transform = content.classList.contains('open') ? 'rotate(180deg)' : '';
+    }
+</script>
+</body>
+</html>
