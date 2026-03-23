@@ -1,0 +1,18 @@
+[Unit]
+Description=AI Course Platform - Celery Beat
+After=network.target redis.service postgresql.service celery-worker.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/ai-course-platform
+EnvironmentFile=/root/ai-course-platform/.env
+ExecStart=/root/ai-course-platform/venv/bin/celery -A app.celery_app beat --loglevel=info
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

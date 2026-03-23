@@ -276,12 +276,11 @@ async def process_buy(callback: CallbackQuery, state: FSMContext, db: AsyncSessi
 
 @dp.callback_query(lambda c: c.data == "accept_offer")
 async def process_accept_offer(callback: CallbackQuery, state: FSMContext, db: AsyncSession):
-    await callback.answer()
     user = await get_or_create_user(callback.from_user.id, db)
     user.accepted_offer = True
     await db.commit()
 
-    # Перенаправляем на процесс покупки
+    # process_buy сам вызовет callback.answer()
     await process_buy(callback, state, db)
 
 # Обработчик ввода email

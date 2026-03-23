@@ -1,0 +1,18 @@
+[Unit]
+Description=AI Course Platform - Telegram Bot
+After=network.target postgresql.service fastapi.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/ai-course-platform
+EnvironmentFile=/root/ai-course-platform/.env
+ExecStart=/root/ai-course-platform/venv/bin/python -m app.bot.bot
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
