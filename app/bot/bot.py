@@ -19,6 +19,9 @@ from app.services.payment import PaymentService
 from app.services.video import VideoService
 from app.services.shortener import URLShortener
 
+# Users who have already seen the warmup sequence in this bot session
+_warmup_shown: set[int] = set()
+
 LESSON_DATA = {
     1: ("🎯", "НАЧАЛО", "Начало: подготовка к работе с сервисом"),
     2: ("💻", "ЛЕКЦИЯ 1", "Лекция 1: Написание сценария. Правила и реализация проекта"),
@@ -117,8 +120,12 @@ async def cmd_start(message: Message, db: AsyncSession):
         )
         return
 
-    # Для новых пользователей — прогревающая последовательность
-    if is_new:
+    # Прогревающая последовательность — для новых или тех, кто ещё не видел в этой сессии
+    show_warmup = message.from_user.id not in _warmup_shown
+    if show_warmup:
+        _warmup_shown.add(message.from_user.id)
+
+    if show_warmup:
         await message.answer(
             f"👋 Привет, {message.from_user.first_name}!\n\n"
             "Меня зовут Елизавета Давыдова — я создаю ИИ-анимации "
@@ -151,7 +158,7 @@ async def cmd_start(message: Message, db: AsyncSession):
         ]
     )
 
-    if is_new:
+    if show_warmup:
         menu_text = (
             "Хочешь узнать подробнее или сразу приступить? 👇"
         )
