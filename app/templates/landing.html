@@ -73,6 +73,19 @@
         html { scroll-behavior: smooth; }
         .reach-photo { max-height: 520px; }
         .pay-modal-img { max-height: 400px; object-position: top; }
+
+        /* Модалки на телефоне: если контент выше экрана — карточка скроллится,
+           иначе кнопка оплаты оказывается за пределами вьюпорта и её не нажать. */
+        .modal-panel {
+            max-height: 90vh;
+            max-height: 90dvh;   /* dvh учитывает адресную строку мобильных браузеров */
+            overflow-y: auto;
+            overscroll-behavior: contain;
+        }
+        @media (max-width: 640px) {
+            /* уменьшаем картинку, чтобы цена и кнопка помещались без прокрутки */
+            .pay-modal-img { max-height: 180px; }
+        }
     </style>
 </head>
 <body class="bg-white text-gray-900 overflow-x-hidden">
@@ -829,8 +842,8 @@
 {% include 'partials/auth_modal.html' %}
 
 <!-- ===== МОДАЛ ОФОРМЛЕНИЯ ПОКУПКИ ===== -->
-<div id="pay-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-fadeIn">
+<div id="pay-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div class="modal-panel bg-white rounded-3xl shadow-2xl max-w-md w-full animate-fadeIn">
 
         <!-- Изображение -->
         <div class="relative">
@@ -903,8 +916,8 @@
 </div>
 
 <!-- ===== МОДАЛ: КУРС УЖЕ ПРИОБРЕТЁН ===== -->
-<div id="already-paid-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-fadeIn">
+<div id="already-paid-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div class="modal-panel bg-white rounded-3xl shadow-2xl max-w-md w-full animate-fadeIn">
         <div class="p-6 sm:p-7">
             <div class="w-12 h-12 rounded-2xl bg-green-100 text-green-600 flex items-center justify-center mb-4">
                 <i class="fas fa-check-circle text-xl"></i>
