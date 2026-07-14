@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.client.telegram import PRODUCTION, TelegramAPIServer
 import aiohttp
 from app.bot.httpx_session import HttpxSession
 from aiogram.client.default import DefaultBotProperties
@@ -48,10 +49,19 @@ DEFAULT_LESSON_EMOJI = ("📹", "Урок")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Инициализация бота и диспетчера
+# Инициализация бота и диспетчера.
+# С хостинга в РФ api.telegram.org напрямую недоступен, поэтому на проде
+# запросы идут через прокси: TELEGRAM_API_BASE в .env (адрес не в коде —
+# репозиторий публичный). Пусто — работаем напрямую.
+telegram_api = (
+    TelegramAPIServer.from_base(settings.TELEGRAM_API_BASE.rstrip("/"))
+    if settings.TELEGRAM_API_BASE
+    else PRODUCTION
+)
+
 bot = Bot(
     token=settings.BOT_TOKEN,
-    session=HttpxSession(),
+    session=HttpxSession(api=telegram_api),
     default=DefaultBotProperties(parse_mode=ParseMode.HTML)
 )
 storage = MemoryStorage()

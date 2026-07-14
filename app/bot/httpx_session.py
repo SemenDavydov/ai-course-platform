@@ -5,6 +5,7 @@ import certifi
 from typing import Any, Optional, AsyncGenerator
 from aiogram.client.session.base import BaseSession
 from aiogram.client.default import Default
+from aiogram.client.telegram import PRODUCTION, TelegramAPIServer
 from aiogram.methods import TelegramMethod
 from aiogram.methods.base import TelegramType
 from aiogram.client.bot import Bot
@@ -12,8 +13,10 @@ from aiogram.types import InputFile
 
 
 class HttpxSession(BaseSession):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, api: TelegramAPIServer = PRODUCTION):
+        # api задаётся, когда до api.telegram.org не достучаться напрямую
+        # (на хостинге в РФ) и запросы идут через прокси — см. TELEGRAM_API_BASE.
+        super().__init__(api=api)
         self._client: Optional[httpx.AsyncClient] = None
 
     async def _get_client(self) -> httpx.AsyncClient:

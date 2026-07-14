@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     # Telegram
     BOT_TOKEN: str
     BOT_USERNAME: str = "DavydovaAIBot"
+    # Прокси до Telegram API (напр. Cloudflare Worker): с хостинга в РФ
+    # api.telegram.org недоступен. Пусто — ходим напрямую.
+    TELEGRAM_API_BASE: str = ""
 
     # YooKassa
     YOOKASSA_SHOP_ID: str
