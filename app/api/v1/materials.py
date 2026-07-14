@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,58 +12,65 @@ from app.api.admin import get_current_admin
 from app.database import get_db
 from app.models.user import User
 from app.models.material import Material
+from app.services.auth import get_optional_user
 from app.config import settings
 
 router = APIRouter(prefix="/api/v1/materials", tags=["materials"])
 
 
+async def _resolve_material_user(
+    request: Request,
+    token: Optional[str],
+    db: AsyncSession,
+) -> User:
+    """
+    Кто скачивает материал.
+    Веб-пользователь — по cookie-сессии (основной путь, ссылка из кабинета).
+    Ссылки из бота приходят с JWT в query — их продолжаем поддерживать.
+    """
+    if token:
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=403, detail="Token expired")
+        except jwt.InvalidTokenError:
+            raise HTTPException(status_code=403, detail="Invalid token")
+        user = await db.get(User, payload.get("user_id"))
+    else:
+        user = await get_optional_user(request, db)
+
+    if not user or not user.has_access:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    return user
+
+
 @router.get("/{material_id}/download")
 async def download_material(
         material_id: int,
-        token: str,
+        request: Request,
+        token: Optional[str] = None,
         db: AsyncSession = Depends(get_db)
 ):
     """Скачивание материала с проверкой доступа"""
-    try:
-        # Проверяем JWT токен
-        payload = jwt.decode(
-            token,
-            settings.SECRET_KEY,
-            algorithms=["HS256"]
-        )
+    await _resolve_material_user(request, token, db)
 
-        user_id = payload.get("user_id")
+    material = await db.get(Material, material_id)
+    if not material:
+        raise HTTPException(status_code=404, detail="Material not found")
 
-        # Проверяем доступ пользователя
-        user = await db.get(User, user_id)
-        if not user or not user.has_access:
-            raise HTTPException(status_code=403, detail="Access denied")
+    file_path = os.path.join("uploads", "materials", material.file_name)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
 
-        # Получаем материал
-        material = await db.get(Material, material_id)
-        if not material:
-            raise HTTPException(status_code=404, detail="Material not found")
+    material.downloads_count += 1
+    await db.commit()
 
-        # Увеличиваем счетчик скачиваний
-        material.downloads_count += 1
-        await db.commit()
-
-        # Путь к файлу
-        file_path = os.path.join("uploads", "materials", material.file_name)
-
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail="File not found")
-
-        return FileResponse(
-            path=file_path,
-            filename=material.original_name,
-            media_type=material.file_type
-        )
-
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=403, detail="Token expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=403, detail="Invalid token")
+    return FileResponse(
+        path=file_path,
+        filename=material.original_name,
+        media_type=material.file_type
+    )
 
 
 @router.get("/lesson/{lesson_id}")

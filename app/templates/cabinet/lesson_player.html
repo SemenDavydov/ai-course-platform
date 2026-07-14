@@ -105,7 +105,7 @@
           <a href="/api/v1/materials/{{ material.id }}/download"
              class="flex items-center gap-3 text-sm text-gray-700 hover:text-purple-700 group py-1">
             <i class="fa-solid fa-file-arrow-down text-gray-400 group-hover:text-purple-500 transition-colors"></i>
-            <span class="truncate">{{ material.title or material.filename }}</span>
+            <span class="truncate">{{ material.title or material.original_name }}</span>
           </a>
         </li>
         {% endfor %}
