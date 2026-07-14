@@ -27,6 +27,8 @@
                     <th class="px-4 py-2 text-left">Telegram ID</th>
                     <th class="px-4 py-2 text-left">Username</th>
                     <th class="px-4 py-2 text-left">Email</th>
+                    <th class="px-4 py-2 text-left">Источник</th>
+                    <th class="px-4 py-2 text-left">Email верифицирован</th>
                     <th class="px-4 py-2 text-left">Роль</th>
                     <th class="px-4 py-2 text-left">Доступ</th>
                     <th class="px-4 py-2 text-left">Статус</th>
@@ -40,6 +42,23 @@
                     <td class="px-4 py-2">{{ user.telegram_id }}</td>
                     <td class="px-4 py-2">{{ user.username or '-' }}</td>
                     <td class="px-4 py-2">{{ user.email or '-' }}</td>
+                    <td class="px-4 py-2">
+                        <span class="px-2 py-1 rounded text-xs
+                            {% if user.registration_source == 'web' %}bg-green-100 text-green-800
+                            {% elif user.registration_source == 'bot_migrated' %}bg-yellow-100 text-yellow-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ user.registration_source or 'bot' }}
+                        </span>
+                    </td>
+                    <td class="px-4 py-2 text-center">
+                        {% if user.email_verified %}
+                        <span class="text-green-600" title="Подтверждён">✅</span>
+                        {% elif user.email %}
+                        <span class="text-yellow-500" title="Не подтверждён">⏳</span>
+                        {% else %}
+                        <span class="text-gray-400">—</span>
+                        {% endif %}
+                    </td>
                     <td class="px-4 py-2">
                         <span class="px-2 py-1 rounded text-xs
                             {% if user.role == 'superadmin' %}bg-purple-100 text-purple-800
@@ -81,6 +100,11 @@
                             <option value="superadmin" {% if user.role == 'superadmin' %}selected{% endif %}>Super Admin</option>
                         </select>
                         {% endif %}
+
+                        <a href="/admin/users/{{ user.id }}"
+                           class="text-sm bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded">
+                            Карточка
+                        </a>
                     </td>
                 </tr>
                 {% endfor %}

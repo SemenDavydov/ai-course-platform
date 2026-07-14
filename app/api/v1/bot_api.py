@@ -3,12 +3,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Request
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from typing import Optional
 from pydantic import BaseModel
 from starlette.responses import HTMLResponse
-from starlette.templating import Jinja2Templates
 
 from app.config import settings
+from app.templating import templates
 from app.database import get_db
 from app.models.material import Material
 from app.models.user import User
@@ -16,8 +17,6 @@ from app.models.course import Course, Lesson
 from app.services.video import VideoService
 
 router = APIRouter(prefix="/api/v1/bot", tags=["bot-api"])
-
-templates = Jinja2Templates(directory="app/templates")
 
 # Pydantic модели для ответов
 class UserResponse(BaseModel):
@@ -75,7 +74,11 @@ async def get_course(db: AsyncSession = Depends(get_db)):
     Получает информацию о курсе со всеми уроками
     Используется ботом для отображения содержания
     """
-    query = select(Course).where(Course.is_published == True)
+    query = (
+        select(Course)
+        .where(Course.is_published == True)
+        .options(selectinload(Course.lessons))
+    )
     result = await db.execute(query)
     course = result.scalar_one_or_none()
 

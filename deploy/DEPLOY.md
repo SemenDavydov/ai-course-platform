@@ -126,13 +126,17 @@ nginx -t && systemctl reload nginx
 
 ## 5. Шаблон .env на сервере
 
-Файл `/root/ai-course-platform/.env` — создаётся вручную, НЕ через GitHub:
+Файл `/root/ai-course-platform/.env` — создаётся вручную, НЕ через GitHub. Актуальный перечень полей см. в `.env.example` в репозитории. Минимально для веба + бота + почты:
 
 ```
+APP_NAME=...
+DEBUG=False
 SECRET_KEY=ваш_секретный_ключ_минимум_32_символа
+ADMIN_SECRET_CODE=...
 DATABASE_URL=postgresql+asyncpg://postgres:ПАРОЛЬ@localhost:5432/aicourse
 BOT_TOKEN=токен_бота
 BOT_USERNAME=DavydovaAIBot
+BOT_ENABLED=true
 YOOKASSA_SHOP_ID=ваш_id
 YOOKASSA_SECRET_KEY=ваш_ключ
 KINESCOPE_API_KEY=ваш_ключ
@@ -140,7 +144,16 @@ KINESCOPE_PROJECT_ID=ваш_project_id
 CLC_API_KEY=ваш_ключ
 REDIS_URL=redis://localhost:6379/0
 SITE_URL=https://davydovaai.ru
+SMTP_HOST=...
+SMTP_PORT=587
+SMTP_USER=...
+SMTP_PASSWORD=...
+SMTP_FROM=noreply@davydovaai.ru
 ```
+
+После правок `.env` перезапустите процессы: `pm2 restart fastapi bot celery-worker celery-beat`.
+
+Если бот не нужен на проде, задайте `BOT_ENABLED=false` и остановите процесс: `pm2 stop bot` (на сайте ссылка на Telegram всё равно останется для желающих общаться с ботом вручную).
 
 ---
 

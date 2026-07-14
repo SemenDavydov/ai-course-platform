@@ -5,23 +5,37 @@ import bcrypt
 
 class User(Base):
     __tablename__ = "users"
-    
+
     id = Column(Integer, primary_key=True)
     telegram_id = Column(BigInteger, unique=True, nullable=True, index=True)
     username = Column(String, nullable=True)
     first_name = Column(String, nullable=True)
     last_name = Column(String, nullable=True)
     email = Column(String, nullable=True)
-    
+
     password_hash = Column(String, nullable=True)
     role = Column(String, default="user")
     is_blocked = Column(Boolean, default=False)
     accepted_offer = Column(Boolean, default=False)
-    
+
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
     has_access = Column(Boolean, default=False)
-    
+
+    # Web auth fields
+    email_verified = Column(Boolean, default=False, nullable=False)
+    email_verification_token = Column(String, nullable=True)
+    email_verification_sent_at = Column(DateTime(timezone=True), nullable=True)
+    name = Column(String, nullable=True)
+    avatar_url = Column(String, nullable=True)
+    registration_source = Column(String, default="bot_migrated", nullable=False)
+    password_reset_token = Column(String, nullable=True)
+    password_reset_sent_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Одноразовый вход на сайт из Telegram-бота (для покупателей без email)
+    login_token = Column(String, nullable=True, unique=True, index=True)
+    login_token_sent_at = Column(DateTime(timezone=True), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     access_granted_at = Column(DateTime(timezone=True), nullable=True)

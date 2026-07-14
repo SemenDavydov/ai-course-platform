@@ -6,53 +6,51 @@ import aiohttp
 import asyncio
 from datetime import datetime, timedelta
 import json
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 from app.database import AsyncSessionLocal
 from app.models.user import User
 from app.models.payment import Payment
 from app.config import settings
+from app.services.email import send_email
 
 logger = logging.getLogger(__name__)
 
 
 @shared_task
-def send_receipt_to_email(payment_id: int, user_email: str, amount: float):
+def send_email_task(to: str, subject: str, html_body: str) -> bool:
     """
-    Отправляет чек на email пользователя (фоновая задача)
+    Celery-обёртка для асинхронной отправки произвольного HTML-письма.
+    """
+    return send_email(to, subject, html_body)
+
+
+def enqueue_email(to: str, subject: str, html_body: str) -> bool:
+    """
+    Безопасная отправка email:
+    - сначала пробуем поставить задачу в Celery;
+    - если брокер недоступен, отправляем синхронно через SMTP.
     """
     try:
-        # Создаем письмо
-        msg = MIMEMultipart()
-        msg['From'] = settings.SMTP_FROM
-        msg['To'] = user_email
-        msg['Subject'] = "Чек об оплате курса"
+        send_email_task.delay(to, subject, html_body)
+        return True
+    except Exception as exc:
+        logger.error("Failed to queue email task, fallback to direct send: %s", exc)
+        return send_email(to, subject, html_body)
 
-        body = f"""
-        Благодарим за покупку!
 
-        Сумма: {amount}₽
-        Дата: {datetime.now().strftime('%d.%m.%Y %H:%M')}
-
-        Чек отправлен в ФНС автоматически.
-        С уважением, команда курса.
-        """
-
-        msg.attach(MIMEText(body, 'plain'))
-
-        # Отправляем
-        server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT)
-        server.starttls()
-        server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-        server.send_message(msg)
-        server.quit()
-
-        logger.info(f"Receipt sent to {user_email}")
-
-    except Exception as e:
-        logger.error(f"Failed to send receipt: {e}")
+@shared_task
+def send_receipt_to_email(payment_id: int, user_email: str, amount: float):
+    """
+    Отправляет чек об оплате на email пользователя (фоновая задача).
+    """
+    html_body = f"""
+    <p>Благодарим за покупку!</p>
+    <p>Сумма: <strong>{amount}₽</strong><br>
+    Дата: {datetime.now().strftime('%d.%m.%Y %H:%M')}</p>
+    <p>Чек отправлен в ФНС автоматически.<br>
+    С уважением, команда курса.</p>
+    """
+    send_email(user_email, "Чек об оплате курса", html_body)
 
 
 @shared_task
@@ -114,56 +112,6 @@ def send_daily_report():
 
 
 @shared_task
-def monitor_piracy():
-    """
-    Мониторит пиратские сайты и Telegram каналы на наличие курса
-    """
-
-    async def _search_telegram():
-        # Поиск в Telegram (через клиент или публичные API)
-        # Это сложная тема, требует отдельной реализации
-        pass
-
-    async def _search_youtube():
-        # Поиск на YouTube
-        async with aiohttp.ClientSession() as session:
-            # Здесь нужно использовать YouTube Data API
-            pass
-
-    async def _search_google():
-        # Поиск в Google
-        keywords = [
-            f'"{settings.COURSE_NAME}" скачать',
-            f'"{settings.COURSE_NAME}" слив',
-            f'"{settings.COURSE_NAME}" торрент'
-        ]
-
-        async with aiohttp.ClientSession() as session:
-            for keyword in keywords:
-                url = f"https://www.googleapis.com/customsearch/v1"
-                params = {
-                    "key": settings.GOOGLE_API_KEY,
-                    "cx": settings.GOOGLE_CX,
-                    "q": keyword
-                }
-
-                try:
-                    async with session.get(url, params=params) as resp:
-                        data = await resp.json()
-                        # Анализируем результаты
-                        if data.get("items"):
-                            logger.warning(f"Found potential piracy: {keyword}")
-                            # Здесь можно сохранять результаты или отправлять уведомление
-                except Exception as e:
-                    logger.error(f"Search error: {e}")
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(_search_google())
-    loop.close()
-
-
-@shared_task
 def backup_database():
     """
     Создает бэкап базы данных
@@ -189,6 +137,56 @@ def backup_database():
 
     except subprocess.CalledProcessError as e:
         logger.error(f"Backup failed: {e}")
+
+
+@shared_task
+def notify_bot_migration():
+    """
+    One-off задача: рассылает письмо «Мы переехали на сайт» всем пользователям
+    с has_access=True и заполненным email (для мигрированных из бота).
+    Запускать вручную: celery -A app.celery_app call app.tasks.notify_bot_migration
+    """
+    from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+    async def _run():
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(User).where(User.has_access == True, User.email.isnot(None))
+            )
+            users = result.scalars().all()
+
+        _jinja = Environment(
+            loader=FileSystemLoader("app/templates/emails"),
+            autoescape=select_autoescape(["html"]),
+        )
+        template = _jinja.get_template("set_password_migration.html")
+
+        sent = 0
+        failed = 0
+        for user in users:
+            try:
+                html = template.render(
+                    email=user.email,
+                    setup_url=f"{settings.SITE_URL}/auth/password-setup/request",
+                    site_url=settings.SITE_URL,
+                )
+                ok = send_email(user.email, "Мы переехали на сайт — установите пароль", html)
+                if ok:
+                    sent += 1
+                else:
+                    failed += 1
+            except Exception as e:
+                logger.error(f"notify_bot_migration: failed for {user.email}: {e}")
+                failed += 1
+
+        logger.info(f"notify_bot_migration: sent={sent}, failed={failed}, total={len(users)}")
+        return {"sent": sent, "failed": failed, "total": len(users)}
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    result = loop.run_until_complete(_run())
+    loop.close()
+    return result
 
 
 # Задача для отправки массовых уведомлений

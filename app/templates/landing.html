@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Экспресс-курс по созданию ИИ анимаций и изображений | Davydova AI</title>
-    <meta name="description" content="Научись создавать профессиональные ИИ-анимации и изображения за несколько дней. Практический экспресс-курс с доступом через Telegram. Автор — Елизавета Давыдова.">
+    <meta name="description" content="Научись создавать профессиональные ИИ-анимации и изображения за несколько дней. Практический экспресс-курс с доступом через личный кабинет на сайте. Автор — Елизавета Давыдова.">
     <meta name="keywords" content="ИИ анимации, AI изображения, курс по нейросетям, обучение AI, Давыдова">
     <meta name="author" content="Елизавета Давыдова">
     <meta property="og:type" content="website">
@@ -71,6 +71,8 @@
             max-height: 300px;
         }
         html { scroll-behavior: smooth; }
+        .reach-photo { max-height: 520px; }
+        .pay-modal-img { max-height: 400px; object-position: top; }
     </style>
 </head>
 <body class="bg-white text-gray-900 overflow-x-hidden">
@@ -86,12 +88,29 @@
             <a href="#about" class="hover:text-purple-600 transition-colors">Об авторе</a>
             <a href="#price" class="hover:text-purple-600 transition-colors">Стоимость</a>
             <a href="#faq" class="hover:text-purple-600 transition-colors">FAQ</a>
+            <a href="{{ telegram_bot_url }}" target="_blank" rel="noopener noreferrer"
+               class="hover:text-purple-600 transition-colors inline-flex items-center gap-1.5">
+                <i class="fab fa-telegram text-sky-500"></i> Бот
+            </a>
         </div>
-        <a href="{{ bot_url }}" target="_blank" rel="noopener"
+        {% if current_user and current_user.has_access %}
+        <a href="/cabinet"
            class="gradient-bg text-white text-sm font-semibold px-4 py-2 rounded-full hover:opacity-90 transition-opacity flex items-center space-x-2">
-            <i class="fab fa-telegram"></i>
-            <span>Начать</span>
+            <i class="fas fa-play-circle"></i>
+            <span>Мой курс</span>
         </a>
+        {% elif current_user %}
+        <a href="/cabinet/profile"
+           class="border border-purple-400 text-purple-600 text-sm font-semibold px-4 py-2 rounded-full hover:bg-purple-50 transition-colors flex items-center space-x-2">
+            <i class="fas fa-user"></i>
+            <span>Личный кабинет</span>
+        </a>
+        {% else %}
+        <button type="button" onclick="openAuthModal('register')"
+                class="gradient-bg text-white text-sm font-semibold px-4 py-2 rounded-full hover:opacity-90 transition-opacity flex items-center space-x-2">
+            <span>Войти</span>
+        </button>
+        {% endif %}
     </div>
 </nav>
 
@@ -121,11 +140,10 @@
                 </p>
 
                 <div class="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-                    <a href="{{ bot_url }}" target="_blank" rel="noopener"
-                       class="cta-pulse gradient-bg text-white font-bold text-lg px-8 py-4 rounded-2xl hover:opacity-90 transition-opacity inline-flex items-center justify-center space-x-3">
-                        <i class="fab fa-telegram text-xl"></i>
+                    <button type="button" onclick="buyOrAuth()"
+                            class="cta-pulse gradient-bg text-white font-bold text-lg px-8 py-4 rounded-2xl hover:opacity-90 transition-opacity inline-flex items-center justify-center space-x-3">
                         <span>Получить доступ</span>
-                    </a>
+                    </button>
                     <a href="#program"
                        class="border border-white/30 text-white font-semibold text-lg px-8 py-4 rounded-2xl hover:bg-white/10 transition-colors inline-flex items-center justify-center space-x-2">
                         <span>Программа курса</span>
@@ -176,6 +194,84 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</section>
+
+<!-- МОИ ОХВАТЫ -->
+<section class="bg-white py-20">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+        <div class="text-center mb-14">
+            <p class="text-purple-600 font-semibold text-sm uppercase tracking-widest mb-3">Реальная статистика за 3 месяца</p>
+            <h2 class="text-3xl sm:text-4xl font-black text-gray-900">Мои охваты</h2>
+            <p class="text-gray-500 mt-4 max-w-2xl mx-auto">Я сама прошла этот путь — от нуля до тысяч подписчиков. Инструменты и подходы, которым я учу, — это то, что работает на моих аккаунтах прямо сейчас.</p>
+        </div>
+
+        <!-- Слайдер платформ: Instagram и TikTok -->
+        <div class="relative max-w-4xl mx-auto">
+
+            <!-- Кнопки переключения платформ -->
+            <div class="flex justify-center gap-3 mb-8">
+                <button type="button" onclick="switchPlatform('instagram')" id="tab-instagram"
+                        class="platform-tab active px-6 py-2.5 rounded-full text-sm font-semibold transition-all
+                               gradient-bg text-white shadow-md">
+                    <i class="fab fa-instagram mr-2"></i>Instagram
+                </button>
+                <button type="button" onclick="switchPlatform('tiktok')" id="tab-tiktok"
+                        class="platform-tab px-6 py-2.5 rounded-full text-sm font-semibold transition-all
+                               border border-gray-200 text-gray-600 hover:border-purple-300 hover:text-purple-600">
+                    <i class="fab fa-tiktok mr-2"></i>TikTok
+                </button>
+            </div>
+
+            <!-- Instagram -->
+            <div id="platform-instagram" class="platform-slides">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="relative rounded-2xl overflow-hidden shadow-lg border border-gray-100">
+                        <img src="/static/images/instagram-start.PNG" alt="Instagram — начало" class="w-full object-cover reach-photo">
+                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                            <span class="text-white font-semibold text-sm flex items-center gap-2">
+                                <span class="w-2 h-2 bg-gray-400 rounded-full"></span> Было — начало пути
+                            </span>
+                        </div>
+                    </div>
+                    <div class="relative rounded-2xl overflow-hidden shadow-lg border border-purple-100">
+                        <img src="/static/images/instagram-now.PNG" alt="Instagram — сейчас" class="w-full object-cover reach-photo">
+                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-purple-900/80 to-transparent p-4">
+                            <span class="text-white font-semibold text-sm flex items-center gap-2">
+                                <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> Стало — результат сейчас
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TikTok (скрыт по умолчанию) -->
+            <div id="platform-tiktok" class="platform-slides hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="relative rounded-2xl overflow-hidden shadow-lg border border-gray-100">
+                        <img src="/static/images/tik-tok-start.PNG" alt="TikTok — начало" class="w-full object-cover reach-photo">
+                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                            <span class="text-white font-semibold text-sm flex items-center gap-2">
+                                <span class="w-2 h-2 bg-gray-400 rounded-full"></span> Было — начало пути
+                            </span>
+                        </div>
+                    </div>
+                    <div class="relative rounded-2xl overflow-hidden shadow-lg border border-pink-100">
+                        <img src="/static/images/tik-tok-now.PNG" alt="TikTok — сейчас" class="w-full object-cover reach-photo">
+                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-pink-900/80 to-transparent p-4">
+                            <span class="text-white font-semibold text-sm flex items-center gap-2">
+                                <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> Стало — результат сейчас
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Подпись снизу -->
+            <p class="text-center text-gray-400 text-sm mt-6">
+                Это не теория — я сам(а) применяю то, чему учу в курсе
+            </p>
         </div>
     </div>
 </section>
@@ -240,7 +336,7 @@
         <div class="text-center mb-14">
             <p class="text-purple-600 font-semibold text-sm uppercase tracking-widest mb-3">Содержание</p>
             <h2 class="text-3xl sm:text-4xl font-black text-gray-900">Программа курса</h2>
-            <p class="text-gray-500 mt-4 max-w-xl mx-auto">Видеоуроки + дополнительные материалы. Смотри в любое время, с любого устройства через Telegram-бота.</p>
+            <p class="text-gray-500 mt-4 max-w-xl mx-auto">Видеоуроки + дополнительные материалы. Смотри в любое время, с любого устройства через личный кабинет на сайте.</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
@@ -302,11 +398,10 @@
         </div>
 
         <div class="mt-10 text-center">
-            <a href="{{ bot_url }}" target="_blank" rel="noopener"
-               class="gradient-bg text-white font-bold text-lg px-10 py-4 rounded-2xl hover:opacity-90 transition-opacity inline-flex items-center space-x-3">
-                <i class="fab fa-telegram"></i>
+            <button type="button" onclick="buyOrAuth()"
+                    class="gradient-bg text-white font-bold text-lg px-10 py-4 rounded-2xl hover:opacity-90 transition-opacity inline-flex items-center space-x-3">
                 <span>Хочу учиться</span>
-            </a>
+            </button>
         </div>
     </div>
 </section>
@@ -322,7 +417,7 @@
             <div class="flex items-start space-x-4 check-item bg-white rounded-2xl p-5 shadow-sm">
                 <div>
                     <p class="font-semibold text-gray-900">Пожизненный доступ к урокам</p>
-                    <p class="text-gray-500 text-sm mt-1">Видеоуроки доступны через Telegram-бота в любое время без ограничений по времени.</p>
+                    <p class="text-gray-500 text-sm mt-1">Видеоуроки доступны через личный кабинет на сайте в любое время без ограничений по времени.</p>
                 </div>
             </div>
             <div class="flex items-start space-x-4 check-item bg-white rounded-2xl p-5 shadow-sm">
@@ -433,19 +528,26 @@
                     </li>
                     <li class="flex items-center gap-3 text-gray-300 text-sm">
                         <i class="fas fa-check text-green-400 w-5"></i>
-                        <span>Доступ через Telegram-бота</span>
+                        <span>Доступ через сайт</span>
                     </li>
                 </ul>
 
-                <a href="{{ bot_url }}" target="_blank" rel="noopener"
-                   class="cta-pulse gradient-bg text-white font-bold text-lg px-6 py-4 rounded-2xl hover:opacity-90 transition-opacity w-full flex items-center justify-center space-x-3">
-                    <i class="fab fa-telegram text-xl"></i>
-                    <span>Купить в Telegram</span>
-                </a>
+
+                <button type="button" onclick="buyOrAuth()" id="main-buy-btn"
+                        class="cta-pulse gradient-bg text-white font-bold text-lg px-6 py-4 rounded-2xl hover:opacity-90 transition-opacity w-full flex items-center justify-center space-x-3">
+                    <span>Купить курс</span>
+                </button>
 
                 <p class="text-center text-gray-500 text-xs mt-4 flex items-center justify-center gap-2">
                     <i class="fas fa-lock text-gray-500"></i>
                     Безопасная оплата через YooKassa
+                </p>
+                <p class="text-center text-gray-400 text-sm mt-5 leading-relaxed">
+                    Удобнее в Telegram?
+                    <a href="{{ telegram_bot_url }}" target="_blank" rel="noopener noreferrer"
+                       class="text-sky-400 hover:text-sky-300 font-medium underline underline-offset-2">
+                        Купить и смотреть уроки в боте
+                    </a>
                 </p>
             </div>
         </div>
@@ -487,7 +589,7 @@
                     <i class="fas fa-chevron-down text-gray-400 transition-transform duration-300"></i>
                 </button>
                 <div class="faq-content px-6">
-                    <p class="text-gray-600 text-sm leading-relaxed pb-5">Через Telegram-бота. После оплаты получаешь мгновенный доступ к видеоурокам и материалам. Учишься в своём темпе, когда удобно.</p>
+                    <p class="text-gray-600 text-sm leading-relaxed pb-5">Через личный кабинет на сайте. После оплаты получаешь мгновенный доступ к видеоурокам и материалам. Учишься в своём темпе, когда удобно.</p>
                 </div>
             </div>
 
@@ -507,7 +609,7 @@
                     <i class="fas fa-chevron-down text-gray-400 transition-transform duration-300"></i>
                 </button>
                 <div class="faq-content px-6">
-                    <p class="text-gray-600 text-sm leading-relaxed pb-5">Оплата через Telegram-бота банковской картой (Visa, Mastercard, Мир). Обработка платежей — YooKassa. Сразу после оплаты открывается доступ к курсу.</p>
+                    <p class="text-gray-600 text-sm leading-relaxed pb-5">Оплата на сайте банковской картой (Visa, Mastercard, Мир). Обработка платежей — YooKassa. Сразу после оплаты открывается доступ к курсу.</p>
                 </div>
             </div>
 
@@ -533,12 +635,17 @@
         <p class="text-white/80 text-lg mb-10 max-w-xl mx-auto">
             Присоединяйся к курсу и уже после первого урока у тебя будет своё первое AI-изображение.
         </p>
-        <a href="{{ bot_url }}" target="_blank" rel="noopener"
-           class="bg-white text-purple-700 font-black text-xl px-12 py-5 rounded-2xl hover:bg-gray-50 transition-colors inline-flex items-center space-x-3 shadow-2xl">
-            <i class="fab fa-telegram text-2xl text-blue-500"></i>
-            <span>Открыть в Telegram</span>
-        </a>
+        <button type="button" onclick="buyOrAuth()"
+                class="bg-white text-purple-700 font-black text-xl px-12 py-5 rounded-2xl hover:bg-gray-50 transition-colors inline-flex items-center space-x-3 shadow-2xl">
+            <span>Купить курс</span>
+        </button>
         <p class="text-white/50 text-sm mt-6">Мгновенный доступ после оплаты</p>
+        <p class="text-white/60 text-sm mt-4">
+            <a href="{{ telegram_bot_url }}" target="_blank" rel="noopener noreferrer"
+               class="inline-flex items-center gap-2 text-sky-300 hover:text-sky-200 font-medium">
+                <i class="fab fa-telegram"></i> Или перейти в Telegram-бота
+            </a>
+        </p>
     </div>
 </section>
 
@@ -549,6 +656,12 @@
             <div>
                 <img src="/static/images/logo.png" alt="Davydova AI" class="h-10 mb-4">
                 <p class="text-sm leading-relaxed">Экспресс-курс по созданию ИИ анимаций и изображений.</p>
+                <p class="text-sm mt-4">
+                    <a href="{{ telegram_bot_url }}" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center gap-2 text-sky-400 hover:text-sky-300">
+                        <i class="fab fa-telegram"></i> Курс в Telegram
+                    </a>
+                </p>
             </div>
             <div>
                 <h4 class="text-white font-semibold mb-4 text-sm">Навигация</h4>
@@ -565,13 +678,6 @@
                     <li><a href="/offer" class="hover:text-white transition-colors">Публичная оферта</a></li>
                     <li><a href="/privacy" class="hover:text-white transition-colors">Политика конфиденциальности</a></li>
                 </ul>
-                <div class="mt-4">
-                    <a href="{{ bot_url }}" target="_blank" rel="noopener"
-                       class="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors">
-                        <i class="fab fa-telegram text-lg"></i>
-                        <span>Telegram-бот</span>
-                    </a>
-                </div>
             </div>
         </div>
         <div class="border-t border-gray-800 pt-8 text-xs text-gray-600 text-center">
@@ -588,6 +694,237 @@
         content.classList.toggle('open');
         icon.style.transform = content.classList.contains('open') ? 'rotate(180deg)' : '';
     }
+
+    // ---- User state (injected by server) ----
+    const CURRENT_USER = {{ current_user_json | safe }};
+
+    // ---- Buy or Auth ----
+    function buyOrAuth() {
+        if (!CURRENT_USER) {
+            openAuthModal('register');
+            return;
+        }
+        if (CURRENT_USER.has_access) {
+            openAlreadyPaidModal();
+            return;
+        }
+        openPayModal();
+    }
+
+    function openPayModal() {
+        document.getElementById('pay-modal').classList.remove('hidden');
+        const offerCheckbox = document.getElementById('pay-offer-checkbox');
+        if (offerCheckbox) {
+            offerCheckbox.checked = Boolean(CURRENT_USER && CURRENT_USER.accepted_offer);
+        }
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closePayModal() {
+        document.getElementById('pay-modal').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    function openAlreadyPaidModal() {
+        document.getElementById('already-paid-modal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeAlreadyPaidModal() {
+        document.getElementById('already-paid-modal').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    // Закрытие по клику на оверлей
+    document.getElementById('pay-modal').addEventListener('click', function(e) {
+        if (e.target === this) closePayModal();
+    });
+    document.getElementById('already-paid-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeAlreadyPaidModal();
+    });
+
+    async function startPayment() {
+        const btn = document.getElementById('pay-modal-btn');
+        const offerCheckbox = document.getElementById('pay-offer-checkbox');
+        const accepted_offer = Boolean(offerCheckbox && offerCheckbox.checked);
+        if (!accepted_offer) {
+            alert('Необходимо принять оферту перед оплатой.');
+            return;
+        }
+        if (btn) { btn.disabled = true; btn.textContent = 'Переход к оплате...'; }
+        try {
+            const res = await fetch('/api/v1/payments/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accepted_offer }),
+                credentials: 'same-origin',
+            });
+            if (res.ok) {
+                const data = await res.json();
+                window.location.href = data.confirmation_url;
+                return;
+            }
+            const err = await res.json().catch(() => ({}));
+            alert(err.detail || 'Ошибка создания платежа. Попробуйте снова.');
+        } catch {
+            alert('Ошибка сети. Попробуйте снова.');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-lock text-sm opacity-80"></i> <span>Перейти к оплате</span>'; }
+        }
+    }
+
+    // ---- Resend verification ----
+    async function resendVerification() {
+        try {
+            const res = await fetch('/auth/resend-verification', {
+                method: 'POST',
+                credentials: 'same-origin',
+            });
+            if (res.ok) {
+                alert('Письмо отправлено! Проверьте почту.');
+            } else {
+                const err = await res.json().catch(() => ({}));
+                alert(err.detail || 'Ошибка. Попробуйте позже.');
+            }
+        } catch {
+            alert('Ошибка сети. Попробуйте снова.');
+        }
+    }
+
+    // ---- Reach section platform switcher ----
+    function switchPlatform(platform) {
+        document.querySelectorAll('.platform-slides').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.platform-tab').forEach(btn => {
+            btn.classList.remove('gradient-bg', 'text-white', 'shadow-md');
+            btn.classList.add('border', 'border-gray-200', 'text-gray-600');
+        });
+        document.getElementById('platform-' + platform).classList.remove('hidden');
+        const activeTab = document.getElementById('tab-' + platform);
+        activeTab.classList.add('gradient-bg', 'text-white', 'shadow-md');
+        activeTab.classList.remove('border', 'border-gray-200', 'text-gray-600');
+    }
+
+    // ---- Flash messages from URL params ----
+    (function() {
+        const params = new URLSearchParams(location.search);
+        const msg = params.get('auth_message');
+        const err = params.get('auth_error');
+        if (msg === 'email_verified') {
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg text-sm font-medium';
+            toast.textContent = '✓ Email подтверждён! Теперь вы можете купить курс.';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+        }
+        if (err === 'invalid_token') {
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-6 py-3 rounded-xl shadow-lg text-sm font-medium';
+            toast.textContent = '✗ Ссылка недействительна или истекла.';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+        }
+    })();
 </script>
+
+{% include 'partials/auth_modal.html' %}
+
+<!-- ===== МОДАЛ ОФОРМЛЕНИЯ ПОКУПКИ ===== -->
+<div id="pay-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-fadeIn">
+
+        <!-- Изображение -->
+        <div class="relative">
+            <img src="/static/images/modal_pay.PNG" alt="Курс Davydova AI"
+                 class="w-full object-cover pay-modal-img">
+            <button type="button" onclick="closePayModal()" aria-label="Закрыть"
+                    class="absolute top-3 right-3 w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center transition-colors">
+                <i class="fas fa-xmark text-sm" aria-hidden="true"></i>
+            </button>
+            <!-- Бейдж скидки -->
+            <div class="absolute bottom-3 left-3 gradient-bg text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                Скидка 57% — только сейчас
+            </div>
+        </div>
+
+        <!-- Контент -->
+        <div class="p-6">
+            <h3 class="text-xl font-black text-gray-900 mb-1">Полный доступ к курсу</h3>
+            <p class="text-gray-500 text-sm mb-5">Единоразовая оплата — пожизненный доступ</p>
+
+            <!-- Цена -->
+            <div class="bg-gray-50 rounded-2xl p-4 mb-5 flex items-center justify-between">
+                <div>
+                    <div class="flex items-baseline gap-3">
+                        <span class="text-3xl font-black text-gray-900">2 990 ₽</span>
+                        <span class="text-lg text-gray-400 line-through">7 000 ₽</span>
+                    </div>
+                    <p class="text-green-600 text-xs font-semibold mt-0.5">Вы экономите 4 010 ₽</p>
+                </div>
+                <div class="gradient-bg text-white text-lg font-black px-4 py-2 rounded-xl">
+                    −57%
+                </div>
+            </div>
+
+            <!-- Что включено -->
+            <ul class="space-y-2 mb-6">
+                <li class="flex items-center gap-2.5 text-sm text-gray-700">
+                    <i class="fas fa-check text-green-500 w-4 flex-shrink-0"></i> Все видеоуроки курса
+                </li>
+                <li class="flex items-center gap-2.5 text-sm text-gray-700">
+                    <i class="fas fa-check text-green-500 w-4 flex-shrink-0"></i> Материалы и шаблоны к урокам
+                </li>
+                <li class="flex items-center gap-2.5 text-sm text-gray-700">
+                    <i class="fas fa-check text-green-500 w-4 flex-shrink-0"></i> Пожизненный доступ + будущие обновления
+                </li>
+            </ul>
+
+            <label class="flex items-start gap-3 text-xs text-gray-600 mb-5">
+                <input id="pay-offer-checkbox" type="checkbox"
+                       class="mt-0.5 w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                <span>
+                    Я принимаю <a href="/offer" target="_blank" class="text-purple-600 hover:underline">публичную оферту</a>
+                    и <a href="/privacy" target="_blank" class="text-purple-600 hover:underline">политику конфиденциальности</a>
+                </span>
+            </label>
+
+            <!-- Кнопка оплаты -->
+            <button type="button" id="pay-modal-btn" onclick="startPayment()"
+                    class="cta-pulse gradient-bg text-white font-bold text-base px-6 py-4 rounded-2xl hover:opacity-90 transition-opacity w-full flex items-center justify-center gap-2">
+                <i class="fas fa-lock text-sm opacity-80"></i>
+                <span>Перейти к оплате</span>
+            </button>
+
+            <p class="text-center text-gray-400 text-xs mt-3 flex items-center justify-center gap-1.5">
+                <i class="fas fa-shield-alt"></i>
+                Безопасная оплата через YooKassa
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- ===== МОДАЛ: КУРС УЖЕ ПРИОБРЕТЁН ===== -->
+<div id="already-paid-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-fadeIn">
+        <div class="p-6 sm:p-7">
+            <div class="w-12 h-12 rounded-2xl bg-green-100 text-green-600 flex items-center justify-center mb-4">
+                <i class="fas fa-check-circle text-xl"></i>
+            </div>
+            <h3 class="text-xl font-black text-gray-900 mb-2">Курс уже приобретён</h3>
+            <p class="text-gray-600 text-sm leading-relaxed mb-6">
+                У вас уже есть доступ к материалам. Перейдите к урокам, чтобы продолжить обучение.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-3">
+                <a href="/cabinet/lessons"
+                   class="gradient-bg text-white font-bold text-sm px-5 py-3 rounded-xl hover:opacity-90 transition-opacity text-center w-full">
+                    Перейти к урокам
+                </a>
+                <button type="button" onclick="closeAlreadyPaidModal()"
+                        class="border border-gray-200 text-gray-700 font-semibold text-sm px-5 py-3 rounded-xl hover:bg-gray-50 transition-colors w-full">
+                    Закрыть
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 </body>
 </html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Оплата прошла успешно</title>
+  <style>
+    body { margin: 0; padding: 0; background: #f4f4f5; font-family: Arial, sans-serif; color: #1a1a1a; }
+    .wrapper { max-width: 560px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #16a34a; padding: 32px 40px; text-align: center; }
+    .header h1 { margin: 0; color: #ffffff; font-size: 22px; }
+    .body { padding: 36px 40px; }
+    .body p { font-size: 15px; line-height: 1.7; margin: 0 0 18px; }
+    .btn { display: inline-block; margin: 8px 0 24px; padding: 14px 32px; background: #7c3aed; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-size: 15px; font-weight: bold; }
+    .summary { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px 24px; margin-bottom: 24px; }
+    .summary p { margin: 4px 0; font-size: 14px; }
+    .footer { padding: 20px 40px; background: #f4f4f5; font-size: 12px; color: #6b7280; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>✓ Оплата прошла успешно!</h1>
+    </div>
+    <div class="body">
+      <p>Здравствуйте!</p>
+      <p>Ваш платёж за курс <strong>«ИИ анимации и изображения»</strong> успешно обработан. Доступ к урокам уже открыт.</p>
+      <div class="summary">
+        <p><strong>Сумма:</strong> {{ amount }}₽</p>
+        <p><strong>Дата:</strong> {{ paid_at }}</p>
+        <p><strong>Email:</strong> {{ email }}</p>
+      </div>
+      <p style="text-align:center;">
+        <a class="btn" href="{{ cabinet_url }}">Перейти к урокам</a>
+      </p>
+      <p style="font-size:13px; color:#6b7280;">Чек отправлен в ФНС автоматически. Если у вас возникли вопросы — ответьте на это письмо.</p>
+    </div>
+    <div class="footer">
+      © 2026 Экспресс курс по созданию ИИ анимаций и изображений
+    </div>
+  </div>
+</body>
+</html>

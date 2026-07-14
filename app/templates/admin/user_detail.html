@@ -1,0 +1,224 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Пользователь #{{ user.id }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="/admin/users" class="text-blue-500 hover:text-blue-700">&larr; Назад к списку</a>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- Основная информация -->
+    <div class="lg:col-span-1 space-y-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-bold mb-4">Пользователь #{{ user.id }}</h2>
+
+            <dl class="space-y-3 text-sm">
+                <div>
+                    <dt class="text-gray-500">Имя</dt>
+                    <dd class="font-medium">{{ user.name or user.first_name or '—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-500">Username</dt>
+                    <dd class="font-medium">{{ user.username or '—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-500">Email</dt>
+                    <dd class="font-medium">{{ user.email or '—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-500">Email подтверждён</dt>
+                    <dd>
+                        {% if user.email_verified %}
+                        <span class="text-green-600 font-medium">✅ Да</span>
+                        {% else %}
+                        <span class="text-yellow-500 font-medium">⏳ Нет</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-gray-500">Telegram ID</dt>
+                    <dd class="font-medium">{{ user.telegram_id or '—' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-500">Источник регистрации</dt>
+                    <dd>
+                        <span class="px-2 py-1 rounded text-xs
+                            {% if user.registration_source == 'web' %}bg-green-100 text-green-800
+                            {% elif user.registration_source == 'bot_migrated' %}bg-yellow-100 text-yellow-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ user.registration_source or 'bot' }}
+                        </span>
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-gray-500">Роль</dt>
+                    <dd>
+                        <span class="px-2 py-1 rounded text-xs
+                            {% if user.role == 'superadmin' %}bg-purple-100 text-purple-800
+                            {% elif user.role == 'admin' %}bg-blue-100 text-blue-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ user.role }}
+                        </span>
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-gray-500">Доступ к курсу</dt>
+                    <dd>
+                        {% if user.has_access %}
+                        <span class="text-green-600 font-medium">✅ Есть</span>
+                        {% if user.access_granted_at %}
+                        <span class="text-gray-400 text-xs ml-1">{{ user.access_granted_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                        {% endif %}
+                        {% else %}
+                        <span class="text-red-600 font-medium">❌ Нет</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-gray-500">Статус</dt>
+                    <dd>
+                        {% if user.is_blocked %}
+                        <span class="text-red-600 font-medium">🔒 Заблокирован</span>
+                        {% else %}
+                        <span class="text-green-600 font-medium">✅ Активен</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-gray-500">Зарегистрирован</dt>
+                    <dd class="font-medium">
+                        {% if user.created_at %}{{ user.created_at.strftime('%d.%m.%Y %H:%M') }}{% else %}—{% endif %}
+                    </dd>
+                </div>
+            </dl>
+
+            <div class="mt-6 flex flex-col gap-2">
+                <button onclick="toggleAccess({{ user.id }})"
+                        class="w-full text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded">
+                    {% if user.has_access %}Отозвать доступ{% else %}Выдать доступ{% endif %}
+                </button>
+                <button onclick="toggleBlock({{ user.id }})"
+                        class="w-full text-sm bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded">
+                    {% if user.is_blocked %}Разблокировать{% else %}Заблокировать{% endif %}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Прогресс + платежи -->
+    <div class="lg:col-span-2 space-y-6">
+
+        <!-- Прогресс по урокам -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b">
+                <h3 class="text-lg font-bold">Прогресс по урокам</h3>
+            </div>
+            <div class="p-6">
+                {% if progress_rows %}
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-gray-50">
+                            <th class="px-4 py-2 text-left">#</th>
+                            <th class="px-4 py-2 text-left">Урок</th>
+                            <th class="px-4 py-2 text-left">Просмотрено</th>
+                            <th class="px-4 py-2 text-left">Статус</th>
+                            <th class="px-4 py-2 text-left">Обновлено</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lp, lesson in progress_rows %}
+                        <tr class="border-t">
+                            <td class="px-4 py-2 text-gray-400">{{ lesson.order }}</td>
+                            <td class="px-4 py-2 font-medium">{{ lesson.title }}</td>
+                            <td class="px-4 py-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-24 bg-gray-200 rounded-full h-2">
+                                        <div class="h-2 rounded-full {% if lp.is_completed %}bg-green-500{% else %}bg-blue-500{% endif %}"
+                                             style="width: {{ lp.percent_watched }}%"></div>
+                                    </div>
+                                    <span class="text-xs text-gray-600">{{ lp.percent_watched }}%</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-2">
+                                {% if lp.is_completed %}
+                                <span class="px-2 py-1 rounded text-xs bg-green-100 text-green-800">Пройден</span>
+                                {% elif lp.percent_watched > 0 %}
+                                <span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">В процессе</span>
+                                {% else %}
+                                <span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">Не начат</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-2 text-gray-400 text-xs">
+                                {% if lp.updated_at %}{{ lp.updated_at.strftime('%d.%m.%Y %H:%M') }}{% else %}—{% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-gray-400 text-sm">Пользователь ещё не начал ни одного урока.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Платежи -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b">
+                <h3 class="text-lg font-bold">История платежей</h3>
+            </div>
+            <div class="p-6">
+                {% if payments %}
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-gray-50">
+                            <th class="px-4 py-2 text-left">ID</th>
+                            <th class="px-4 py-2 text-left">Сумма</th>
+                            <th class="px-4 py-2 text-left">Статус</th>
+                            <th class="px-4 py-2 text-left">Дата</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in payments %}
+                        <tr class="border-t">
+                            <td class="px-4 py-2 text-gray-400">{{ payment.id }}</td>
+                            <td class="px-4 py-2 font-medium">{{ payment.amount }} ₽</td>
+                            <td class="px-4 py-2">
+                                <span class="px-2 py-1 rounded text-xs
+                                    {% if payment.status == 'succeeded' %}bg-green-100 text-green-800
+                                    {% elif payment.status == 'pending' %}bg-yellow-100 text-yellow-800
+                                    {% else %}bg-red-100 text-red-800{% endif %}">
+                                    {{ payment.status }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-2 text-gray-400 text-xs">
+                                {% if payment.created_at %}{{ payment.created_at.strftime('%d.%m.%Y %H:%M') }}{% else %}—{% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-gray-400 text-sm">Платежей не найдено.</p>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+async function toggleAccess(userId) {
+    if (!confirm('Изменить доступ пользователя?')) return;
+    const response = await fetch(`/admin/users/${userId}/toggle-access`, { method: 'POST' });
+    if (response.ok) location.reload();
+}
+
+async function toggleBlock(userId) {
+    if (!confirm('Изменить статус блокировки?')) return;
+    const response = await fetch(`/admin/users/${userId}/toggle-block`, { method: 'POST' });
+    if (response.ok) location.reload();
+}
+</script>
+{% endblock %}

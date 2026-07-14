@@ -1,18 +1,43 @@
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-sqlalchemy==2.0.23
-asyncpg==0.29.0
-alembic==1.12.1
-pydantic==2.5.0
-pydantic-settings==2.1.0
-python-dotenv==1.0.0
-aiogram==3.3.0
-yookassa==2.3.0
-httpx==0.25.1
-python-jose[cryptography]==3.3.0
+# Версии соответствуют .venv, на котором проходит pytest.
+# Менять пины — только вместе с прогоном тестов.
+
+# Web
+fastapi==0.135.1
+uvicorn[standard]==0.41.0
+python-multipart==0.0.22
+itsdangerous==2.2.0
+jinja2==3.1.6
+
+# Конфиг и валидация
+pydantic==2.12.5
+pydantic-settings==2.13.1
+email-validator==2.3.0
+python-dotenv==1.2.2
+
+# База данных
+sqlalchemy==2.0.48
+asyncpg==0.31.0
+alembic==1.18.4
+
+# Платежи
+yookassa==3.10.0
+
+# Телеграм-бот (legacy, BOT_ENABLED=false)
+aiogram==3.27.0
+
+# HTTP-клиенты
+httpx==0.28.1
+aiohttp==3.13.3
+certifi>=2024.2.2
+
+# Авторизация: JWT для видео-ссылок, bcrypt для паролей
+PyJWT==2.12.0
 passlib[bcrypt]==1.7.4
-python-multipart==0.0.6
-redis==5.0.1
-celery==5.3.4
-itsdangerous
-httpx==0.25.1
+bcrypt==4.0.1
+
+# Очереди
+redis==7.3.0
+celery==5.6.2
+
+# Обработка аватаров
+Pillow==12.2.0

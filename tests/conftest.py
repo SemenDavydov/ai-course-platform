@@ -4,6 +4,7 @@ import asyncio
 import sys
 import os
 from typing import AsyncGenerator
+from unittest.mock import MagicMock, patch
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.pool import NullPool
@@ -12,11 +13,17 @@ from sqlalchemy.pool import NullPool
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from app.main import app
+from app.api.webhooks import verify_yookassa_source
 from app.database import Base, get_db
 from app.config import settings
 
+# ВАЖНО: форсируем импорт всех моделей до create_all().
+# Иначе Base.metadata может быть неполной, и таблицы не создадутся.
+import importlib
+importlib.import_module("app.models")
+
 # Тестовая БД
-TEST_DATABASE_URL = "postgresql+asyncpg://postgres:password@localhost:5432/aicourse_test"
+TEST_DATABASE_URL = "postgresql+asyncpg://postgres:Rtdbykfd13@localhost:5432/aicourse_test"
 
 engine_test = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
 async_session_maker = async_sessionmaker(engine_test, expire_on_commit=False)
@@ -29,6 +36,29 @@ async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
 
 app.dependency_overrides[get_db] = override_get_db
 
+# Тестовый клиент приходит не с IP ЮKassa. Саму проверку IP покрывает
+# отдельный тест, который временно снимает этот override.
+app.dependency_overrides[verify_yookassa_source] = lambda: None
+
+
+@pytest.fixture
+def yookassa_api():
+    """
+    Мокает подтверждение платежа в API ЮKassa (webhook сверяется с ним, а не с телом запроса).
+    По умолчанию — успешный платёж на 2990.00; переопределить: yookassa_api.set_payment(...).
+    """
+    with patch("app.api.webhooks.YooPayment.find_one") as mock:
+        def set_payment(status: str = "succeeded", amount: str = "2990.00"):
+            remote = MagicMock()
+            remote.status = status
+            remote.amount.value = amount
+            mock.return_value = remote
+            return remote
+
+        set_payment()
+        mock.set_payment = set_payment
+        yield mock
+
 
 @pytest.fixture(autouse=True)
 async def setup_database():
@@ -37,7 +67,7 @@ async def setup_database():
     from sqlalchemy import text
 
     # Подключаемся к стандартной postgres базе для создания тестовой
-    temp_engine = create_async_engine("postgresql+asyncpg://postgres:password@localhost:5432/postgres")
+    temp_engine = create_async_engine("postgresql+asyncpg://postgres:Rtdbykfd13@localhost:5432/postgres")
     async with temp_engine.connect() as conn:
         await conn.execute(text("COMMIT"))  # Нужно для создания БД вне транзакции
         try:
@@ -54,13 +84,15 @@ async def setup_database():
 
 
 @pytest.fixture
-async def client() -> AsyncGenerator:
-    async with AsyncClient(app=app, base_url="http://test") as client:
+async def client(setup_database) -> AsyncGenerator:
+    """Depends on setup_database so schema exists before any request (avoids async fixture races)."""
+    from httpx import ASGITransport
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
 
 @pytest.fixture
-async def db_session() -> AsyncGenerator[AsyncSession, None]:
+async def db_session(setup_database) -> AsyncGenerator[AsyncSession, None]:
     async with async_session_maker() as session:
         yield session
         await session.rollback()

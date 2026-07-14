@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "fastapi",
       script: "/root/ai-course-platform/venv/bin/uvicorn",
-      args: "app.main:app --host 127.0.0.1 --port 8000 --workers 2",
+      args: "app.main:app --host 127.0.0.1 --port 8000 --workers 2 --proxy-headers --forwarded-allow-ips=127.0.0.1",
       cwd: "/root/ai-course-platform",
       interpreter: "none",
       autorestart: true,

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Оплата прошла успешно</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
+  <div class="max-w-md w-full bg-white rounded-2xl shadow-md overflow-hidden">
+    {% if status == "succeeded" %}
+    <div class="bg-green-600 px-8 py-8 text-center">
+      <div class="text-5xl mb-3">✓</div>
+      <h1 class="text-white text-2xl font-bold">Оплата прошла!</h1>
+    </div>
+    <div class="px-8 py-8 text-center">
+      <p class="text-gray-700 mb-2">Доступ к курсу успешно открыт.</p>
+      <p class="text-gray-500 text-sm mb-6">Письмо с подтверждением отправлено на ваш email.</p>
+      <a href="/"
+         class="inline-block bg-violet-600 hover:bg-violet-700 text-white font-semibold px-8 py-3 rounded-xl transition">
+        На главную
+      </a>
+      <p class="text-gray-500 text-sm mt-6">
+        Доступ также можно использовать в
+        <a href="{{ telegram_bot_url }}" target="_blank" rel="noopener noreferrer" class="text-sky-600 hover:underline">Telegram-боте</a>.
+      </p>
+    </div>
+    {% else %}
+    <div class="bg-yellow-500 px-8 py-8 text-center">
+      <div class="text-5xl mb-3">⏳</div>
+      <h1 class="text-white text-2xl font-bold">Обрабатывается…</h1>
+    </div>
+    <div class="px-8 py-8 text-center">
+      <p class="text-gray-700 mb-2">Платёж получен и обрабатывается.</p>
+      <p class="text-gray-500 text-sm mb-6">Это займёт не более нескольких минут. Как только оплата подтвердится — вы получите письмо.</p>
+      <a href="/"
+         class="inline-block bg-violet-600 hover:bg-violet-700 text-white font-semibold px-8 py-3 rounded-xl transition">
+        На главную
+      </a>
+      <p class="text-gray-500 text-sm mt-6">
+        Альтернатива — оплата и уроки в
+        <a href="{{ telegram_bot_url }}" target="_blank" rel="noopener noreferrer" class="text-sky-600 hover:underline">боте</a>.
+      </p>
+    </div>
+    {% endif %}
+  </div>
+</body>
+</html>

@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Run the FastAPI server
 uvicorn app.main:app --reload
 
-# Run the Telegram bot (standalone)
+# Run the Telegram bot (optional, disabled by default — set BOT_ENABLED=true in .env to enable)
 python app/bot/bot.py
 
 # Run Celery worker
@@ -31,17 +31,21 @@ pytest tests/test_payments.py -v
 
 ## Architecture
 
-This is an AI course sales platform with three main runtime components:
+This is an AI course sales platform. The primary user flow is web-based (registration → payment → personal cabinet). The Telegram bot is kept in the repository for legacy/rollback purposes but is **disabled by default** (`BOT_ENABLED=false`).
 
-1. **FastAPI web app** (`app/main.py`) - serves the admin panel (HTML/Jinja2), webhooks, and a REST API for the bot.
-2. **Telegram bot** (`app/bot/bot.py`) - standalone aiogram bot that handles user interaction, payment initiation, and course access.
+Main runtime components:
+
+1. **FastAPI web app** (`app/main.py`) - serves the landing page, auth, personal cabinet, admin panel, webhooks, and payment flow.
+2. **Telegram bot** (`app/bot/bot.py`) - **optional, disabled by default** (`BOT_ENABLED=false`). Legacy aiogram bot for users who purchased through Telegram. Set `BOT_ENABLED=true` in `.env` to re-enable.
 3. **Celery workers** (`app/celery_app.py`, `app/tasks.py`) - background tasks (email receipts, daily reports, DB backups). Uses Redis as broker.
 
 All three share the same PostgreSQL database via SQLAlchemy async (`app/database.py`).
 
 ### Payment Flow
 
-Bot collects user email -> `PaymentService.create_payment()` creates a YooKassa payment and stores a `pending` record -> user pays -> YooKassa calls `POST /webhooks/yookassa` -> webhook sets `payment.status = "succeeded"`, `user.has_access = True`, and sends a Telegram notification via the bot instance imported from `app/bot/bot.py`.
+**Web flow (primary):** User registers on site → verifies email → clicks "Buy" → `POST /api/v1/payments/create` calls `PaymentService.create_payment()` → user pays on YooKassa → webhook `POST /webhooks/yookassa` sets `payment.status = "succeeded"`, `user.has_access = True`, sends payment success email via Celery.
+
+**Bot flow (legacy, `BOT_ENABLED=true` only):** Bot collects user email → creates payment → webhook sends Telegram notification instead of email (only when `settings.BOT_ENABLED` is `True` and `user.telegram_id` is set and `registration_source != "web"`).
 
 ### Video Access Flow
 

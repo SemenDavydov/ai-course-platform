@@ -2,7 +2,6 @@ import os
 import shutil
 from fastapi import File, UploadFile
 from fastapi import APIRouter, Depends, HTTPException, Request, Form, Cookie
-from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, update, func
@@ -15,13 +14,12 @@ from app.models.user import User
 from app.models.course import Course, Lesson
 from app.models.payment import Payment
 from app.models.admin_session import AdminSession
+from app.models.lesson_progress import LessonProgress
 from app.config import settings
+from app.templating import templates
 from app.schemas.admin import *
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-
-# Настройка шаблонов
-templates = Jinja2Templates(directory="app/templates")
 
 # Секретный код для регистрации админов (храни в .env)
 ADMIN_SECRET_CODE = settings.ADMIN_SECRET_CODE or "admin123"
@@ -158,7 +156,7 @@ async def admin_login_post(
         max_age=86400,
         path="/",
         httponly=True,
-        secure=False,
+        secure=settings.cookie_secure,
         samesite="lax"
     )
 
@@ -549,6 +547,47 @@ async def delete_lesson(
     await db.commit()
 
     return RedirectResponse(url="/admin/course", status_code=303)
+
+
+# Карточка пользователя
+@router.get("/users/{user_id}", response_class=HTMLResponse)
+async def admin_user_detail(
+        user_id: int,
+        request: Request,
+        db: AsyncSession = Depends(get_db),
+        admin: User = Depends(get_current_admin)
+):
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Прогресс по урокам с названиями
+    progress_result = await db.execute(
+        select(LessonProgress, Lesson)
+        .join(Lesson, LessonProgress.lesson_id == Lesson.id)
+        .where(LessonProgress.user_id == user_id)
+        .order_by(Lesson.order)
+    )
+    progress_rows = progress_result.all()
+
+    # Платежи пользователя
+    payments_result = await db.execute(
+        select(Payment)
+        .where(Payment.user_id == user_id)
+        .order_by(Payment.created_at.desc())
+    )
+    payments = payments_result.scalars().all()
+
+    return templates.TemplateResponse(
+        "admin/user_detail.html",
+        {
+            "request": request,
+            "admin": admin,
+            "user": user,
+            "progress_rows": progress_rows,
+            "payments": payments,
+        }
+    )
 
 
 # Платежи

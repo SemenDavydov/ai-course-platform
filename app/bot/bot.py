@@ -3,7 +3,7 @@ import logging
 import urllib.parse
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
-from aiogram.filters import CommandStart
+from aiogram.filters import Command, CommandStart
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -11,16 +11,26 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from aiogram.client.session.aiohttp import AiohttpSession
+import aiohttp
+from app.bot.httpx_session import HttpxSession
+from aiogram.client.default import DefaultBotProperties
+
 from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.user import User
 from app.models.course import Course, Lesson
+from app.services.auth import create_login_token
 from app.services.payment import PaymentService
 from app.services.video import VideoService
 from app.services.shortener import URLShortener
 
 # Users who have already seen the warmup sequence in this bot session
 _warmup_shown: set[int] = set()
+
+session = AiohttpSession(
+    timeout=aiohttp.ClientTimeout(total=60, connect=30)
+)
 
 LESSON_DATA = {
     1: ("🎯", "НАЧАЛО", "Начало: подготовка к работе с сервисом"),
@@ -41,7 +51,8 @@ logger = logging.getLogger(__name__)
 # Инициализация бота и диспетчера
 bot = Bot(
     token=settings.BOT_TOKEN,
-    parse_mode=ParseMode.HTML
+    session=HttpxSession(),
+    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
 )
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
@@ -109,13 +120,16 @@ async def cmd_start(message: Message, db: AsyncSession):
     if user.has_access:
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
+                [InlineKeyboardButton(text="🌐 Войти на сайт", callback_data="site_login")],
                 [InlineKeyboardButton(text="📖 Перейти к курсу", callback_data="course")],
                 [InlineKeyboardButton(text="📚 О курсе", callback_data="about")],
             ]
         )
         await message.answer(
             f"👋 С возвращением, {message.from_user.first_name}!\n\n"
-            "✅ У вас есть полный доступ к курсу.",
+            "✅ У вас есть полный доступ к курсу.\n\n"
+            "🌐 Теперь курс доступен и на сайте — в личном кабинете. "
+            "Нажмите «Войти на сайт», доступ сохранится.",
             reply_markup=keyboard
         )
         return
@@ -169,6 +183,47 @@ async def cmd_start(message: Message, db: AsyncSession):
         )
 
     await message.answer(menu_text, reply_markup=keyboard)
+
+
+async def _send_site_login_link(chat_message: Message, telegram_id: int, db: AsyncSession) -> None:
+    """
+    Выдаёт одноразовую ссылку для входа в личный кабинет на сайте.
+    Главный путь миграции для покупателей, у которых в базе нет email.
+    """
+    result = await db.execute(select(User).where(User.telegram_id == telegram_id))
+    user = result.scalar_one_or_none()
+
+    if not user or not user.has_access:
+        await chat_message.answer(
+            "Доступ к курсу не найден. Если вы покупали курс — напишите нам, поможем."
+        )
+        return
+
+    token = await create_login_token(db, user)
+    login_url = f"{settings.SITE_URL}/auth/telegram-login?token={token}"
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text="🌐 Открыть личный кабинет", url=login_url)]]
+    )
+    await chat_message.answer(
+        "🔐 Ссылка для входа в личный кабинет.\n\n"
+        "Действует 15 минут и только один раз — никому её не передавайте.\n"
+        "Если понадобится снова — отправьте команду /site.",
+        reply_markup=keyboard,
+    )
+
+
+@dp.callback_query(lambda c: c.data == "site_login")
+async def process_site_login(callback: CallbackQuery, db: AsyncSession):
+    """Кнопка «Войти на сайт»."""
+    await _send_site_login_link(callback.message, callback.from_user.id, db)
+    await callback.answer()
+
+
+@dp.message(Command("site"))
+async def cmd_site(message: Message, db: AsyncSession):
+    """Команда /site — получить ссылку на личный кабинет."""
+    await _send_site_login_link(message, message.from_user.id, db)
 
 
 # Обработчик кнопки "О курсе"
@@ -474,32 +529,21 @@ async def process_lesson(callback: CallbackQuery, db: AsyncSession):
     )
 
     if lesson.video_id and lesson.video_id.strip():
-        video_service = VideoService()
-        jwt_token = await video_service.generate_jwt_link(user, lesson.video_id)
+        # Временно: прямая ссылка на Kinescope (пока Timeweb лежит)
+        display_url = f"https://kinescope.io/{lesson.video_id}"
 
-        parsed = urllib.parse.urlparse(jwt_token)
-        query_params = urllib.parse.parse_qs(parsed.query)
-        token_param = query_params.get('token', [None])[0]
-
-        if token_param:
-            long_url = f"{settings.SITE_URL}/api/v1/bot/video/{lesson.video_id}?token={token_param}"
-
-            shortener = URLShortener()
-            short_url = await shortener.shorten(long_url)
-            display_url = short_url if short_url else long_url
-
-            text = (
-                f"{emoji} *{full_title}*\n\n"
-                f"{lesson.description}\n\n"
-                f"🔗 *Ссылка на видео:*\n"
-                f"`{display_url}`\n\n"
-            )
-            keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="▶️ СМОТРЕТЬ ВИДЕО", url=display_url)],
-                    [InlineKeyboardButton(text="◀️ К УРОКАМ", callback_data="course")]
-                ]
-            )
+        text = (
+            f"{emoji} *{full_title}*\n\n"
+            f"{lesson.description}\n\n"
+            f"🔗 *Ссылка на видео:*\n"
+            f"`{display_url}`\n\n"
+        )
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="▶️ СМОТРЕТЬ ВИДЕО", url=display_url)],
+                [InlineKeyboardButton(text="◀️ К УРОКАМ", callback_data="course")]
+            ]
+        )
 
     await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
 
@@ -543,9 +587,19 @@ async def process_back_to_start(callback: CallbackQuery, db: AsyncSession):
 
 # Запуск бота
 async def start_bot():
-    """Запускает бота"""
+    """Запускает бота с повторными попытками"""
     logger.info("Starting bot...")
-    await dp.start_polling(bot)
+    retries = 1
+    for i in range(retries):
+        try:
+            await dp.start_polling(bot, polling_timeout=30, limit=5)
+            break
+        except Exception as e:
+            logger.error(f"Polling failed (attempt {i+1}/{retries}): {e}")
+            if i < retries - 1:
+                await asyncio.sleep(5)
+            else:
+                raise
 
 
 def run_bot():
@@ -553,4 +607,8 @@ def run_bot():
 
 
 if __name__ == "__main__":
+    if not settings.BOT_ENABLED:
+        print("Bot disabled (BOT_ENABLED=false). Exiting.")
+        import sys
+        sys.exit(0)
     run_bot()

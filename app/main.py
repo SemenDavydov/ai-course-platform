@@ -1,13 +1,18 @@
-from fastapi import FastAPI
-from fastapi.templating import Jinja2Templates
+import json
+from fastapi import FastAPI, Depends
 from fastapi import Request
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import HTMLResponse, FileResponse
+from sqlalchemy import select
 
-from app.api import webhooks, admin
-from app.api.v1 import bot_api, materials
+from app.api import webhooks, admin, auth, cabinet
+from app.api.v1 import bot_api, materials, payments, progress
 from app.config import settings
+from app.database import get_db
+from app.models.payment import Payment
+from app.services.auth import get_optional_user
+from app.templating import templates
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -22,24 +27,40 @@ app.add_middleware(
     session_cookie="admin_session",
     max_age=86400,
     same_site="lax",
-    https_only=False  # False для localhost
+    https_only=settings.cookie_secure,
 )
 
-templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Подключаем роутеры
 app.include_router(webhooks.router)
 app.include_router(admin.router)
+app.include_router(auth.router)
+app.include_router(cabinet.router)
 app.include_router(bot_api.router)
 app.include_router(materials.router)
+app.include_router(payments.router)
+app.include_router(progress.router)
 
 @app.get("/", response_class=HTMLResponse)
-async def root(request: Request):
+async def root(
+    request: Request,
+    current_user=Depends(get_optional_user),
+):
+    user_json = "null"
+    if current_user:
+        user_json = json.dumps({
+            "id": current_user.id,
+            "email": current_user.email,
+            "email_verified": current_user.email_verified,
+            "has_access": current_user.has_access,
+            "accepted_offer": current_user.accepted_offer,
+        })
     return templates.TemplateResponse("landing.html", {
         "request": request,
-        "bot_url": f"https://t.me/{settings.BOT_USERNAME}",
         "app_name": settings.APP_NAME,
+        "current_user": current_user,
+        "current_user_json": user_json,
     })
 
 @app.get("/robots.txt", include_in_schema=False)
@@ -50,6 +71,34 @@ async def robots():
 @app.get("/sitemap.xml", include_in_schema=False)
 async def sitemap():
     return FileResponse("app/static/sitemap.xml", media_type="application/xml")
+
+
+@app.get("/payment/success", response_class=HTMLResponse)
+async def payment_success(
+    request: Request,
+    current_user=Depends(get_optional_user),
+    db=Depends(get_db),
+):
+    status = "pending"
+    if current_user:
+        result = await db.execute(
+            select(Payment)
+            .where(Payment.user_id == current_user.id)
+            .order_by(Payment.created_at.desc())
+        )
+        last_payment = result.scalars().first()
+        if last_payment and last_payment.status == "succeeded":
+            status = "succeeded"
+
+    return templates.TemplateResponse("payment_success.html", {
+        "request": request,
+        "status": status,
+    })
+
+
+@app.get("/payment/failure", response_class=HTMLResponse)
+async def payment_failure(request: Request):
+    return templates.TemplateResponse("payment_failure.html", {"request": request})
 
 
 @app.get("/offer", response_class=HTMLResponse)

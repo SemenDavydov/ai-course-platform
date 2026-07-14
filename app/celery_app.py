@@ -31,10 +31,6 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.cleanup_expired_links",
         "schedule": crontab(minute="*/30"),  # Каждые 30 минут
     },
-    "monitor-piracy": {
-        "task": "app.tasks.monitor_piracy",
-        "schedule": crontab(hour="*/6"),  # Каждые 6 часов
-    },
 }
 
 if __name__ == "__main__":
