@@ -3,6 +3,9 @@
 
 # Web
 fastapi==0.135.1
+# starlette пинится явно: fastapi допускает >=0.46, и pip ставит 1.x, где убран
+# старый вызов TemplateResponse(name, {...}) — все страницы падают в 500.
+starlette==0.52.1
 uvicorn[standard]==0.41.0
 python-multipart==0.0.22
 itsdangerous==2.2.0
