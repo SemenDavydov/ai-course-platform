@@ -8,6 +8,78 @@
 
 ---
 
+## 0. Переход на веб-версию (выполняется один раз)
+
+Обновление идёт поверх работающего прода с реальными покупателями. Порядок важен.
+
+**Перед началом.** В `.env` на сервере должны быть (см. раздел 5):
+`DEBUG=False`, `BOT_ENABLED=true`, `SITE_URL=https://davydovaai.ru` и заполненный блок `SMTP_*`.
+Без SMTP не уйдут письма подтверждения и «установите пароль».
+
+```bash
+cd /root/ai-course-platform
+
+# 1. Бэкап базы — там живут покупатели
+sudo -u postgres pg_dump aicourse > ~/aicourse_before_web_$(date +%F).sql
+ls -lh ~/aicourse_before_web_*.sql   # убедиться, что файл не пустой
+
+# 2. Остановить старые процессы (они запущены ad-hoc, не из ecosystem.config.js)
+pm2 delete all
+
+# 3. Забрать код. ВНИМАНИЕ: venv/ убран из репозитория,
+#    поэтому pull удалит каталог venv — так и задумано, ниже он пересоздаётся.
+git pull origin main
+
+# 4. Чистый venv под новые версии зависимостей
+python3 -m venv venv
+venv/bin/pip install --upgrade pip
+venv/bin/pip install -r requirements.txt
+
+# 5. Миграции (аддитивные: has_access и оплаты не трогают)
+venv/bin/alembic upgrade head
+venv/bin/alembic current      # ожидаем f7a8b9c0d1e2 (head)
+
+# 6. Запуск из конфига репозитория (venv, 127.0.0.1, --proxy-headers)
+pm2 start ecosystem.config.js
+pm2 save
+pm2 list                      # fastapi + bot online
+```
+
+**Проверка после запуска:**
+
+```bash
+curl -sI https://davydovaai.ru | head -1                      # 200/405 — сайт жив
+curl -s -o /dev/null -w "%{http_code}\n" -X POST \
+     https://davydovaai.ru/webhooks/yookassa -d '{}'          # ожидаем 403
+```
+
+403 на вебхуке — это правильно: чужой IP отклонён. Если там 500 или 200 — значит
+`--proxy-headers` не применился, и уведомления от ЮKassa обрабатываться не будут.
+
+**Перевод покупателей на сайт:**
+
+```bash
+# Тем, у кого в базе есть email — письмо «мы переехали, установите пароль»
+venv/bin/python -c "from app.tasks import notify_bot_migration; print(notify_bot_migration())"
+```
+
+У кого email нет — заходят в бот, жмут «🌐 Войти на сайт» (или команда `/site`)
+и попадают в личный кабинет по одноразовой ссылке. Доступ к курсу сохраняется.
+
+**Откат**, если что-то пошло не так:
+
+```bash
+pm2 delete all
+git reset --hard 562a5ca                       # коммит старой версии
+sudo -u postgres psql -c "DROP DATABASE aicourse;"
+sudo -u postgres psql -c "CREATE DATABASE aicourse;"
+sudo -u postgres psql aicourse < ~/aicourse_before_web_ДАТА.sql
+python3 -m venv venv && venv/bin/pip install -r requirements.txt
+pm2 start ecosystem.config.js && pm2 save
+```
+
+---
+
 ## 1. Первый деплой: настройка GitHub → Сервер
 
 ### На локальной машине (один раз)

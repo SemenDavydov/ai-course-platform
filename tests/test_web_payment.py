@@ -285,7 +285,7 @@ def _webhook_body(user_id: int, payment_id: str = "pay_webhook_001") -> dict:
     }
 
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 @patch("app.api.webhooks.bot.send_message", new_callable=AsyncMock)
 async def test_webhook_web_user_sends_email(
     mock_tg,
@@ -321,7 +321,7 @@ async def test_webhook_web_user_sends_email(
     mock_tg.assert_not_called()
 
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 @patch("app.api.webhooks.bot.send_message", new_callable=AsyncMock)
 async def test_webhook_bot_user_sends_telegram(
     mock_tg,
@@ -358,7 +358,7 @@ async def test_webhook_bot_user_sends_telegram(
     mock_tg.assert_not_called()
 
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 @patch("app.api.webhooks.bot.send_message", new_callable=AsyncMock)
 @patch("app.api.webhooks.settings.BOT_ENABLED", True)
 async def test_webhook_bot_user_sends_telegram_when_bot_enabled(
@@ -392,7 +392,7 @@ async def test_webhook_bot_user_sends_telegram_when_bot_enabled(
     mock_email.assert_not_called()
 
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 @patch("app.api.webhooks.bot.send_message", new_callable=AsyncMock)
 async def test_webhook_ignored_event(mock_tg, mock_email, client: AsyncClient):
     """Не-succeeded событие игнорируется — доступ не выдаётся."""
@@ -406,7 +406,7 @@ async def test_webhook_ignored_event(mock_tg, mock_email, client: AsyncClient):
     mock_email.assert_not_called()
 
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 @patch("app.api.webhooks.bot.send_message", new_callable=AsyncMock)
 async def test_webhook_already_processed(
     mock_tg,
@@ -460,7 +460,7 @@ async def test_webhook_rejects_untrusted_ip(client: AsyncClient, web_user: User)
     assert response.status_code == 403
 
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 async def test_webhook_unknown_payment_denies_access(
     mock_email,
     client: AsyncClient,
@@ -486,7 +486,7 @@ async def test_webhook_unknown_payment_denies_access(
     mock_email.assert_not_called()
 
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 async def test_webhook_amount_mismatch_denies_access(
     mock_email,
     client: AsyncClient,
@@ -516,7 +516,7 @@ async def test_webhook_amount_mismatch_denies_access(
     mock_email.assert_not_called()
 
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 async def test_webhook_not_succeeded_in_api_denies_access(
     mock_email,
     client: AsyncClient,

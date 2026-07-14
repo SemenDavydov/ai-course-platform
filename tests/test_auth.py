@@ -70,7 +70,7 @@ async def session_cookie(db_session: AsyncSession, verified_user: User) -> str:
 # Регистрация
 # ---------------------------------------------------------------------------
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 async def test_register_success(mock_delay, client: AsyncClient, db_session: AsyncSession):
     """Регистрация нового пользователя: 201 + cookie выставлен."""
     response = await client.post("/auth/register", json={
@@ -92,7 +92,7 @@ async def test_register_success(mock_delay, client: AsyncClient, db_session: Asy
     mock_delay.assert_called_once()
 
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 async def test_register_duplicate_email(mock_delay, client: AsyncClient, verified_user: User):
     """Регистрация с уже занятым email → 409."""
     response = await client.post("/auth/register", json={
@@ -103,7 +103,7 @@ async def test_register_duplicate_email(mock_delay, client: AsyncClient, verifie
     assert response.status_code == 409
 
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 async def test_register_no_offer(mock_delay, client: AsyncClient):
     """Регистрация без принятия оферты → 422."""
     response = await client.post("/auth/register", json={
@@ -114,7 +114,7 @@ async def test_register_no_offer(mock_delay, client: AsyncClient):
     assert response.status_code == 422
 
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 async def test_register_short_password(mock_delay, client: AsyncClient):
     """Пароль короче 8 символов → 422."""
     response = await client.post("/auth/register", json={
@@ -157,7 +157,7 @@ async def test_login_unknown_email(client: AsyncClient):
     assert response.status_code == 401
 
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 async def test_login_migrated_no_password(mock_delay, client: AsyncClient, migrated_user: User):
     """Мигрированный пользователь без пароля → 409 + X-Auth-Action: setup_password."""
     response = await client.post("/auth/login", json={
@@ -183,7 +183,7 @@ async def test_logout(client: AsyncClient, session_cookie: str):
 # Верификация email
 # ---------------------------------------------------------------------------
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 async def test_verify_email_valid_token(mock_delay, client: AsyncClient, db_session: AsyncSession):
     """Переход по верному токену → redirect, email_verified=True в БД."""
     # Создаём пользователя с токеном
@@ -220,7 +220,7 @@ async def test_verify_email_invalid_token(client: AsyncClient):
 # Сброс пароля
 # ---------------------------------------------------------------------------
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 async def test_password_reset_request(mock_delay, client: AsyncClient, verified_user: User):
     """Запрос сброса пароля → 200, письмо поставлено в очередь."""
     response = await client.post("/auth/password-reset/request", json={
@@ -230,7 +230,7 @@ async def test_password_reset_request(mock_delay, client: AsyncClient, verified_
     mock_delay.assert_called_once()
 
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 async def test_password_reset_request_unknown_email(mock_delay, client: AsyncClient):
     """Запрос для несуществующего email → 200 (не раскрываем наличие аккаунта)."""
     response = await client.post("/auth/password-reset/request", json={
@@ -240,7 +240,7 @@ async def test_password_reset_request_unknown_email(mock_delay, client: AsyncCli
     mock_delay.assert_not_called()
 
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 async def test_password_reset_confirm(mock_delay, client: AsyncClient, db_session: AsyncSession, verified_user: User):
     """Подтверждение сброса пароля с корректным токеном → 200, пароль изменён."""
     # Проставляем токен напрямую
@@ -274,7 +274,7 @@ async def test_password_reset_confirm_invalid_token(client: AsyncClient):
 # Установка пароля для мигрированного пользователя
 # ---------------------------------------------------------------------------
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 async def test_password_setup_request(mock_delay, client: AsyncClient, migrated_user: User):
     """Запрос установки пароля для мигрированного → 200, письмо отправлено."""
     response = await client.post("/auth/password-setup/request", json={
@@ -284,7 +284,7 @@ async def test_password_setup_request(mock_delay, client: AsyncClient, migrated_
     mock_delay.assert_called_once()
 
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 async def test_password_setup_request_ignores_web_user(mock_delay, client: AsyncClient, verified_user: User):
     """Запрос setup для пользователя с уже установленным паролем → 200, письмо НЕ отправляется."""
     response = await client.post("/auth/password-setup/request", json={
@@ -294,7 +294,7 @@ async def test_password_setup_request_ignores_web_user(mock_delay, client: Async
     mock_delay.assert_not_called()
 
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 async def test_password_setup_confirm(mock_delay, client: AsyncClient, db_session: AsyncSession, migrated_user: User):
     """Мигрированный пользователь устанавливает пароль → 200, может войти."""
     token = "setup_token_migrated_xyz"
@@ -315,7 +315,7 @@ async def test_password_setup_confirm(mock_delay, client: AsyncClient, db_sessio
     assert migrated_user.password_reset_token is None
 
 
-@patch("app.tasks.send_email_task.delay")
+@patch("app.tasks.send_email")
 async def test_migrated_user_full_flow(mock_delay, client: AsyncClient, db_session: AsyncSession, migrated_user: User):
     """Полный сценарий: мигрированный пытается войти → setup → входит."""
     # 1. Попытка входа без пароля → 409

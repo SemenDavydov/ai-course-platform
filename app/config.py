@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     # Bot feature flag
     BOT_ENABLED: bool = False
 
+    # Письма уходят в фоновом потоке, чтобы не задерживать HTTP-запрос.
+    # False — синхронно (используется в тестах).
+    EMAIL_BACKGROUND: bool = True
+
     # SMTP для отправки писем
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587

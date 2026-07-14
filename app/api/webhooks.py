@@ -197,7 +197,7 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
             elif user.email:
                 from jinja2 import Environment, FileSystemLoader, select_autoescape
-                from app.tasks import send_email_task
+                from app.tasks import enqueue_email
 
                 _jinja = Environment(
                     loader=FileSystemLoader("app/templates/emails"),
@@ -210,8 +210,11 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     email=user.email,
                     cabinet_url=f"{settings.SITE_URL}/",
                 )
-                send_email_task.delay(user.email, "Оплата прошла успешно — доступ к курсу открыт", html)
-                logger.info(f"Payment success email queued for {user.email}")
+                # enqueue_email, а не .delay(): без Redis задача бы не поставилась
+                # и письмо о покупке потерялось бы. Здесь при отсутствии брокера
+                # письмо уходит синхронно.
+                enqueue_email(user.email, "Оплата прошла успешно — доступ к курсу открыт", html)
+                logger.info(f"Payment success email sent/queued for {user.email}")
 
         except Exception as e:
             logger.error(f"Failed to send payment notification: {e}")

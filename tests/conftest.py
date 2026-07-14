@@ -17,6 +17,10 @@ from app.api.webhooks import verify_yookassa_source
 from app.database import Base, get_db
 from app.config import settings
 
+# В тестах письма отправляются синхронно, иначе фоновый поток гонялся бы
+# с проверками моков.
+settings.EMAIL_BACKGROUND = False
+
 # ВАЖНО: форсируем импорт всех моделей до create_all().
 # Иначе Base.metadata может быть неполной, и таблицы не создадутся.
 import importlib

@@ -19,6 +19,14 @@ celery_app.conf.update(
     task_track_started=True,
     task_time_limit=30 * 60,  # 30 минут
     task_soft_time_limit=25 * 60,  # 25 минут
+
+    # Если брокера нет (на проде Redis не установлен), .delay() должен упасть
+    # сразу, а не ретраить публикацию: иначе enqueue_email уходит в фолбэк
+    # только через несколько секунд, и на столько же виснет регистрация.
+    broker_connection_timeout=2,
+    broker_connection_max_retries=0,
+    broker_connection_retry_on_startup=False,
+    task_publish_retry=False,
 )
 
 # Периодические задачи (расписание)

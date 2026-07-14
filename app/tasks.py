@@ -2,6 +2,7 @@ from celery import shared_task
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 import logging
+import threading
 import aiohttp
 import asyncio
 from datetime import datetime, timedelta
@@ -12,6 +13,11 @@ from app.models.user import User
 from app.models.payment import Payment
 from app.config import settings
 from app.services.email import send_email
+
+# Импорт обязателен: без него shared_task в веб-процессе цепляется к дефолтному
+# Celery-приложению (со своим брокером и ретраями), и .delay() при отсутствии
+# Redis падает не сразу, а через несколько секунд — прямо в HTTP-запросе.
+from app.celery_app import celery_app  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -26,16 +32,25 @@ def send_email_task(to: str, subject: str, html_body: str) -> bool:
 
 def enqueue_email(to: str, subject: str, html_body: str) -> bool:
     """
-    Безопасная отправка email:
-    - сначала пробуем поставить задачу в Celery;
-    - если брокер недоступен, отправляем синхронно через SMTP.
+    Отправляет письмо, не блокируя HTTP-запрос.
+
+    Через Celery НЕ ходим осознанно: воркер на проде не запущен, а Redis может
+    быть и жив — тогда .delay() успешно кладёт задачу в очередь, которую некому
+    разобрать, и письмо (в том числе о покупке) пропадает молча. Поэтому шлём
+    сами, в фоновом потоке: SMTP занимает несколько секунд, держать на них
+    запрос регистрации нельзя.
+
+    True = письмо принято к отправке; результат SMTP пишется в лог.
     """
-    try:
-        send_email_task.delay(to, subject, html_body)
-        return True
-    except Exception as exc:
-        logger.error("Failed to queue email task, fallback to direct send: %s", exc)
+    if not settings.EMAIL_BACKGROUND:
         return send_email(to, subject, html_body)
+
+    threading.Thread(
+        target=send_email,
+        args=(to, subject, html_body),
+        daemon=True,
+    ).start()
+    return True
 
 
 @shared_task
