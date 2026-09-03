@@ -49,13 +49,14 @@ app.dependency_overrides[verify_yookassa_source] = lambda: None
 def yookassa_api():
     """
     Мокает подтверждение платежа в API ЮKassa (webhook сверяется с ним, а не с телом запроса).
-    По умолчанию — успешный платёж на 2990.00; переопределить: yookassa_api.set_payment(...).
+    По умолчанию — успешный платёж на 9990.00; переопределить: yookassa_api.set_payment(...).
     """
     with patch("app.api.webhooks.YooPayment.find_one") as mock:
-        def set_payment(status: str = "succeeded", amount: str = "2990.00"):
+        def set_payment(status: str = "succeeded", amount: str = "9990.00"):
             remote = MagicMock()
             remote.status = status
             remote.amount.value = amount
+            remote.metadata = {}
             mock.return_value = remote
             return remote
 

@@ -8,45 +8,45 @@
 
 <!-- Flash messages -->
 {% if saved == 'name' %}
-<div class="mb-5 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm flex items-center gap-2">
+<div class="mb-5 p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-sm flex items-center gap-2">
   <i class="fa-solid fa-circle-check"></i> Имя обновлено
 </div>
 {% elif saved == 'avatar' %}
-<div class="mb-5 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm flex items-center gap-2">
+<div class="mb-5 p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-sm flex items-center gap-2">
   <i class="fa-solid fa-circle-check"></i> Аватар обновлён
 </div>
 {% elif saved == 'password' %}
-<div class="mb-5 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm flex items-center gap-2">
+<div class="mb-5 p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-sm flex items-center gap-2">
   <i class="fa-solid fa-circle-check"></i> Пароль успешно изменён
 </div>
 {% endif %}
 
 {% if error == 'bad_type' %}
-<div class="mb-5 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">
+<div class="mb-5 p-3 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm flex items-center gap-2">
   <i class="fa-solid fa-circle-xmark"></i> Недопустимый формат файла. Используйте JPEG, PNG или WebP.
 </div>
 {% elif error == 'too_large' %}
-<div class="mb-5 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">
+<div class="mb-5 p-3 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm flex items-center gap-2">
   <i class="fa-solid fa-circle-xmark"></i> Файл слишком большой. Максимум 5 МБ.
 </div>
 {% elif error == 'upload_failed' %}
-<div class="mb-5 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">
+<div class="mb-5 p-3 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm flex items-center gap-2">
   <i class="fa-solid fa-circle-xmark"></i> Ошибка загрузки. Попробуйте ещё раз.
 </div>
 {% elif error == 'email_not_verified' %}
-<div class="mb-5 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">
+<div class="mb-5 p-3 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm flex items-center gap-2">
   <i class="fa-solid fa-circle-xmark"></i> Для этого действия нужно подтвердить email. Мы можем отправить письмо повторно.
 </div>
 {% elif error == 'wrong_password' %}
-<div class="mb-5 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">
+<div class="mb-5 p-3 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm flex items-center gap-2">
   <i class="fa-solid fa-circle-xmark"></i> Неверный текущий пароль.
 </div>
 {% elif error == 'password_mismatch' %}
-<div class="mb-5 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">
+<div class="mb-5 p-3 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm flex items-center gap-2">
   <i class="fa-solid fa-circle-xmark"></i> Новый пароль и подтверждение не совпадают.
 </div>
 {% elif error == 'password_too_short' %}
-<div class="mb-5 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">
+<div class="mb-5 p-3 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm flex items-center gap-2">
   <i class="fa-solid fa-circle-xmark"></i> Пароль должен быть не менее 8 символов.
 </div>
 {% endif %}
@@ -54,9 +54,9 @@
 <div class="grid gap-6 lg:grid-cols-2">
 
   <!-- ===== Карточка: Аватар + имя ===== -->
-  <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-    <h2 class="font-semibold text-gray-800 mb-5 flex items-center gap-2">
-      <i class="fa-solid fa-user-circle text-purple-500"></i> Личные данные
+  <div class="rounded-3xl border border-[var(--glass-border)] bg-[var(--card-bg)] backdrop-blur-sm p-6">
+    <h2 class="font-semibold text-[var(--pearl)] mb-5 flex items-center gap-2 font-display">
+      <i class="fa-solid fa-user-circle text-[var(--rose)]"></i> Личные данные
     </h2>
 
     <!-- Avatar upload -->
@@ -65,13 +65,13 @@
         <img id="avatar-preview"
              src="{{ user.avatar_url or '/static/images/default_avatar.svg' }}"
              alt="Аватар"
-             class="w-24 h-24 rounded-full object-cover bg-gray-100 ring-4 ring-purple-100">
+             class="w-24 h-24 rounded-full object-cover bg-white/10 ring-4 ring-[rgba(232,164,180,0.25)]">
         <div class="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center
                     opacity-0 group-hover:opacity-100 transition-opacity">
           <i class="fa-solid fa-camera text-white text-xl"></i>
         </div>
       </div>
-      <p class="text-xs text-gray-400">JPEG / PNG / WebP · до 5 МБ</p>
+      <p class="text-xs text-[var(--mist)]">JPEG / PNG / WebP · до 5 МБ</p>
     </div>
 
     <!-- Avatar form (auto-submit on file select) -->
@@ -83,107 +83,85 @@
     <!-- Name form -->
     <form action="/cabinet/profile" method="post" class="space-y-4">
       <div>
-        <label for="profile-name" class="block text-sm font-medium text-gray-700 mb-1">Имя</label>
+        <label for="profile-name" class="block text-sm font-medium text-[var(--mist)] mb-1">Имя</label>
         <input id="profile-name" type="text" name="name" value="{{ user.name or '' }}"
                placeholder="Ваше имя"
-               class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 transition">
+               style="color:#111;background:#fff;"
+               class="cabinet-input w-full px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--rose-deep)] transition">
       </div>
       <div>
-        <label for="profile-email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+        <label for="profile-email" class="block text-sm font-medium text-[var(--mist)] mb-1">Email</label>
         <input id="profile-email" type="email" value="{{ user.email }}" disabled
-               class="w-full border border-gray-100 rounded-xl px-4 py-2.5 text-sm bg-gray-50 text-gray-400 cursor-not-allowed">
+               style="color:#6b7280;background:#f3f4f6;"
+               class="cabinet-input w-full px-4 py-2.5 text-sm cursor-not-allowed">
       </div>
       <button type="submit"
-              class="w-full gradient-bg text-white font-semibold py-2.5 rounded-xl text-sm hover:opacity-90 transition">
+              class="w-full gradient-bg text-white font-semibold py-2.5 rounded-3xl text-sm hover:opacity-90 transition">
         Сохранить имя
       </button>
     </form>
   </div>
 
   <!-- ===== Карточка: Смена пароля ===== -->
-  <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-    <h2 class="font-semibold text-gray-800 mb-5 flex items-center gap-2">
-      <i class="fa-solid fa-lock text-purple-500"></i> Смена пароля
+  <div class="rounded-3xl border border-[var(--glass-border)] bg-[var(--card-bg)] backdrop-blur-sm p-6">
+    <h2 class="font-semibold text-[var(--pearl)] mb-5 flex items-center gap-2 font-display">
+      <i class="fa-solid fa-lock text-[var(--cyan)]"></i> Смена пароля
     </h2>
 
     <form action="/cabinet/profile/password" method="post" class="space-y-4">
       <div>
-        <label for="current-password" class="block text-sm font-medium text-gray-700 mb-1">Текущий пароль</label>
+        <label for="current-password" class="block text-sm font-medium text-[var(--mist)] mb-1">Текущий пароль</label>
         <input id="current-password" type="password" name="current_password" required autocomplete="current-password"
-               class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 transition">
+               style="color:#111;background:#fff;"
+               class="cabinet-input w-full px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--cyan)] transition">
       </div>
       <div>
-        <label for="new-password" class="block text-sm font-medium text-gray-700 mb-1">Новый пароль</label>
+        <label for="new-password" class="block text-sm font-medium text-[var(--mist)] mb-1">Новый пароль</label>
         <input id="new-password" type="password" name="new_password" required minlength="8" autocomplete="new-password"
-               class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 transition">
-        <p class="text-xs text-gray-400 mt-1">Минимум 8 символов</p>
+               style="color:#111;background:#fff;"
+               class="cabinet-input w-full px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--cyan)] transition">
+        <p class="text-xs text-[var(--mist)] mt-1">Минимум 8 символов</p>
       </div>
       <div>
-        <label for="confirm-password" class="block text-sm font-medium text-gray-700 mb-1">Подтверждение нового пароля</label>
+        <label for="confirm-password" class="block text-sm font-medium text-[var(--mist)] mb-1">Подтверждение нового пароля</label>
         <input id="confirm-password" type="password" name="confirm_password" required minlength="8" autocomplete="new-password"
-               class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 transition">
+               style="color:#111;background:#fff;"
+               class="cabinet-input w-full px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--cyan)] transition">
       </div>
       <button type="submit"
-              class="w-full gradient-bg text-white font-semibold py-2.5 rounded-xl text-sm hover:opacity-90 transition">
+              class="w-full gradient-bg text-white font-semibold py-2.5 rounded-3xl text-sm hover:opacity-90 transition">
         Изменить пароль
       </button>
     </form>
 
     <!-- Account info -->
-    <div class="mt-6 pt-5 border-t border-gray-100 space-y-2 text-xs text-gray-400">
+    <div class="mt-6 pt-5 border-t border-[var(--glass-border)] space-y-2 text-xs text-[var(--mist)]">
       <div class="flex items-center gap-2">
-        <i class="fa-solid fa-circle-check {{ 'text-green-500' if user.email_verified else 'text-gray-300' }}"></i>
+        <i class="fa-solid fa-circle-check {{ 'text-[var(--cyan)]' if user.email_verified else 'text-white/20' }}"></i>
         Email {{ 'подтверждён' if user.email_verified else 'не подтверждён' }}
       </div>
       {% if not user.email_verified %}
       <button type="button" onclick="resendVerificationFromProfile()"
-              class="w-full mt-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-purple-700 border border-purple-200 hover:bg-purple-50 transition">
+              class="w-full mt-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-[var(--rose)] border border-[rgba(232,164,180,0.35)] hover:bg-[rgba(232,164,180,0.08)] transition">
         Отправить письмо для подтверждения
       </button>
       {% endif %}
       <div class="flex items-center gap-2">
-        <i class="fa-solid fa-graduation-cap {{ 'text-purple-500' if user.has_access else 'text-gray-300' }}"></i>
-        Доступ к курсу: {{ 'активен' if user.has_access else 'не приобретён' }}
+        <i class="fa-solid fa-graduation-cap {{ 'text-[var(--rose)]' if user.has_access else 'text-white/20' }}"></i>
+        Доступ: {{ 'есть' if user.has_access else 'не приобретён' }}
       </div>
+      {% if accesses %}
+      <ul class="mt-2 space-y-1 pl-5 list-disc text-[var(--mist)]">
+        {% for a in accesses %}
+        <li>{{ a.course.title if a.course else ('Курс #' ~ a.course_id) }} —
+          <span class="uppercase font-medium text-[var(--rose)]">{{ a.tariff_slug }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
     </div>
   </div>
 
-</div>
-
-<!-- ===== Карточка: Опасная зона ===== -->
-<div class="bg-white rounded-2xl border border-red-100 shadow-sm p-6 mt-6">
-  <h2 class="font-semibold text-red-700 mb-4 flex items-center gap-2">
-    <i class="fa-solid fa-triangle-exclamation text-red-500"></i> Опасная зона
-  </h2>
-  <p class="text-sm text-gray-500 mb-4">
-    Удаление аккаунта необратимо. Все ваши данные и прогресс будут удалены.
-  </p>
-  <button type="button" onclick="document.getElementById('delete-modal').classList.remove('hidden')"
-          class="px-5 py-2.5 rounded-xl text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition">
-    Удалить аккаунт
-  </button>
-</div>
-
-<!-- Modal подтверждения удаления -->
-<div id="delete-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-  <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-    <h3 class="font-bold text-gray-900 text-lg mb-2">Удалить аккаунт?</h3>
-    <p class="text-sm text-gray-500 mb-6">
-      Это действие необратимо. Все ваши данные, прогресс и доступ к курсу будут удалены навсегда.
-    </p>
-    <div class="flex gap-3">
-      <button type="button" onclick="document.getElementById('delete-modal').classList.add('hidden')"
-              class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-700 border border-gray-200 hover:bg-gray-50 transition">
-        Отмена
-      </button>
-      <form action="/auth/delete-account" method="post" class="flex-1">
-        <button type="submit"
-                class="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition">
-          Да, удалить
-        </button>
-      </form>
-    </div>
-  </div>
 </div>
 
 {% endblock %}

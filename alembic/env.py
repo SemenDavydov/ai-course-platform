@@ -11,8 +11,12 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from app.database import Base
 from app.config import settings
 from app.models.user import User
-from app.models.course import Course, Lesson
+from app.models.course import Course, Lesson, Module, Tariff, UserCourseAccess
 from app.models.payment import Payment
+from app.models.material import Material
+from app.models.admin_session import AdminSession
+from app.models.user_session import UserSession
+from app.models.lesson_progress import LessonProgress
 
 config = context.config
 

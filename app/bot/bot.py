@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import urllib.parse
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandStart
@@ -10,6 +9,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.client.telegram import PRODUCTION, TelegramAPIServer
@@ -20,19 +20,24 @@ from aiogram.client.default import DefaultBotProperties
 from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.user import User
-from app.models.course import Course, Lesson
+from app.models.course import Course, Lesson, Module, Tariff
+from app.models.payment import Payment
 from app.services.auth import create_login_token
 from app.services.payment import PaymentService
-from app.services.video import VideoService
-from app.services.shortener import URLShortener
+from app.services.access import (
+    get_primary_course,
+    list_accessible_courses,
+    user_has_course,
+    get_access,
+)
 
-# Users who have already seen the warmup sequence in this bot session
 _warmup_shown: set[int] = set()
 
 session = AiohttpSession(
     timeout=aiohttp.ClientTimeout(total=60, connect=30)
 )
 
+# Legacy lesson labels (old course only, by lesson id)
 LESSON_DATA = {
     1: ("🎯", "НАЧАЛО", "Начало: подготовка к работе с сервисом"),
     2: ("💻", "ЛЕКЦИЯ 1", "Лекция 1: Написание сценария. Правила и реализация проекта"),
@@ -43,16 +48,9 @@ LESSON_DATA = {
     8: ("🤳🏻", "ПРАВИЛА ПРОМТА", "Правила хорошего промта"),
 }
 
-DEFAULT_LESSON_EMOJI = ("📹", "Урок")
-
-# Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Инициализация бота и диспетчера.
-# С хостинга в РФ api.telegram.org напрямую недоступен, поэтому на проде
-# запросы идут через прокси: TELEGRAM_API_BASE в .env (адрес не в коде —
-# репозиторий публичный). Пусто — работаем напрямую.
 telegram_api = (
     TelegramAPIServer.from_base(settings.TELEGRAM_API_BASE.rstrip("/"))
     if settings.TELEGRAM_API_BASE
@@ -62,22 +60,21 @@ telegram_api = (
 bot = Bot(
     token=settings.BOT_TOKEN,
     session=HttpxSession(api=telegram_api),
-    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    default=DefaultBotProperties(parse_mode=ParseMode.HTML),
 )
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
 
-# Состояния для FSM (если понадобятся)
 class Form(StatesGroup):
     waiting_for_email = State()
+    waiting_tariff = State()
 
 
-# Middleware для получения сессии БД
 class DBSessionMiddleware:
     async def __call__(self, handler, event, data):
         async with AsyncSessionLocal() as session:
-            data['db'] = session
+            data["db"] = session
             return await handler(event, data)
 
 
@@ -85,9 +82,7 @@ dp.message.middleware(DBSessionMiddleware())
 dp.callback_query.middleware(DBSessionMiddleware())
 
 
-# Вспомогательные функции
 async def get_or_create_user(telegram_id: int, db: AsyncSession, **kwargs) -> User:
-    """Получает или создает пользователя"""
     query = select(User).where(User.telegram_id == telegram_id)
     result = await db.execute(query)
     user = result.scalar_one_or_none()
@@ -95,56 +90,63 @@ async def get_or_create_user(telegram_id: int, db: AsyncSession, **kwargs) -> Us
     if not user:
         user = User(
             telegram_id=telegram_id,
-            username=kwargs.get('username'),
-            first_name=kwargs.get('first_name'),
-            last_name=kwargs.get('last_name'),
-            has_access=False
+            username=kwargs.get("username"),
+            first_name=kwargs.get("first_name"),
+            last_name=kwargs.get("last_name"),
+            has_access=False,
         )
         db.add(user)
         await db.commit()
         await db.refresh(user)
-        logger.info(f"Created new user: {telegram_id}")
+        logger.info("Created new user: %s", telegram_id)
 
     return user
 
 
-# Команда /start
+def _main_menu_keyboard(has_any_access: bool, has_story: bool, has_legacy: bool):
+    rows = []
+    if has_story:
+        rows.append([InlineKeyboardButton(text="📖 AI STORY", callback_data="course_story")])
+    if has_legacy:
+        rows.append(
+            [InlineKeyboardButton(text="📚 Классический курс", callback_data="course_legacy")]
+        )
+    if has_any_access:
+        rows.append([InlineKeyboardButton(text="🌐 Войти на сайт", callback_data="site_login")])
+    rows.append([InlineKeyboardButton(text="ℹ️ О курсе AI STORY", callback_data="about")])
+    if not has_story:
+        rows.append([InlineKeyboardButton(text="💰 Купить AI STORY", callback_data="buy")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
 @dp.message(CommandStart())
 async def cmd_start(message: Message, db: AsyncSession):
-    """Обработчик команды /start"""
-    # Проверяем, новый ли пользователь
     query = select(User).where(User.telegram_id == message.from_user.id)
     result = await db.execute(query)
     existing_user = result.scalar_one_or_none()
-    is_new = existing_user is None
 
     user = await get_or_create_user(
         message.from_user.id,
         db,
         username=message.from_user.username,
         first_name=message.from_user.first_name,
-        last_name=message.from_user.last_name
+        last_name=message.from_user.last_name,
     )
 
-    # Для пользователей с доступом — сразу показываем курс
-    if user.has_access:
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="🌐 Войти на сайт", callback_data="site_login")],
-                [InlineKeyboardButton(text="📖 Перейти к курсу", callback_data="course")],
-                [InlineKeyboardButton(text="📚 О курсе", callback_data="about")],
-            ]
-        )
+    accessible = await list_accessible_courses(db, user.id)
+    has_story = any(c.slug == "ai-story" for c in accessible)
+    has_legacy = any(c.is_legacy for c in accessible)
+    has_any = bool(accessible)
+
+    if has_any:
         await message.answer(
             f"👋 С возвращением, {message.from_user.first_name}!\n\n"
-            "✅ У вас есть полный доступ к курсу.\n\n"
-            "🌐 Теперь курс доступен и на сайте — в личном кабинете. "
-            "Нажмите «Войти на сайт», доступ сохранится.",
-            reply_markup=keyboard
+            "✅ У вас есть доступ к курсам.\n"
+            "AI STORY — на первом месте; классический курс — в меню.",
+            reply_markup=_main_menu_keyboard(has_any, has_story, has_legacy),
         )
         return
 
-    # Прогревающая последовательность — для новых или тех, кто ещё не видел в этой сессии
     show_warmup = message.from_user.id not in _warmup_shown
     if show_warmup:
         _warmup_shown.add(message.from_user.id)
@@ -152,54 +154,24 @@ async def cmd_start(message: Message, db: AsyncSession):
     if show_warmup:
         await message.answer(
             f"👋 Привет, {message.from_user.first_name}!\n\n"
-            "Меня зовут Елизавета Давыдова — я создаю ИИ-анимации "
-            "и обучаю этому других. Рада видеть тебя здесь! 🎉"
+            "Меня зовут Елизавета Давыдова. Курс <b>AI STORY: воплоти свою историю</b> — "
+            "путь от идеи вирусного ИИ-сериала до первых клиентов."
         )
-        await asyncio.sleep(1.5)
-
+        await asyncio.sleep(1.2)
         await message.answer(
-            "🎬 <b>Представь:</b> ты сам создаёшь анимационные ролики для соцсетей — "
-            "без дизайнеров, без сложных программ, прямо с телефона.\n\n"
-            "Именно это я покажу тебе в экспресс-курсе по созданию ИИ-анимаций и изображений."
+            "Внутри — 7 модулей: профессия, сценарии, герой, генерация, монтаж, "
+            "коммерция и монетизация.\n\n"
+            "Два тарифа: <b>Pro</b> и <b>VIP</b> — доступ к материалам бессрочный."
         )
-        await asyncio.sleep(2)
+        await asyncio.sleep(1.0)
 
-        await message.answer(
-            "В курсе ты научишься:\n\n"
-            "🐳 Писать сценарии с помощью <b>DeepSeek</b>\n"
-            "💻 Генерировать изображения и анимации в <b>Grok</b>\n"
-            "📽️ Монтировать ролики в <b>CapCut</b>\n"
-            "🎶 Добавлять закадровую озвучку через <b>Zvukogram</b>\n\n"
-            "Всё — пошагово, с видеоуроками и готовыми материалами 📂"
-        )
-        await asyncio.sleep(1.5)
-
-    # Главное меню (для новых — после прогрева, для вернувшихся — сразу)
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="📚 О курсе", callback_data="about")],
-            [InlineKeyboardButton(text="💰 Купить доступ", callback_data="buy")],
-        ]
+    await message.answer(
+        "Хочешь узнать подробнее или сразу выбрать тариф? 👇",
+        reply_markup=_main_menu_keyboard(False, False, False),
     )
-
-    if show_warmup:
-        menu_text = (
-            "Хочешь узнать подробнее или сразу приступить? 👇"
-        )
-    else:
-        menu_text = (
-            f"👋 Привет, {message.from_user.first_name}!\n\n"
-            "Для получения доступа к курсу нажми «Купить доступ»."
-        )
-
-    await message.answer(menu_text, reply_markup=keyboard)
 
 
 async def _send_site_login_link(chat_message: Message, telegram_id: int, db: AsyncSession) -> None:
-    """
-    Выдаёт одноразовую ссылку для входа в личный кабинет на сайте.
-    Главный путь миграции для покупателей, у которых в базе нет email.
-    """
     result = await db.execute(select(User).where(User.telegram_id == telegram_id))
     user = result.scalar_one_or_none()
 
@@ -211,138 +183,126 @@ async def _send_site_login_link(chat_message: Message, telegram_id: int, db: Asy
 
     token = await create_login_token(db, user)
     login_url = f"{settings.SITE_URL}/auth/telegram-login?token={token}"
-
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text="🌐 Открыть личный кабинет", url=login_url)]]
     )
     await chat_message.answer(
         "🔐 Ссылка для входа в личный кабинет.\n\n"
-        "Действует 15 минут и только один раз — никому её не передавайте.\n"
-        "Если понадобится снова — отправьте команду /site.",
+        "Действует 15 минут и только один раз.\n"
+        "Если понадобится снова — /site",
         reply_markup=keyboard,
     )
 
 
 @dp.callback_query(lambda c: c.data == "site_login")
 async def process_site_login(callback: CallbackQuery, db: AsyncSession):
-    """Кнопка «Войти на сайт»."""
     await _send_site_login_link(callback.message, callback.from_user.id, db)
     await callback.answer()
 
 
 @dp.message(Command("site"))
 async def cmd_site(message: Message, db: AsyncSession):
-    """Команда /site — получить ссылку на личный кабинет."""
     await _send_site_login_link(message, message.from_user.id, db)
 
 
-# Обработчик кнопки "О курсе"
 @dp.callback_query(lambda c: c.data == "about")
 async def process_about(callback: CallbackQuery, db: AsyncSession):
-    """Показывает информацию о курсе"""
-    # Сразу отвечаем на callback
     await callback.answer()
-
-    # Получаем информацию о курсе из БД
-    query = select(Course).where(Course.is_published == True)
-    result = await db.execute(query)
-    course = result.scalar_one_or_none()
-
+    course = await get_primary_course(db)
     if course:
-        about_text = (
-            f"📚 *{course.title}*\n\n"
-            f"{course.description}\n\n"
-            f"💰 Стоимость: {course.price}₽\n\n"
-            f"✅ После покупки доступ открывается автоматически и действует бессрочно!"
+        t_result = await db.execute(
+            select(Tariff)
+            .where(Tariff.course_id == course.id, Tariff.is_active == True)
+            .order_by(Tariff.sort_order)
         )
+        tariffs = t_result.scalars().all()
+        lines = [f"<b>{course.title}</b>\n", course.description or "", ""]
+        for t in tariffs:
+            old = f" <s>{int(t.old_price)}₽</s>" if t.old_price else ""
+            lines.append(f"• <b>{t.name}</b> — {int(t.price)}₽{old}")
+        lines.append("\nДоступ к материалам бессрочный.")
+        about_text = "\n".join(lines)
     else:
         about_text = "Информация о курсе скоро появится!"
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="💰 Купить курс", callback_data="buy")],
-            [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")]
+            [InlineKeyboardButton(text="💰 Выбрать тариф", callback_data="buy")],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")],
         ]
     )
+    await callback.message.edit_text(about_text, reply_markup=keyboard)
 
-    await callback.message.edit_text(about_text, reply_markup=keyboard, parse_mode="Markdown")
 
-
-# Обработчик кнопки "Купить"
 @dp.callback_query(lambda c: c.data == "buy")
 async def process_buy(callback: CallbackQuery, state: FSMContext, db: AsyncSession):
-    """Начинает процесс покупки"""
-
     user = await get_or_create_user(callback.from_user.id, db)
+    course = await get_primary_course(db)
 
-    # Если у пользователя уже есть доступ
-    if user.has_access:
+    if not course:
         await callback.message.edit_text(
-            "✅ У вас уже есть доступ к курсу!\n\n"
-            "Нажмите кнопку ниже, чтобы перейти к обучению.",
+            "Курс временно недоступен.",
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[
-                    [InlineKeyboardButton(text="📖 Перейти к курсу", callback_data="course")],
                     [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")]
                 ]
-            )
+            ),
         )
         await callback.answer()
         return
 
-    # Получаем курс
-    query = select(Course).where(Course.is_published == True)
-    result = await db.execute(query)
-    course = result.scalar_one_or_none()
-
-    if not course:
+    existing = await get_access(db, user.id, course.id)
+    if existing and existing.tariff_slug == "vip":
         await callback.message.edit_text(
-            "К сожалению, курс временно недоступен для покупки. Попробуйте позже.",
+            "✅ У вас уже VIP-доступ к AI STORY.",
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[
-                    [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")]
+                    [InlineKeyboardButton(text="📖 К курсу", callback_data="course_story")],
+                    [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")],
                 ]
-            )
+            ),
         )
         await callback.answer()
         return
 
     if not user.accepted_offer:
         offer_text = (
-            "*Для продолжения оплаты необходимо принять условия*\n\n"
-            "Пожалуйста, внимательно ознакомьтесь с документами:\n"
-            f"🔗 [Публичная оферта]({settings.SITE_URL}/offer)\n"
-            f"🔗 [Согласие на обработку ПД]({settings.SITE_URL}/privacy)\n\n"
-            "Нажимая «✅ Принимаю», вы подтверждаете, что прочитали и согласны с условиями."
+            "<b>Для оплаты примите условия</b>\n\n"
+            f'<a href="{settings.SITE_URL}/offer">Публичная оферта</a>\n'
+            f'<a href="{settings.SITE_URL}/privacy">Согласие на ПД</a>'
         )
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="📄 Открыть оферту", url=f"{settings.SITE_URL}/offer")],
-                [InlineKeyboardButton(text="📄 Согласие на ПД", url=f"{settings.SITE_URL}/privacy")],
+                [InlineKeyboardButton(text="📄 Оферта", url=f"{settings.SITE_URL}/offer")],
                 [InlineKeyboardButton(text="✅ Принимаю", callback_data="accept_offer")],
-                [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")]
+                [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")],
             ]
         )
-        await callback.message.edit_text(offer_text, reply_markup=keyboard, parse_mode="Markdown", disable_web_page_preview=True)
+        await callback.message.edit_text(offer_text, reply_markup=keyboard, disable_web_page_preview=True)
         await callback.answer()
         return
 
-    # Если у пользователя нет email, запрашиваем его (нужен для чеков)
-    if not user.email:
-        await callback.message.edit_text(
-            "📧 Для оформления покупки пожалуйста, укажите ваш email:",
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="◀️ Отмена", callback_data="back_to_start")]
-                ]
-            )
+    t_result = await db.execute(
+        select(Tariff)
+        .where(Tariff.course_id == course.id, Tariff.is_active == True)
+        .order_by(Tariff.sort_order)
+    )
+    tariffs = list(t_result.scalars().all())
+    rows = []
+    for t in tariffs:
+        if existing and existing.tariff_slug == "pro" and t.slug == "pro":
+            continue
+        label = f"{t.name} — {int(t.price)}₽"
+        if t.old_price:
+            label += f" (было {int(t.old_price)}₽)"
+        rows.append(
+            [InlineKeyboardButton(text=label, callback_data=f"tariff_{t.slug}")]
         )
-        await state.set_state(Form.waiting_for_email)
-        await callback.answer()
-        return
-
-    # Если email уже есть, создаем платеж
-    await create_payment_and_send(callback.message, user, course, db)
+    rows.append([InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")])
+    await callback.message.edit_text(
+        "Выберите тариф AI STORY:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),
+    )
     await callback.answer()
 
 
@@ -351,253 +311,304 @@ async def process_accept_offer(callback: CallbackQuery, state: FSMContext, db: A
     user = await get_or_create_user(callback.from_user.id, db)
     user.accepted_offer = True
     await db.commit()
-
-    # process_buy сам вызовет callback.answer()
     await process_buy(callback, state, db)
 
-# Обработчик ввода email
-@dp.message(Form.waiting_for_email)
-async def process_email(message: Message, state: FSMContext, db: AsyncSession):
-    """Сохраняет email пользователя и создает платеж"""
 
-    email = message.text.strip()
+@dp.callback_query(lambda c: c.data and c.data.startswith("tariff_"))
+async def process_tariff(callback: CallbackQuery, state: FSMContext, db: AsyncSession):
+    tariff_slug = callback.data.split("_", 1)[1]
+    await state.update_data(tariff_slug=tariff_slug)
+    user = await get_or_create_user(callback.from_user.id, db)
 
-    # Простая валидация email
-    if '@' not in email or '.' not in email:
-        await message.answer(
-            "Пожалуйста, введите корректный email (например, name@domain.ru):"
+    if not user.email:
+        await callback.message.edit_text(
+            "📧 Укажите email для чека:",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="◀️ Отмена", callback_data="back_to_start")]
+                ]
+            ),
         )
+        await state.set_state(Form.waiting_for_email)
+        await callback.answer()
         return
 
-    # Получаем пользователя
-    user = await get_or_create_user(message.from_user.id, db)
+    course = await get_primary_course(db)
+    await create_payment_and_send(callback.message, user, course, tariff_slug, db)
+    await callback.answer()
 
-    # Сохраняем email
+
+@dp.message(Form.waiting_for_email)
+async def process_email(message: Message, state: FSMContext, db: AsyncSession):
+    email = message.text.strip()
+    if "@" not in email or "." not in email:
+        await message.answer("Введите корректный email (name@domain.ru):")
+        return
+
+    user = await get_or_create_user(message.from_user.id, db)
     user.email = email
     await db.commit()
 
-    # Получаем курс
-    query = select(Course).where(Course.is_published == True)
-    result = await db.execute(query)
-    course = result.scalar_one_or_none()
-
+    data = await state.get_data()
+    tariff_slug = data.get("tariff_slug", "pro")
+    course = await get_primary_course(db)
     if not course:
         await message.answer("Курс временно недоступен.")
         await state.clear()
         return
 
-    # Создаем платеж
-    await create_payment_and_send(message, user, course, db)
+    await create_payment_and_send(message, user, course, tariff_slug, db)
     await state.clear()
 
 
-async def create_payment_and_send(message: types.Message, user: User, course: Course, db: AsyncSession):
-    """Создает платеж и отправляет ссылку на оплату"""
-
-    # Создаем платеж через ЮKassa
-    payment_service = PaymentService()
-    payment_data = await payment_service.create_payment(
-        user=user,
-        amount=course.price,
-        description=f"Оплата курса {course.title}",
-        course_id=course.id,
-        return_url=f"https://t.me/{settings.BOT_USERNAME}"
-    )
-
-    if not payment_data:
-        await message.answer(
-            "Произошла ошибка при создании платежа. Пожалуйста, попробуйте позже."
+async def create_payment_and_send(
+    message: types.Message,
+    user: User,
+    course: Course,
+    tariff_slug: str,
+    db: AsyncSession,
+):
+    t_result = await db.execute(
+        select(Tariff).where(
+            Tariff.course_id == course.id,
+            Tariff.slug == tariff_slug,
+            Tariff.is_active == True,
         )
+    )
+    tariff = t_result.scalar_one_or_none()
+    if not tariff:
+        await message.answer("Тариф не найден.")
         return
 
-    # Сохраняем информацию о платеже в БД
-    from app.models.payment import Payment
+    payment_service = PaymentService()
+    description = f"Оплата «{course.title}» — {tariff.name}"
+    payment_data = await payment_service.create_payment(
+        user=user,
+        amount=tariff.price,
+        description=description,
+        course_id=course.id,
+        return_url=f"https://t.me/{settings.BOT_USERNAME}",
+        tariff_slug=tariff.slug,
+        tariff_id=tariff.id,
+    )
+    if not payment_data:
+        await message.answer("Ошибка создания платежа. Попробуйте позже.")
+        return
+
     payment = Payment(
         user_id=user.id,
-        amount=course.price,
-        payment_id=payment_data['payment_id'],
+        amount=tariff.price,
+        payment_id=payment_data["payment_id"],
         status="pending",
-        description=f"Оплата курса {course.title}"
+        description=description,
+        course_id=course.id,
+        tariff_id=tariff.id,
+        tariff_slug=tariff.slug,
     )
     db.add(payment)
     await db.commit()
 
-    # Отправляем пользователю ссылку на оплату
     payment_text = (
-        f"💳 *Оплата курса*\n\n"
-        f"Сумма: {course.price}₽\n\n"
-        f"Для завершения покупки нажмите кнопку ниже и оплатите через любой удобный способ:\n"
-        f"• Картой РФ\n"
-        f"• СБП (Система быстрых платежей)\n"
-        f"• ЮMoney и другие\n\n"
-        f"После оплаты доступ откроется автоматически!"
+        f"💳 <b>Оплата {tariff.name}</b>\n\n"
+        f"Сумма: {int(tariff.price)}₽\n\n"
+        f"После оплаты доступ к материалам откроется автоматически и действует бессрочно."
     )
-
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="💳 Перейти к оплате", url=payment_data['confirmation_url'])],
-            [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")]
+            [InlineKeyboardButton(text="💳 Перейти к оплате", url=payment_data["confirmation_url"])],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")],
         ]
     )
+    await message.answer(payment_text, reply_markup=keyboard)
 
-    await message.answer(payment_text, reply_markup=keyboard, parse_mode="Markdown")
 
-
-# Обработчик кнопки "Курс"
-@dp.callback_query(lambda c: c.data == "course")
-async def process_course(callback: CallbackQuery, db: AsyncSession):
-    """Показывает содержание курса"""
-    await callback.answer()
-
+async def _show_story_modules(callback: CallbackQuery, db: AsyncSession):
     user = await get_or_create_user(callback.from_user.id, db)
-
-    if not user.has_access:
+    course = await get_primary_course(db)
+    if not course or not await user_has_course(db, user, course.id):
         await callback.message.edit_text(
-            "❌ У вас нет доступа к курсу.\n\n"
-            "Для получения доступа необходимо приобрести курс.",
+            "Нет доступа к AI STORY.",
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[
-                    [InlineKeyboardButton(text="💰 Купить курс", callback_data="buy")],
-                    [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")]
+                    [InlineKeyboardButton(text="💰 Купить", callback_data="buy")],
+                    [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")],
                 ]
-            )
+            ),
         )
         return
 
-    query = select(Course).where(Course.is_published == True)
-    result = await db.execute(query)
-    course = result.scalar_one_or_none()
+    m_result = await db.execute(
+        select(Module).where(Module.course_id == course.id).order_by(Module.order)
+    )
+    modules = list(m_result.scalars().all())
+    text = f"<b>{course.title}</b>\n\nВыберите модуль:"
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=m.button_label or f"Модуль {m.order}",
+                callback_data=f"module_{m.id}",
+            )
+        ]
+        for m in modules
+    ]
+    accessible = await list_accessible_courses(db, user.id)
+    if any(c.is_legacy for c in accessible):
+        rows.append(
+            [InlineKeyboardButton(text="📚 Классический курс", callback_data="course_legacy")]
+        )
+    rows.append([InlineKeyboardButton(text="◀️ НАЗАД", callback_data="back_to_start")])
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
 
-    if not course:
-        await callback.message.edit_text("Курс временно недоступен.")
+
+@dp.callback_query(lambda c: c.data in ("course", "course_story"))
+async def process_course_story(callback: CallbackQuery, db: AsyncSession):
+    await callback.answer()
+    await _show_story_modules(callback, db)
+
+
+@dp.callback_query(lambda c: c.data == "course_legacy")
+async def process_course_legacy(callback: CallbackQuery, db: AsyncSession):
+    await callback.answer()
+    user = await get_or_create_user(callback.from_user.id, db)
+    result = await db.execute(
+        select(Course).where(Course.is_legacy == True, Course.is_published == True).limit(1)
+    )
+    course = result.scalar_one_or_none()
+    if not course or not await user_has_course(db, user, course.id):
+        await callback.message.edit_text(
+            "Нет доступа к классическому курсу.",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")]
+                ]
+            ),
+        )
         return
 
-    # Загружаем уроки
-    lessons_query = select(Lesson).where(Lesson.course_id == course.id).order_by(Lesson.order)
-    lessons_result = await db.execute(lessons_query)
+    lessons_result = await db.execute(
+        select(Lesson).where(Lesson.course_id == course.id).order_by(Lesson.order)
+    )
     lessons = lessons_result.scalars().all()
-
-    # Формируем текст с названием курса
-    text = f"📚 *{course.title}*\n\n"
-
-    # Добавляем каждый урок с эмодзи
-    for lesson in lessons:
-        if lesson.id in LESSON_DATA:
-            emoji, _, full_title = LESSON_DATA[lesson.id]
-            text += f"{emoji} *{full_title}*\n\n"
-
-    # Создаём кнопки
+    text = f"<b>{course.title}</b>\n\n"
     buttons = []
     for lesson in lessons:
         if lesson.id in LESSON_DATA:
-            emoji, button_text, _ = LESSON_DATA[lesson.id]
-            buttons.append([InlineKeyboardButton(text=button_text, callback_data=f"lesson_{lesson.id}")])
-
+            emoji, button_text, full_title = LESSON_DATA[lesson.id]
+            text += f"{emoji} {full_title}\n\n"
+            buttons.append(
+                [InlineKeyboardButton(text=button_text, callback_data=f"lesson_{lesson.id}")]
+            )
+        else:
+            buttons.append(
+                [
+                    InlineKeyboardButton(
+                        text=f"Урок {lesson.order}",
+                        callback_data=f"lesson_{lesson.id}",
+                    )
+                ]
+            )
+    buttons.append([InlineKeyboardButton(text="📖 AI STORY", callback_data="course_story")])
     buttons.append([InlineKeyboardButton(text="◀️ НАЗАД", callback_data="back_to_start")])
-    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-
-    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
 
 
-# Обработчик выбора урока
-@dp.callback_query(lambda c: c.data.startswith("lesson_"))
-async def process_lesson(callback: CallbackQuery, db: AsyncSession):
-    """Показывает содержимое урока"""
+@dp.callback_query(lambda c: c.data and c.data.startswith("module_"))
+async def process_module(callback: CallbackQuery, db: AsyncSession):
     await callback.answer()
+    module_id = int(callback.data.split("_")[1])
+    user = await get_or_create_user(callback.from_user.id, db)
+    module = await db.get(Module, module_id)
+    if not module:
+        await callback.message.edit_text("Модуль не найден")
+        return
+    if not await user_has_course(db, user, module.course_id):
+        await callback.message.edit_text("Нет доступа")
+        return
 
+    lessons_result = await db.execute(
+        select(Lesson).where(Lesson.module_id == module.id).order_by(Lesson.order)
+    )
+    lessons = list(lessons_result.scalars().all())
+    text = f"<b>Модуль {module.order}. {module.title}</b>\n\n"
+    for i, lesson in enumerate(lessons, start=1):
+        text += f"Урок {i}. {lesson.title}\n"
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=f"Урок {i}",
+                callback_data=f"lesson_{lesson.id}",
+            )
+        ]
+        for i, lesson in enumerate(lessons, start=1)
+    ]
+    rows.append([InlineKeyboardButton(text="◀️ К модулям", callback_data="course_story")])
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
+
+
+@dp.callback_query(lambda c: c.data and c.data.startswith("lesson_"))
+async def process_lesson(callback: CallbackQuery, db: AsyncSession):
+    await callback.answer()
     lesson_id = int(callback.data.split("_")[1])
-
-    query = select(Lesson).where(Lesson.id == lesson_id)
-    result = await db.execute(query)
-    lesson = result.scalar_one_or_none()
-
+    lesson = await db.get(Lesson, lesson_id)
     if not lesson:
         await callback.message.edit_text("❌ Урок не найден")
         return
 
     user = await get_or_create_user(callback.from_user.id, db)
-
-    if not user.has_access:
-        await callback.message.edit_text(
-            "❌ У вас нет доступа к курсу",
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="◀️ НАЗАД", callback_data="course")]
-                ]
-            )
-        )
+    if not await user_has_course(db, user, lesson.course_id):
+        await callback.message.edit_text("❌ Нет доступа к этому курсу")
         return
 
-    # Получаем данные урока из словаря
-    emoji, _, full_title = LESSON_DATA.get(lesson_id, ("📹", "УРОК", "Урок"))
-
-    text = f"{emoji} *{full_title}*\n\n{lesson.description}"
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="◀️ К УРОКАМ", callback_data="course")]
-        ]
+    course = await db.get(Course, lesson.course_id)
+    back_cb = "course_legacy" if course and course.is_legacy else (
+        f"module_{lesson.module_id}" if lesson.module_id else "course_story"
     )
 
-    if lesson.video_id and lesson.video_id.strip():
-        # Временно: прямая ссылка на Kinescope (пока Timeweb лежит)
-        display_url = f"https://kinescope.io/{lesson.video_id}"
+    if course and course.is_legacy and lesson_id in LESSON_DATA:
+        emoji, _, full_title = LESSON_DATA[lesson_id]
+        title = f"{emoji} {full_title}"
+    else:
+        title = lesson.title
 
-        text = (
-            f"{emoji} *{full_title}*\n\n"
-            f"{lesson.description}\n\n"
-            f"🔗 *Ссылка на видео:*\n"
-            f"`{display_url}`\n\n"
-        )
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="▶️ СМОТРЕТЬ ВИДЕО", url=display_url)],
-                [InlineKeyboardButton(text="◀️ К УРОКАМ", callback_data="course")]
-            ]
-        )
+    text = f"<b>{title}</b>\n\n{lesson.description or ''}"
+    keyboard_rows = [[InlineKeyboardButton(text="◀️ Назад", callback_data=back_cb)]]
 
-    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
-
-
-# Обработчик кнопки "Назад"
-@dp.callback_query(lambda c: c.data == "back_to_start")
-async def process_back_to_start(callback: CallbackQuery, db: AsyncSession):
-    """Возвращает в главное меню"""
-    # Сразу отвечаем на callback, чтобы избежать таймаута
-    await callback.answer()
-
-    # Теперь выполняем основную логику
-    user = await get_or_create_user(callback.from_user.id, db)
-
-    # Приветственное сообщение
-    welcome_text = (
-        f"👋 Привет, {callback.from_user.first_name}!\n\n"
-        f"Для того, чтобы узнать подробнее о курсе, нажми на кнопку 'О курсе'.\n\n"
-    )
-
-    # Создаем клавиатуру
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="📚 О курсе", callback_data="about")],
-            [InlineKeyboardButton(text="💰 Купить доступ", callback_data="buy")],
-        ]
-    )
-
-    # Если у пользователя уже есть доступ, добавляем кнопку перехода к курсу
-    if user.has_access:
-        welcome_text += "У вас уже есть доступ к курсу!"
-        keyboard.inline_keyboard.insert(
-            0,
-            [InlineKeyboardButton(text="📖 Перейти к курсу", callback_data="course")]
+    vid = (lesson.video_id or "").strip()
+    if vid and vid != "pending":
+        display_url = f"https://kinescope.io/{vid}"
+        text += f"\n\n🔗 Ссылка на видео:\n<code>{display_url}</code>"
+        keyboard_rows.insert(
+            0, [InlineKeyboardButton(text="▶️ Смотреть видео", url=display_url)]
         )
     else:
-        welcome_text += "💡 Для получения доступа необходимо приобрести курс."
+        text += "\n\n<i>Видео скоро появится.</i>"
 
-    await callback.message.edit_text(welcome_text, reply_markup=keyboard)
+    await callback.message.edit_text(
+        text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+    )
 
 
-# Запуск бота
+@dp.callback_query(lambda c: c.data == "back_to_start")
+async def process_back_to_start(callback: CallbackQuery, db: AsyncSession):
+    await callback.answer()
+    user = await get_or_create_user(callback.from_user.id, db)
+    accessible = await list_accessible_courses(db, user.id)
+    has_story = any(c.slug == "ai-story" for c in accessible)
+    has_legacy = any(c.is_legacy for c in accessible)
+    has_any = bool(accessible)
+
+    text = f"👋 Привет, {callback.from_user.first_name}!\n\n"
+    if has_any:
+        text += "Выберите курс или откройте кабинет на сайте."
+    else:
+        text += "Узнайте о AI STORY или выберите тариф."
+
+    await callback.message.edit_text(
+        text, reply_markup=_main_menu_keyboard(has_any, has_story, has_legacy)
+    )
+
+
 async def start_bot():
-    """Запускает бота с повторными попытками"""
     logger.info("Starting bot...")
     retries = 1
     for i in range(retries):
@@ -605,7 +616,7 @@ async def start_bot():
             await dp.start_polling(bot, polling_timeout=30, limit=5)
             break
         except Exception as e:
-            logger.error(f"Polling failed (attempt {i+1}/{retries}): {e}")
+            logger.error("Polling failed (attempt %s/%s): %s", i + 1, retries, e)
             if i < retries - 1:
                 await asyncio.sleep(5)
             else:
@@ -620,5 +631,10 @@ if __name__ == "__main__":
     if not settings.BOT_ENABLED:
         print("Bot disabled (BOT_ENABLED=false). Exiting.")
         import sys
+
         sys.exit(0)
     run_bot()
+
+    run_bot()
+
+

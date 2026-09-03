@@ -3,728 +3,1669 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Экспресс-курс по созданию ИИ анимаций и изображений | Davydova AI</title>
-    <meta name="description" content="Научись создавать профессиональные ИИ-анимации и изображения за несколько дней. Практический экспресс-курс с доступом через личный кабинет на сайте. Автор — Елизавета Давыдова.">
-    <meta name="keywords" content="ИИ анимации, AI изображения, курс по нейросетям, обучение AI, Давыдова">
+    <title>AI STORY: воплоти свою историю | Davydova AI</title>
+    <meta name="description" content="Курс AI STORY от Davydova AI: от идеи вирусного ИИ-сериала до монетизации и первых клиентов. Доступ сразу после оплаты.">
+    <meta name="keywords" content="AI STORY, ИИ сериал, нейросети, курс AI, Давыдова, Davydova AI">
     <meta name="author" content="Елизавета Давыдова">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Экспресс-курс по созданию ИИ анимаций и изображений">
-    <meta property="og:description" content="Научись создавать профессиональные ИИ-анимации и изображения. Практический курс — доступ сразу после оплаты.">
-    <meta property="og:image" content="/static/images/logo.png">
+    <meta property="og:title" content="AI STORY: воплоти свою историю | Davydova AI">
+    <meta property="og:description" content="Воплоти свою историю с ИИ. Практический курс. Доступ сразу после оплаты.">
+    <meta property="og:image" content="/static/images/hero-ai-story-wide.png">
     <meta property="og:url" content="https://davydovaai.ru">
     <meta name="twitter:card" content="summary_large_image">
     <link rel="canonical" href="https://davydovaai.ru">
     <link rel="icon" type="image/png" href="/static/images/logo.png">
+    <script>
+        (function () {
+            var t = localStorage.getItem('davydova-theme');
+            if (t !== 'dark' && t !== 'light') t = 'light';
+            document.documentElement.dataset.theme = t;
+        })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        :root {
+            --ink: #f6f3f5;
+            --ink-soft: #ffffff;
+            --dusk: #efe9ec;
+            --mist: #6b6570;
+            --pearl: #1a1520;
+            --rose: #d4899a;
+            --rose-deep: #c4788c;
+            --cyan: #4a9eab;
+            --cyan-dim: rgba(74, 158, 171, 0.35);
+            --glass: rgba(255, 255, 255, 0.78);
+            --glass-border: rgba(26, 21, 32, 0.1);
+            --surface: rgba(255, 255, 255, 0.92);
+            --nav-bg: rgba(255, 255, 255, 0.88);
+            --nav-border: rgba(26, 21, 32, 0.08);
+            --section-border: rgba(26, 21, 32, 0.07);
+            --btn-ghost-border: rgba(26, 21, 32, 0.16);
+            --btn-ghost-hover: rgba(26, 21, 32, 0.04);
+            --module-border: rgba(26, 21, 32, 0.08);
+        }
+
+        [data-theme="dark"] {
+            --ink: #0a0b14;
+            --ink-soft: #12131f;
+            --dusk: #1a1c2e;
+            --mist: #a8a6b8;
+            --pearl: #e6e4f0;
+            --rose: #e8a4b4;
+            --rose-deep: #c4788c;
+            --cyan: #7ecad4;
+            --cyan-dim: rgba(126, 202, 212, 0.35);
+            --glass: rgba(255, 255, 255, 0.06);
+            --glass-border: rgba(255, 255, 255, 0.12);
+            --surface: rgba(26, 28, 46, 0.72);
+            --nav-bg: rgba(10, 11, 20, 0.82);
+            --nav-border: rgba(255, 255, 255, 0.1);
+            --section-border: rgba(255, 255, 255, 0.06);
+            --btn-ghost-border: rgba(230, 228, 240, 0.28);
+            --btn-ghost-hover: rgba(230, 228, 240, 0.07);
+            --module-border: rgba(168, 166, 184, 0.14);
+        }
+
+        body {
+            font-family: 'Manrope', system-ui, sans-serif;
+            background-color: var(--ink);
+            color: var(--pearl);
+        }
+
+        .font-display {
+            font-family: 'Manrope', system-ui, sans-serif;
+            font-weight: 700;
+        }
 
         .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--rose-deep) 0%, #a8687a 55%, #3d6a72 100%);
         }
-        .gradient-text {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+
+        html {
+            scroll-behavior: smooth;
         }
-        .gradient-border {
-            border-image: linear-gradient(135deg, #667eea, #764ba2) 1;
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
         }
-        .hero-bg {
-            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+
+        .page-texture {
+            background-color: var(--ink);
+            background-image:
+                radial-gradient(ellipse 70% 45% at 15% -5%, rgba(232, 164, 180, 0.18), transparent 55%),
+                radial-gradient(ellipse 55% 40% at 90% 30%, rgba(126, 202, 212, 0.12), transparent 50%),
+                radial-gradient(ellipse 50% 35% at 50% 100%, rgba(196, 120, 140, 0.1), transparent 55%);
         }
-        .card-hover {
-            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        [data-theme="dark"] .page-texture {
+            background-image:
+                radial-gradient(ellipse 70% 45% at 15% -5%, rgba(232, 164, 180, 0.14), transparent 55%),
+                radial-gradient(ellipse 55% 40% at 90% 30%, rgba(126, 202, 212, 0.1), transparent 50%),
+                radial-gradient(ellipse 50% 35% at 50% 100%, rgba(196, 120, 140, 0.08), transparent 55%);
         }
-        .card-hover:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 20px 40px -10px rgba(102, 126, 234, 0.25);
-        }
-        .cta-pulse {
-            animation: ctaPulse 2.5s infinite;
-        }
-        @keyframes ctaPulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.5); }
-            50% { box-shadow: 0 0 0 14px rgba(102, 126, 234, 0); }
-        }
-        .check-item::before {
-            content: '';
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            min-width: 20px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border-radius: 50%;
-            margin-right: 12px;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='white'%3E%3Cpath fill-rule='evenodd' d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z' clip-rule='evenodd'/%3E%3C/svg%3E");
+
+        .hero-plane {
+            background-image:
+                linear-gradient(105deg, rgba(26, 21, 32, 0.52) 0%, rgba(26, 21, 32, 0.28) 48%, rgba(26, 21, 32, 0.16) 100%),
+                linear-gradient(to top, rgba(246, 243, 245, 0.92) 0%, transparent 45%),
+                url('/static/images/hero-ai-story-wide.png');
             background-size: cover;
+            background-position: center 25%;
+        }
+        [data-theme="dark"] .hero-plane {
+            background-image:
+                linear-gradient(105deg, rgba(10, 11, 20, 0.82) 0%, rgba(10, 11, 20, 0.45) 48%, rgba(10, 11, 20, 0.28) 100%),
+                linear-gradient(to top, rgba(10, 11, 20, 0.92) 0%, transparent 42%),
+                url('/static/images/hero-ai-story-wide.png');
+        }
+
+        .site-nav {
+            background: var(--nav-bg);
+            border-bottom: 1px solid var(--nav-border);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+        }
+
+        .glass-panel {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+
+        .nav-link {
+            position: relative;
+            color: var(--mist);
+            transition: color 0.25s ease;
+        }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -3px;
+            width: 0;
+            height: 1.5px;
+            background: linear-gradient(90deg, var(--rose), var(--cyan));
+            transition: width 0.35s ease;
+        }
+        .nav-link:hover { color: var(--pearl); }
+        .nav-link:hover::after { width: 100%; }
+
+        .theme-toggle {
+            width: 2.25rem;
+            height: 2.25rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9999px;
+            border: 1px solid var(--btn-ghost-border);
+            color: var(--mist);
+            background: transparent;
+            transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        }
+        .theme-toggle:hover {
+            color: var(--pearl);
+            background: var(--btn-ghost-hover);
+            border-color: var(--cyan-dim);
+        }
+        .theme-toggle .icon-sun { display: none; }
+        .theme-toggle .icon-moon { display: inline; }
+        [data-theme="dark"] .theme-toggle .icon-sun { display: inline; }
+        [data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+
+        .section-title {
+            position: relative;
+            display: inline-block;
+        }
+        .section-title::after {
+            content: '';
+            display: block;
+            width: 0;
+            height: 2px;
+            margin-top: 0.6rem;
+            background: linear-gradient(90deg, var(--rose), var(--cyan));
+            transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .reveal.is-visible .section-title::after { width: 3.5rem; }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(1.25rem);
+            transition: opacity 0.7s ease, transform 0.7s ease;
+        }
+        .reveal.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+
+        .hero-enter {
+            opacity: 0;
+            transform: translateY(1rem);
+            animation: heroFade 0.9s ease forwards;
+        }
+        .hero-enter-delay-1 { animation-delay: 0.15s; }
+        .hero-enter-delay-2 { animation-delay: 0.3s; }
+        .hero-enter-delay-3 { animation-delay: 0.45s; }
+        @keyframes heroFade {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .btn-accent {
+            background: linear-gradient(135deg, var(--rose-deep), #a8687a);
+            color: #fff;
+            transition: filter 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 0 0 0 rgba(232, 164, 180, 0);
+        }
+        .btn-accent:hover {
+            filter: brightness(1.08);
+            box-shadow: 0 8px 28px -8px rgba(232, 164, 180, 0.45);
+        }
+        .btn-accent:active { transform: translateY(1px); }
+
+        .btn-ghost {
+            border: 1px solid var(--btn-ghost-border);
+            color: var(--pearl);
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+        .btn-ghost:hover {
+            background: var(--btn-ghost-hover);
+            border-color: rgba(126, 202, 212, 0.45);
+        }
+
+        .btn-cyan {
+            border: 1px solid var(--cyan-dim);
+            color: var(--cyan);
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+        .btn-cyan:hover {
+            background: rgba(126, 202, 212, 0.1);
+            border-color: var(--cyan);
+        }
+
+        .btn-hero-secondary {
+            background: #ffffff;
+            color: #1a1520;
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 10px 28px -12px rgba(0, 0, 0, 0.45);
+            transition: filter 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .btn-hero-secondary:hover {
+            filter: brightness(0.97);
+            box-shadow: 0 14px 32px -12px rgba(0, 0, 0, 0.5);
+        }
+        .btn-hero-secondary:active { transform: translateY(1px); }
+
+        .module-item {
+            border-bottom: 1px solid var(--module-border);
+        }
+        .module-item .chevron {
+            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .module-item.is-open .chevron {
+            transform: rotate(180deg);
+        }
+        .module-panel {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .module-panel.open {
+            grid-template-rows: 1fr;
+        }
+        .module-panel-inner {
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(-0.35rem);
+            transition: opacity 0.35s ease 0.05s, transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .module-panel.open .module-panel-inner {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .tariff-card {
+            background: var(--surface);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(12px);
+            transition: border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+        .tariff-card:hover {
+            border-color: rgba(232, 164, 180, 0.45);
+            box-shadow: 0 12px 40px -16px rgba(232, 164, 180, 0.25);
+        }
+        .tariff-card.is-vip {
+            border-color: rgba(126, 202, 212, 0.4);
+        }
+
+        .faq-item {
+            border-bottom: 1px solid var(--module-border);
         }
         .faq-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.4s cubic-bezier(0.22, 1, 0.36, 1);
         }
         .faq-content.open {
-            max-height: 300px;
+            grid-template-rows: 1fr;
         }
-        html { scroll-behavior: smooth; }
-        .reach-photo { max-height: 520px; }
-        .pay-modal-img { max-height: 400px; object-position: top; }
+        .faq-content-inner {
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(-0.25rem);
+            transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .faq-content.open .faq-content-inner {
+            opacity: 1;
+            transform: translateY(0);
+        }
 
-        /* Модалки на телефоне: если контент выше экрана — карточка скроллится,
-           иначе кнопка оплаты оказывается за пределами вьюпорта и её не нажать. */
+        .reach-photo { max-height: 520px; }
+        .reach-cta {
+            margin-top: 2.5rem;
+            padding: 1.5rem 1.75rem;
+            border-radius: 1.25rem;
+            border: 1px solid var(--glass-border);
+            background: var(--surface);
+        }
+
+        .viral-layout {
+            display: grid;
+            gap: 2rem;
+            align-items: center;
+        }
+        @media (min-width: 900px) {
+            .viral-layout {
+                grid-template-columns: 1.05fr minmax(220px, 300px);
+                gap: 3rem;
+            }
+        }
+        .viral-still {
+            width: 100%;
+            aspect-ratio: 3 / 4;
+            object-fit: cover;
+            border-radius: 1.25rem;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 20px 50px -24px rgba(80, 40, 70, 0.35);
+        }
+        .viral-phone {
+            margin: 0 auto;
+            width: min(100%, 300px);
+            aspect-ratio: 9 / 16;
+            border-radius: 1.5rem;
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+            background: #0a0a0a;
+            box-shadow: 0 24px 48px -20px rgba(0, 0, 0, 0.35);
+        }
+        .viral-phone video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            background: #000;
+        }
+
+        .platform-tab.is-active {
+            background: linear-gradient(135deg, var(--rose-deep), #a8687a);
+            color: #fff;
+            border-color: transparent;
+            box-shadow: 0 6px 20px -6px rgba(196, 120, 140, 0.5);
+        }
+        .platform-tab:not(.is-active) {
+            border: 1px solid rgba(74, 158, 171, 0.45);
+            color: #fff;
+            background: var(--cyan);
+        }
+        .platform-tab:not(.is-active):hover {
+            filter: brightness(1.06);
+            border-color: var(--cyan);
+        }
+
+        .reach-figure {
+            overflow: hidden;
+            border-radius: 1rem;
+            border: 1px solid var(--glass-border);
+            background: var(--surface);
+        }
+        .reach-figure img {
+            display: block;
+            width: 100%;
+            object-fit: cover;
+        }
+        .reach-caption {
+            padding: 0.85rem 1rem 1rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--pearl);
+        }
+
+        /* Author block */
+        .about-photo {
+            width: min(88vw, 22rem);
+            height: min(88vw, 22rem);
+            object-fit: cover;
+            border-radius: 1.5rem;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 24px 48px -20px rgba(80, 40, 70, 0.35);
+        }
+        @media (min-width: 768px) {
+            .about-photo {
+                width: 26rem;
+                height: 26rem;
+            }
+        }
+        .about-kicker {
+            color: var(--rose);
+            font-weight: 700;
+            font-size: 0.95rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            margin-bottom: 0.65rem;
+        }
+        .social-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.65rem 1.35rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #fff;
+            border: 1px solid transparent;
+            box-shadow: 0 6px 20px -6px rgba(0, 0, 0, 0.35);
+            transition: filter 0.2s ease, transform 0.2s ease;
+        }
+        .social-chip:hover {
+            filter: brightness(1.06);
+        }
+        .social-chip--instagram {
+            background: linear-gradient(135deg, var(--rose-deep), #a8687a);
+            border-color: transparent;
+            box-shadow: 0 6px 20px -6px rgba(196, 120, 140, 0.5);
+        }
+        .social-chip--tiktok {
+            background: var(--cyan);
+            border-color: rgba(74, 158, 171, 0.45);
+            box-shadow: 0 6px 20px -6px rgba(74, 158, 171, 0.45);
+        }
+
+        /* 3D Coverflow gallery */
+        .coverflow {
+            position: relative;
+            perspective: 1400px;
+            perspective-origin: 50% 45%;
+            height: min(72vw, 520px);
+            max-width: 1100px;
+            margin: 0 auto;
+            user-select: none;
+            touch-action: pan-y;
+        }
+        @media (min-width: 768px) {
+            .coverflow { height: 560px; }
+        }
+        .coverflow-stage {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+        }
+        .coverflow-item {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: min(52vw, 240px);
+            aspect-ratio: 9 / 16;
+            margin: 0;
+            border: 0;
+            padding: 0;
+            background: transparent;
+            border-radius: 1.25rem;
+            overflow: hidden;
+            transform-style: preserve-3d;
+            transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+                        filter 0.45s ease,
+                        opacity 0.45s ease,
+                        box-shadow 0.45s ease;
+            box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.45);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        @media (min-width: 768px) {
+            .coverflow-item { width: 260px; }
+        }
+        .coverflow-item.is-active {
+            box-shadow: 0 28px 56px -16px rgba(0, 0, 0, 0.55);
+            cursor: default;
+        }
+        .coverflow-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            background: #0a0a0a;
+            pointer-events: none;
+        }
+        .coverflow-item.is-active video {
+            pointer-events: auto;
+        }
+        .coverflow-caption {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 2.5rem 1rem 1rem;
+            background: linear-gradient(to top, rgba(0,0,0,0.75), transparent);
+            color: #fff;
+            text-align: left;
+            pointer-events: none;
+        }
+        .coverflow-caption strong {
+            display: block;
+            font-size: 1.05rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        .coverflow-caption span {
+            display: block;
+            margin-top: 0.2rem;
+            font-size: 0.78rem;
+            opacity: 0.85;
+        }
+        .coverflow-hint {
+            text-align: center;
+            color: var(--mist);
+            font-size: 0.9rem;
+            margin-top: 1.25rem;
+        }
+        .coverflow-nav {
+            display: flex;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+        .universe-nav-btn {
+            width: 2.75rem;
+            height: 2.75rem;
+            border-radius: 9999px;
+            border: 1px solid var(--glass-border);
+            background: var(--surface);
+            color: var(--pearl);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+        .universe-nav-btn:hover {
+            border-color: rgba(126, 202, 212, 0.5);
+            background: var(--btn-ghost-hover);
+        }
+
+
+        .section-rule { border-color: var(--section-border); }
+
         .modal-panel {
             max-height: 90vh;
-            max-height: 90dvh;   /* dvh учитывает адресную строку мобильных браузеров */
+            max-height: 90dvh;
             overflow-y: auto;
             overscroll-behavior: contain;
         }
+        .pay-modal-panel {
+            max-width: 56rem;
+            width: 100%;
+            overflow: hidden;
+        }
+        @media (max-width: 767px) {
+            #pay-modal {
+                padding: 0.75rem !important;
+                align-items: center;
+            }
+            .pay-modal-panel {
+                width: calc(100% - 0.5rem);
+                max-width: 20.5rem;
+                margin: 3rem auto;
+                border-radius: 1.1rem;
+            }
+            .pay-modal-visual {
+                height: 250px !important;
+                max-height: 290px !important;
+            }
+            #pay-modal .pay-form {
+                padding: 0.85rem 1.15rem 1rem;
+            }
+            #pay-modal .pay-form #pay-modal-features {
+                max-height: none;
+                overflow: visible;
+            }
+        }
+        .pay-modal-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+        @media (min-width: 768px) {
+            .pay-modal-layout {
+                grid-template-columns: minmax(240px, 0.95fr) 1.15fr;
+                align-items: stretch;
+            }
+        }
+        .pay-modal-visual {
+            position: relative;
+            background: linear-gradient(160deg, #f7eef5, #e8f4f6);
+            overflow: hidden;
+        }
+        .pay-modal-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .pay-modal-img--desktop { display: none; }
+        .pay-modal-img--mobile { display: block; }
+
+        /* Mobile: compact top banner */
+        .pay-modal-visual {
+            min-height: 0;
+            height: clamp(170px, 48vw, 210px);
+            max-height: 270px;
+            aspect-ratio: auto;
+        }
+        .pay-modal-img--mobile {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center 28%;
+        }
+        #pay-modal .pay-form {
+            padding: 0.9rem 1rem 1.1rem;
+        }
+        #pay-modal .pay-form h3 {
+            font-size: 1.15rem;
+            margin-bottom: 0.15rem;
+        }
+        #pay-modal .pay-form .pay-subtitle { margin-bottom: 0.75rem; }
+        #pay-modal .pay-form .pay-price-box {
+            padding: 0.7rem 0.9rem;
+            margin-bottom: 0.75rem;
+        }
+        #pay-modal .pay-form .pay-price-box #pay-modal-price {
+            font-size: 1.65rem;
+        }
+        #pay-modal .pay-form #pay-modal-features {
+            margin-bottom: 0.85rem;
+            max-height: 7.5rem;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        #pay-modal .pay-form #pay-modal-features li {
+            font-size: 0.8rem;
+            line-height: 1.3;
+        }
+        #pay-modal .pay-form .pay-offer {
+            margin-bottom: 0.75rem;
+            font-size: 0.7rem;
+        }
+        #pay-modal .pay-form #pay-modal-btn {
+            padding-top: 0.8rem;
+            padding-bottom: 0.8rem;
+        }
+
+        @media (min-width: 768px) {
+            .pay-modal-visual {
+                min-height: 100%;
+                max-height: none;
+                height: auto;
+                aspect-ratio: auto;
+            }
+            .pay-modal-img--mobile { display: none; }
+            .pay-modal-img--desktop {
+                display: block;
+                min-height: 480px;
+                object-position: 20% center;
+            }
+            #pay-modal .pay-form {
+                padding: 1.25rem 1.75rem;
+            }
+            #pay-modal .pay-form h3 { font-size: 1.5rem; }
+            #pay-modal .pay-form .pay-price-box #pay-modal-price { font-size: 1.875rem; }
+            #pay-modal .pay-form #pay-modal-features {
+                max-height: none;
+                overflow: visible;
+                margin-bottom: 1.5rem;
+            }
+            #pay-modal .pay-form #pay-modal-features li { font-size: 0.875rem; }
+            #pay-modal .pay-form .pay-offer { margin-bottom: 1.25rem; font-size: 0.75rem; }
+        }
         @media (max-width: 640px) {
-            /* уменьшаем картинку, чтобы цена и кнопка помещались без прокрутки */
-            .pay-modal-img { max-height: 180px; }
+            .pay-modal-panel {
+                max-width: 22.5rem;
+                max-height: min(94dvh, 920px);
+            }
+        }
+        @media (max-height: 760px) and (max-width: 768px) {
+            .pay-modal-visual {
+                height: 190px !important;
+                max-height: 168px !important;
+            }
+        }
+
+        #auth-modal input[type="email"],
+        #auth-modal input[type="password"],
+        #auth-modal input[type="text"],
+        #pay-modal input[type="email"],
+        #pay-modal input[type="password"],
+        #pay-modal input[type="text"] {
+            color: #111 !important;
+            background: #fff !important;
+        }
+        #auth-modal input::placeholder,
+        #pay-modal input::placeholder {
+            color: #9ca3af;
+            opacity: 1;
+        }
+        #pay-modal label,
+        #pay-modal label span {
+            color: #374151;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .reveal, .hero-enter {
+                opacity: 1;
+                transform: none;
+                animation: none;
+                transition: none;
+            }
+            .section-title::after { width: 3.5rem; }
+        }
+
+        /* Mobile drawer */
+        .nav-burger {
+            width: 2.5rem;
+            height: 2.5rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9999px;
+            border: 1px solid var(--btn-ghost-border);
+            color: var(--pearl);
+            background: transparent;
+        }
+        .mobile-drawer-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            z-index: 60;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        .mobile-drawer-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .mobile-drawer {
+            position: fixed;
+            top: 0;
+            right: 0;
+            height: 100%;
+            height: 100dvh;
+            width: min(86vw, 20rem);
+            z-index: 70;
+            background: var(--nav-bg);
+            border-left: 1px solid var(--nav-border);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+            display: flex;
+            flex-direction: column;
+            padding: 1rem 1.1rem 1.5rem;
+            overflow-y: auto;
+        }
+        .mobile-drawer.open { transform: translateX(0); }
+        .mobile-drawer a.drawer-link {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            padding: 0.85rem 0.9rem;
+            border-radius: 1rem;
+            color: var(--pearl);
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: background 0.15s ease;
+        }
+        .mobile-drawer a.drawer-link:hover,
+        .mobile-drawer a.drawer-link:active {
+            background: var(--btn-ghost-hover);
+        }
+        .mobile-drawer .drawer-meta {
+            color: var(--mist);
+            font-size: 0.8rem;
+        }
+        body.drawer-open { overflow: hidden; }
+
+        /* Mobile layout polish */
+        @media (max-width: 640px) {
+            .hero-plane {
+                background-position: 70% 25%;
+                min-height: 92svh;
+            }
+            .hero-plane h1 {
+                font-size: 2.75rem;
+            }
+            .viral-still {
+                aspect-ratio: 4 / 5;
+                max-height: 420px;
+            }
+            .viral-phone {
+                width: min(100%, 260px);
+            }
+            .coverflow {
+                height: min(78vw, 420px);
+                perspective: 1000px;
+            }
+            .coverflow-item {
+                width: min(58vw, 200px);
+            }
+            .about-photo {
+                width: min(78vw, 18rem);
+                height: min(78vw, 18rem);
+            }
+            .module-item button > div {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.2rem;
+            }
+            footer .grid {
+                gap: 1.75rem;
+            }
+        }
+        @media (max-width: 380px) {
+            .site-nav .btn-accent,
+            .site-nav .btn-ghost {
+                padding-left: 0.85rem;
+                padding-right: 0.85rem;
+                font-size: 0.8rem;
+            }
         }
     </style>
 </head>
-<body class="bg-white text-gray-900 overflow-x-hidden">
+<body class="page-texture overflow-x-hidden">
 
 <!-- НАВИГАЦИЯ -->
-<nav class="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-sm border-b border-gray-100 shadow-sm">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        <a href="/" class="flex items-center space-x-2">
-            <img src="/static/images/logo.png" alt="Davydova AI" class="h-9 w-auto">
+<nav class="site-nav fixed top-0 left-0 right-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-3">
+        <a href="/" class="font-display text-lg sm:text-xl tracking-tight text-[var(--pearl)] shrink-0">
+            Davydova&nbsp;AI
         </a>
-        <div class="hidden md:flex items-center space-x-6 text-sm font-medium text-gray-600">
-            <a href="#program" class="hover:text-purple-600 transition-colors">Программа</a>
-            <a href="#about" class="hover:text-purple-600 transition-colors">Об авторе</a>
-            <a href="#price" class="hover:text-purple-600 transition-colors">Стоимость</a>
-            <a href="#faq" class="hover:text-purple-600 transition-colors">FAQ</a>
+        <div class="hidden lg:flex items-center gap-6 text-sm font-medium">
+            <a href="#about" class="nav-link">Об авторе</a>
+            <a href="#viral" class="nav-link">Результат</a>
+            <a href="#universe" class="nav-link">Вселенная</a>
+            <a href="#reach" class="nav-link">Охваты</a>
+            <a href="#tariffs" class="nav-link">Тарифы</a>
+            <a href="#program" class="nav-link">Программа</a>
+            <a href="#faq" class="nav-link">FAQ</a>
+            {% if telegram_bot_username %}
             <a href="{{ telegram_bot_url }}" target="_blank" rel="noopener noreferrer"
-               class="hover:text-purple-600 transition-colors inline-flex items-center gap-1.5">
-                <i class="fab fa-telegram text-sky-500"></i> Бот
+               class="nav-link inline-flex items-center gap-1.5">
+                <i class="fab fa-telegram text-[var(--cyan)]" aria-hidden="true"></i> Бот
             </a>
+            {% endif %}
+            {% if instagram_url %}
+            <a href="{{ instagram_url }}" target="_blank" rel="noopener noreferrer"
+               class="nav-link" aria-label="Instagram">
+                <i class="fab fa-instagram" aria-hidden="true"></i>
+            </a>
+            {% endif %}
+            {% if tiktok_url %}
+            <a href="{{ tiktok_url }}" target="_blank" rel="noopener noreferrer"
+               class="nav-link" aria-label="TikTok">
+                <i class="fab fa-tiktok" aria-hidden="true"></i>
+            </a>
+            {% endif %}
         </div>
-        {% if current_user and current_user.has_access %}
-        <a href="/cabinet"
-           class="gradient-bg text-white text-sm font-semibold px-4 py-2 rounded-full hover:opacity-90 transition-opacity flex items-center space-x-2">
-            <i class="fas fa-play-circle"></i>
-            <span>Мой курс</span>
-        </a>
-        {% elif current_user %}
-        <a href="/cabinet/profile"
-           class="border border-purple-400 text-purple-600 text-sm font-semibold px-4 py-2 rounded-full hover:bg-purple-50 transition-colors flex items-center space-x-2">
-            <i class="fas fa-user"></i>
-            <span>Личный кабинет</span>
-        </a>
-        {% else %}
-        <button type="button" onclick="openAuthModal('register')"
-                class="gradient-bg text-white text-sm font-semibold px-4 py-2 rounded-full hover:opacity-90 transition-opacity flex items-center space-x-2">
-            <span>Войти</span>
-        </button>
-        {% endif %}
+        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <button type="button" class="theme-toggle" onclick="toggleTheme()" aria-label="Переключить тему" title="Тема">
+                <i class="fas fa-sun icon-sun" aria-hidden="true"></i>
+                <i class="fas fa-moon icon-moon" aria-hidden="true"></i>
+            </button>
+            {% if current_user and (current_user.has_access or has_story_access) %}
+            <a href="/cabinet"
+               class="btn-accent text-sm font-semibold px-3 sm:px-4 py-2 rounded-3xl inline-flex items-center gap-2">
+                Кабинет
+            </a>
+            {% elif current_user %}
+            <a href="/cabinet/profile"
+               class="btn-ghost text-sm font-semibold px-3 sm:px-4 py-2 rounded-3xl inline-flex items-center gap-2">
+                Кабинет
+            </a>
+            {% else %}
+            <button type="button" onclick="openAuthModal('login')"
+                    class="hidden sm:inline-flex btn-ghost text-sm font-semibold px-3 sm:px-4 py-2 rounded-3xl">
+                Войти
+            </button>
+            {% endif %}
+            <button type="button" class="nav-burger lg:hidden" onclick="toggleMobileDrawer(true)" aria-label="Открыть меню">
+                <i class="fas fa-bars" aria-hidden="true"></i>
+            </button>
+        </div>
     </div>
 </nav>
 
+<div id="mobile-drawer-overlay" class="mobile-drawer-overlay lg:hidden" onclick="toggleMobileDrawer(false)" aria-hidden="true"></div>
+<aside id="mobile-drawer" class="mobile-drawer lg:hidden" aria-label="Мобильное меню" aria-hidden="true">
+    <div class="flex items-center justify-between mb-4">
+        <p class="font-display text-[var(--pearl)] font-semibold">Меню</p>
+        <button type="button" class="nav-burger" onclick="toggleMobileDrawer(false)" aria-label="Закрыть меню">
+            <i class="fas fa-xmark" aria-hidden="true"></i>
+        </button>
+    </div>
+    <nav class="flex flex-col gap-1 flex-1">
+        <a href="#about" class="drawer-link" onclick="toggleMobileDrawer(false)">Об авторе</a>
+        <a href="#viral" class="drawer-link" onclick="toggleMobileDrawer(false)">Результат</a>
+        <a href="#universe" class="drawer-link" onclick="toggleMobileDrawer(false)">Вселенная</a>
+        <a href="#reach" class="drawer-link" onclick="toggleMobileDrawer(false)">Охваты</a>
+        <a href="#tariffs" class="drawer-link" onclick="toggleMobileDrawer(false)">Тарифы</a>
+        <a href="#program" class="drawer-link" onclick="toggleMobileDrawer(false)">Программа</a>
+        <a href="#faq" class="drawer-link" onclick="toggleMobileDrawer(false)">FAQ</a>
+    </nav>
+    <div class="mt-4 pt-4 border-t section-rule space-y-2">
+        {% if not current_user %}
+        <button type="button" onclick="toggleMobileDrawer(false); openAuthModal('login')"
+                class="btn-accent w-full font-semibold text-sm px-4 py-3 rounded-3xl">
+            Войти
+        </button>
+        {% endif %}
+        <div class="flex flex-wrap gap-2 pt-1">
+            {% if telegram_bot_username %}
+            <a href="{{ telegram_bot_url }}" target="_blank" rel="noopener noreferrer"
+               class="social-chip social-chip--tiktok text-xs px-3 py-2">
+                <i class="fab fa-telegram" aria-hidden="true"></i> Бот
+            </a>
+            {% endif %}
+            {% if instagram_url %}
+            <a href="{{ instagram_url }}" target="_blank" rel="noopener noreferrer"
+               class="social-chip social-chip--instagram text-xs px-3 py-2">
+                <i class="fab fa-instagram" aria-hidden="true"></i> IG
+            </a>
+            {% endif %}
+            {% if tiktok_url %}
+            <a href="{{ tiktok_url }}" target="_blank" rel="noopener noreferrer"
+               class="social-chip social-chip--tiktok text-xs px-3 py-2">
+                <i class="fab fa-tiktok" aria-hidden="true"></i> TT
+            </a>
+            {% endif %}
+        </div>
+        <p class="drawer-meta pt-2">Davydova AI · AI STORY</p>
+    </div>
+</aside>
+
 <!-- HERO -->
-<section class="hero-bg pt-16 min-h-screen flex items-center relative overflow-hidden">
-    <!-- Фоновые декоративные элементы -->
-    <div class="absolute top-1/4 -left-20 w-72 h-72 bg-purple-600/20 rounded-full blur-3xl pointer-events-none"></div>
-    <div class="absolute bottom-1/4 -right-20 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
+<section class="hero-plane relative min-h-[100svh] flex items-end sm:items-center pt-16">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24 w-full">
+        <p class="hero-enter font-display text-2xl sm:text-3xl md:text-4xl text-white tracking-tight mb-4">
+            Davydova&nbsp;AI
+        </p>
+        <h1 class="hero-enter hero-enter-delay-1 font-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold text-white leading-[0.95] tracking-tight mb-5">
+            AI&nbsp;STORY
+        </h1>
+        <p class="hero-enter hero-enter-delay-2 text-base sm:text-lg text-white/80 max-w-md mb-10 leading-relaxed">
+            Воплоти свою историю: от идеи ИИ-сериала до монетизации.
+        </p>
+        <div class="hero-enter hero-enter-delay-3 flex flex-col sm:flex-row gap-3 sm:gap-4">
+            {% if current_user and (current_user.has_access or has_story_access) %}
+            <a href="/cabinet"
+               class="btn-accent font-semibold text-base px-7 py-3.5 rounded-3xl inline-flex items-center justify-center">
+                Перейти в кабинет
+            </a>
+            {% else %}
+            <a href="#tariffs"
+               class="btn-accent font-semibold text-base px-7 py-3.5 rounded-3xl inline-flex items-center justify-center">
+                Выбрать тариф
+            </a>
+            {% endif %}
+            <a href="#program"
+               class="btn-hero-secondary font-semibold text-base px-7 py-3.5 rounded-3xl inline-flex items-center justify-center gap-2">
+                Программа
+                <i class="fas fa-arrow-down text-xs opacity-70" aria-hidden="true"></i>
+            </a>
+        </div>
+    </div>
+</section>
 
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-20 md:py-28 w-full">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-            <div class="text-center md:text-left">
-                <div class="inline-flex items-center space-x-2 bg-white/10 text-purple-200 text-xs font-semibold px-4 py-2 rounded-full mb-6 border border-purple-400/30">
-                    <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                    <span>Доступ сразу после оплаты</span>
-                </div>
-
-                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-6">
-                    Создавай
-                    <span class="gradient-text"> ИИ&nbsp;анимации</span>
-                    <br>и изображения
-                </h1>
-
-                <p class="text-lg text-gray-300 mb-8 leading-relaxed max-w-lg mx-auto md:mx-0">
-                    Экспресс-курс, после которого ты сможешь генерировать профессиональный AI-контент
-                    — даже если никогда не работал с нейросетями.
+<!-- ОБ АВТОРЕ -->
+<section id="about" class="py-14 sm:py-16 border-t section-rule">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6">
+        <div class="reveal grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-center">
+            <div class="flex justify-center md:justify-start">
+                <img src="/static/images/site.jpg" alt="Елизавета Давыдова" class="about-photo">
+            </div>
+            <div>
+                <p class="about-kicker">Автор курса</p>
+                <h2 class="font-display text-3xl sm:text-4xl text-[var(--pearl)] font-semibold mb-4">Елизавета Давыдова</h2>
+                <p class="text-[var(--mist)] leading-relaxed mb-5">
+                    Практик ИИ-контента с 2022 года. Учу тому, чем пользуюсь сама: сценарий, генерация,
+                    монтаж и продвижение. Материалы курса обновляю под актуальные инструменты.
                 </p>
-
-                <div class="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-                    <button type="button" onclick="buyOrAuth()"
-                            class="cta-pulse gradient-bg text-white font-bold text-lg px-8 py-4 rounded-2xl hover:opacity-90 transition-opacity inline-flex items-center justify-center space-x-3">
-                        <span>Получить доступ</span>
-                    </button>
-                    <a href="#program"
-                       class="border border-white/30 text-white font-semibold text-lg px-8 py-4 rounded-2xl hover:bg-white/10 transition-colors inline-flex items-center justify-center space-x-2">
-                        <span>Программа курса</span>
-                        <i class="fas fa-arrow-down text-sm"></i>
+                <div class="flex flex-wrap gap-3">
+                    {% if instagram_url %}
+                    <a href="{{ instagram_url }}" target="_blank" rel="noopener noreferrer" class="social-chip social-chip--instagram">
+                        <i class="fab fa-instagram" aria-hidden="true"></i> Instagram
                     </a>
-                </div>
-
-                <div class="flex items-center justify-center md:justify-start gap-6 mt-10 text-gray-400 text-sm">
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-shield-alt text-purple-400"></i>
-                        <span>Безопасная оплата</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-bolt text-yellow-400"></i>
-                        <span>Мгновенный доступ</span>
-                    </div>
+                    {% endif %}
+                    {% if tiktok_url %}
+                    <a href="{{ tiktok_url }}" target="_blank" rel="noopener noreferrer" class="social-chip social-chip--tiktok">
+                        <i class="fab fa-tiktok" aria-hidden="true"></i> TikTok
+                    </a>
+                    {% endif %}
                 </div>
             </div>
+        </div>
+    </div>
+</section>
 
-            <!-- Правая колонка — визуал -->
-            <div class="hidden md:flex justify-center">
-                <div class="relative">
-                    <div class="w-80 h-80 gradient-bg rounded-3xl opacity-20 absolute inset-0 blur-xl"></div>
-                    <div class="relative bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
-                        <div class="space-y-4">
-                            <div class="flex items-center gap-3 bg-white/10 rounded-xl p-4">
-                                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0">1</div>
-                                <div>
-                                    <p class="text-white font-semibold text-sm">Инструменты ИИ</p>
-                                    <p class="text-gray-400 text-xs">Grok, DeepSeek, Zvukogram и другие</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-3 bg-white/10 rounded-xl p-4">
-                                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0">2</div>
-                                <div>
-                                    <p class="text-white font-semibold text-sm">Промпты и техники</p>
-                                    <p class="text-gray-400 text-xs">Готовые шаблоны для любых задач</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-3 bg-white/10 rounded-xl p-4">
-                                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0">3</div>
-                                <div>
-                                    <p class="text-white font-semibold text-sm">Практика с нуля</p>
-                                    <p class="text-gray-400 text-xs">Пошаговые видеоуроки + материалы</p>
-                                </div>
-                            </div>
+<!-- РЕЗУЛЬТАТ: вирусное видео Матриархат-прайм -->
+<section id="viral" class="py-20 sm:py-24 border-t section-rule">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6">
+        <div class="reveal mb-10 max-w-2xl">
+            <p class="text-[var(--rose)] font-semibold text-sm tracking-widest uppercase mb-3">Кейс из практики</p>
+            <h2 class="section-title font-display text-3xl sm:text-4xl text-[var(--pearl)] font-semibold leading-tight">
+                Я создала свой мир «Матриархат-прайм»
+            </h2>
+            <p class="mt-5 text-[var(--mist)] text-base sm:text-lg leading-relaxed">
+                Фантазийная вселенная, которую зрители узнают с первого кадра.
+                Этот ролик собрал <span class="text-[var(--rose)] font-semibold">более 3&nbsp;млн просмотров</span>
+                и показал, какой результат даёт сильная ИИ-история, а не просто «красивая картинка».
+            </p>
+            <p class="mt-3 text-[var(--mist)] text-base leading-relaxed">
+                На курсе вы соберёте свой мир: идея, визуал, сценарий и путь к такому же эффекту.
+            </p>
+        </div>
+        <div class="reveal reveal-delay-1 viral-layout">
+            <figure class="relative">
+                <img src="/static/images/matriarch-prime-gen.png"
+                     alt="Кадр вселенной Матриархат-прайм"
+                     class="viral-still"
+                     onerror="this.onerror=null;this.src='/static/images/matriarch-prime.jpg';">
+            </figure>
+            <div class="viral-phone">
+                <video controls playsinline preload="metadata"
+                       src="/static/videos/top_video.mp4">
+                    Ваш браузер не поддерживает видео.
+                </video>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ВСЕЛЕННАЯ: 3D coverflow -->
+<section id="universe" class="py-20 sm:py-24 border-t section-rule">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+        <div class="reveal mb-8 max-w-2xl mx-auto text-center">
+            <h2 class="section-title font-display text-3xl sm:text-4xl text-[var(--pearl)] font-semibold leading-tight">
+                Со мной, ты создашь свою собственную вселенную
+            </h2>
+            <p class="mt-5 text-[var(--mist)] text-base sm:text-lg leading-relaxed">
+                Пройдя курс, вы научитесь собирать разные визуальные миры: от сказочного фэнтези и fashion-эстетики
+                до кибергорода и коммерческих роликов. Один навык, много стилей, и каждый кадр работает на ваш бренд.
+            </p>
+        </div>
+
+        <div class="reveal reveal-delay-1">
+            <div id="coverflow" class="coverflow" aria-roledescription="carousel" aria-label="Стили AI-роликов">
+                <div class="coverflow-stage" id="coverflow-stage">
+                    {% set universe_reels = [
+                        {'file': 'universe-1.mp4', 'title': 'Стиль 1', 'sub': 'AI story reel'},
+                        {'file': 'universe-2.mp4', 'title': 'Стиль 2', 'sub': 'AI story reel'},
+                        {'file': 'universe-3.mp4', 'title': 'Стиль 3', 'sub': 'AI story reel'},
+                        {'file': 'universe-4.mp4', 'title': 'Стиль 4', 'sub': 'AI story reel'}
+                    ] %}
+                    {% for reel in universe_reels %}
+                    <button type="button" class="coverflow-item" data-index="{{ loop.index0 }}" aria-label="{{ reel.title }}">
+                        <video muted playsinline loop preload="metadata"
+                               src="/static/videos/{{ reel.file }}"></video>
+                        <div class="coverflow-caption">
+                            <strong>{{ reel.title }}</strong>
+                            <span>{{ reel.sub }}</span>
                         </div>
-                    </div>
+                    </button>
+                    {% endfor %}
                 </div>
+            </div>
+            <div class="coverflow-nav">
+                <button type="button" class="universe-nav-btn" onclick="coverflowStep(-1)" aria-label="Назад">
+                    <i class="fas fa-chevron-left text-sm" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="universe-nav-btn" onclick="coverflowStep(1)" aria-label="Вперёд">
+                    <i class="fas fa-chevron-right text-sm" aria-hidden="true"></i>
+                </button>
             </div>
         </div>
     </div>
 </section>
 
 <!-- МОИ ОХВАТЫ -->
-<section class="bg-white py-20">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6">
-        <div class="text-center mb-14">
-            <p class="text-purple-600 font-semibold text-sm uppercase tracking-widest mb-3">Реальная статистика за 3 месяца</p>
-            <h2 class="text-3xl sm:text-4xl font-black text-gray-900">Мои охваты</h2>
-            <p class="text-gray-500 mt-4 max-w-2xl mx-auto">Я сама прошла этот путь — от нуля до тысяч подписчиков. Инструменты и подходы, которым я учу, — это то, что работает на моих аккаунтах прямо сейчас.</p>
-        </div>
-
-        <!-- Слайдер платформ: Instagram и TikTok -->
-        <div class="relative max-w-4xl mx-auto">
-
-            <!-- Кнопки переключения платформ -->
-            <div class="flex justify-center gap-3 mb-8">
-                <button type="button" onclick="switchPlatform('instagram')" id="tab-instagram"
-                        class="platform-tab active px-6 py-2.5 rounded-full text-sm font-semibold transition-all
-                               gradient-bg text-white shadow-md">
-                    <i class="fab fa-instagram mr-2"></i>Instagram
-                </button>
-                <button type="button" onclick="switchPlatform('tiktok')" id="tab-tiktok"
-                        class="platform-tab px-6 py-2.5 rounded-full text-sm font-semibold transition-all
-                               border border-gray-200 text-gray-600 hover:border-purple-300 hover:text-purple-600">
-                    <i class="fab fa-tiktok mr-2"></i>TikTok
-                </button>
-            </div>
-
-            <!-- Instagram -->
-            <div id="platform-instagram" class="platform-slides">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="relative rounded-2xl overflow-hidden shadow-lg border border-gray-100">
-                        <img src="/static/images/instagram-start.PNG" alt="Instagram — начало" class="w-full object-cover reach-photo">
-                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                            <span class="text-white font-semibold text-sm flex items-center gap-2">
-                                <span class="w-2 h-2 bg-gray-400 rounded-full"></span> Было — начало пути
-                            </span>
-                        </div>
-                    </div>
-                    <div class="relative rounded-2xl overflow-hidden shadow-lg border border-purple-100">
-                        <img src="/static/images/instagram-now.PNG" alt="Instagram — сейчас" class="w-full object-cover reach-photo">
-                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-purple-900/80 to-transparent p-4">
-                            <span class="text-white font-semibold text-sm flex items-center gap-2">
-                                <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> Стало — результат сейчас
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TikTok (скрыт по умолчанию) -->
-            <div id="platform-tiktok" class="platform-slides hidden">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="relative rounded-2xl overflow-hidden shadow-lg border border-gray-100">
-                        <img src="/static/images/tik-tok-start.PNG" alt="TikTok — начало" class="w-full object-cover reach-photo">
-                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                            <span class="text-white font-semibold text-sm flex items-center gap-2">
-                                <span class="w-2 h-2 bg-gray-400 rounded-full"></span> Было — начало пути
-                            </span>
-                        </div>
-                    </div>
-                    <div class="relative rounded-2xl overflow-hidden shadow-lg border border-pink-100">
-                        <img src="/static/images/tik-tok-now.PNG" alt="TikTok — сейчас" class="w-full object-cover reach-photo">
-                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-pink-900/80 to-transparent p-4">
-                            <span class="text-white font-semibold text-sm flex items-center gap-2">
-                                <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> Стало — результат сейчас
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Подпись снизу -->
-            <p class="text-center text-gray-400 text-sm mt-6">
-                Это не теория — я сам(а) применяю то, чему учу в курсе
+<section id="reach" class="py-20 sm:py-24 border-t section-rule">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6">
+        <div class="reveal text-center mb-10">
+            <h2 class="section-title font-display text-3xl sm:text-4xl text-[var(--pearl)] font-semibold">Мои охваты</h2>
+            <p class="mt-4 text-[var(--mist)] text-base max-w-lg mx-auto">
+                Рост аудитории в Instagram и TikTok: результат системной работы с ИИ-контентом.
             </p>
         </div>
-    </div>
-</section>
 
-<!-- ДЛЯ КОГО КУРС -->
-<section class="bg-gray-50 py-20">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6">
-        <div class="text-center mb-14">
-            <p class="text-purple-600 font-semibold text-sm uppercase tracking-widest mb-3">Целевая аудитория</p>
-            <h2 class="text-3xl sm:text-4xl font-black text-gray-900">Курс подойдёт, если ты...</h2>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div class="card-hover bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
-                    <i class="fas fa-user-tie text-purple-600 text-xl"></i>
-                </div>
-                <h3 class="font-bold text-gray-900 mb-2">Предприниматель или фрилансер</h3>
-                <p class="text-gray-500 text-sm leading-relaxed">Хочешь создавать контент для соцсетей, рекламу и презентации без найма дизайнеров и видеографов.</p>
-            </div>
-            <div class="card-hover bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-                    <i class="fas fa-paint-brush text-blue-600 text-xl"></i>
-                </div>
-                <h3 class="font-bold text-gray-900 mb-2">Дизайнер или контентмейкер</h3>
-                <p class="text-gray-500 text-sm leading-relaxed">Хочешь усилить свой арсенал инструментами ИИ и предлагать клиентам больше возможностей.</p>
-            </div>
-            <div class="card-hover bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                <div class="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center mb-4">
-                    <i class="fas fa-star text-pink-600 text-xl"></i>
-                </div>
-                <h3 class="font-bold text-gray-900 mb-2">Начинающий — с нуля</h3>
-                <p class="text-gray-500 text-sm leading-relaxed">Слышал про нейросети, но не знаешь с чего начать. Курс даёт конкретные шаги без лишней теории.</p>
-            </div>
-            <div class="card-hover bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-4">
-                    <i class="fas fa-store text-green-600 text-xl"></i>
-                </div>
-                <h3 class="font-bold text-gray-900 mb-2">Владелец бизнеса</h3>
-                <p class="text-gray-500 text-sm leading-relaxed">Хочешь снизить расходы на маркетинг, генерируя уникальные визуалы самостоятельно.</p>
-            </div>
-            <div class="card-hover bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center mb-4">
-                    <i class="fas fa-graduation-cap text-yellow-600 text-xl"></i>
-                </div>
-                <h3 class="font-bold text-gray-900 mb-2">Студент или специалист</h3>
-                <p class="text-gray-500 text-sm leading-relaxed">Хочешь добавить актуальный навык в резюме и выделиться среди других кандидатов.</p>
-            </div>
-            <div class="card-hover bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mb-4">
-                    <i class="fas fa-lightbulb text-indigo-600 text-xl"></i>
-                </div>
-                <h3 class="font-bold text-gray-900 mb-2">Любопытный человек</h3>
-                <p class="text-gray-500 text-sm leading-relaxed">Интересуешься технологиями будущего и хочешь быть в числе тех, кто использует ИИ уже сейчас.</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- ПРОГРАММА КУРСА -->
-<section id="program" class="bg-white py-20">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6">
-        <div class="text-center mb-14">
-            <p class="text-purple-600 font-semibold text-sm uppercase tracking-widest mb-3">Содержание</p>
-            <h2 class="text-3xl sm:text-4xl font-black text-gray-900">Программа курса</h2>
-            <p class="text-gray-500 mt-4 max-w-xl mx-auto">Видеоуроки + дополнительные материалы. Смотри в любое время, с любого устройства через личный кабинет на сайте.</p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
-            <div class="card-hover flex items-start gap-4 p-5 rounded-2xl border border-gray-100 hover:border-purple-100 transition-colors">
-                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0 text-sm">🎯</div>
-                <div>
-                    <h3 class="font-bold text-gray-900 mb-1">Начало: подготовка к работе</h3>
-                    <p class="text-gray-500 text-sm">Обзор всех сервисов курса, настройка аккаунтов и первый запуск. Знакомство с инструментами ИИ, которые используем.</p>
-                </div>
-            </div>
-
-            <div class="card-hover flex items-start gap-4 p-5 rounded-2xl border border-gray-100 hover:border-purple-100 transition-colors">
-                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0 text-sm">💻</div>
-                <div>
-                    <h3 class="font-bold text-gray-900 mb-1">Лекция 1: Написание сценария</h3>
-                    <p class="text-gray-500 text-sm">Создаём сценарий мульт-сериала с помощью DeepSeek. Правила сторителлинга, структура эпизода, реализация идеи.</p>
-                </div>
-            </div>
-
-            <div class="card-hover flex items-start gap-4 p-5 rounded-2xl border border-gray-100 hover:border-purple-100 transition-colors">
-                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0 text-sm">🎨</div>
-                <div>
-                    <h3 class="font-bold text-gray-900 mb-1">Лекция 2: Создание раскадровок</h3>
-                    <p class="text-gray-500 text-sm">Генерируем изображения для каждой сцены в Grok. Создаём раскадровку — визуальную основу для будущей анимации.</p>
-                </div>
-            </div>
-
-            <div class="card-hover flex items-start gap-4 p-5 rounded-2xl border border-gray-100 hover:border-purple-100 transition-colors">
-                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0 text-sm">📽️</div>
-                <div>
-                    <h3 class="font-bold text-gray-900 mb-1">Лекция 3: Анимация и озвучка</h3>
-                    <p class="text-gray-500 text-sm">Оживляем раскадровки — превращаем картинки в видео. Записываем реплики персонажей через Zvukogram.</p>
-                </div>
-            </div>
-
-            <div class="card-hover flex items-start gap-4 p-5 rounded-2xl border border-gray-100 hover:border-purple-100 transition-colors">
-                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0 text-sm">🎬</div>
-                <div>
-                    <h3 class="font-bold text-gray-900 mb-1">Лекция 4: Монтаж в CapCut</h3>
-                    <p class="text-gray-500 text-sm">Собираем всё вместе: монтируем целостный видеоролик из анимаций и озвучки. Финальный экспорт и публикация.</p>
-                </div>
-            </div>
-
-            <div class="card-hover flex items-start gap-4 p-5 rounded-2xl border border-gray-100 hover:border-purple-100 transition-colors">
-                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0 text-sm">❌</div>
-                <div>
-                    <h3 class="font-bold text-gray-900 mb-1">Ошибки новичков</h3>
-                    <p class="text-gray-500 text-sm">Разбираем типичные ошибки на каждом этапе. Чего стоит избегать, чтобы не тратить время и сразу получать хороший результат.</p>
-                </div>
-            </div>
-
-            <div class="card-hover flex items-start gap-4 p-5 rounded-2xl border border-gray-100 hover:border-purple-100 transition-colors md:col-span-2 md:max-w-md md:mx-auto">
-                <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center text-white font-bold shrink-0 text-sm">🤳</div>
-                <div>
-                    <h3 class="font-bold text-gray-900 mb-1">Правила хорошего промта</h3>
-                    <p class="text-gray-500 text-sm">Как формулировать запросы к ИИ, чтобы получать именно то, что нужно. Готовые шаблоны промтов для изображений и анимаций.</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="mt-10 text-center">
-            <button type="button" onclick="buyOrAuth()"
-                    class="gradient-bg text-white font-bold text-lg px-10 py-4 rounded-2xl hover:opacity-90 transition-opacity inline-flex items-center space-x-3">
-                <span>Хочу учиться</span>
+        <div class="reveal reveal-delay-1 flex justify-center gap-3 mb-10">
+            <button type="button" onclick="switchPlatform('instagram')" id="tab-instagram"
+                    class="platform-tab is-active px-6 py-2.5 rounded-full text-sm font-semibold transition-all">
+                <i class="fab fa-instagram mr-2" aria-hidden="true"></i>Instagram
+            </button>
+            <button type="button" onclick="switchPlatform('tiktok')" id="tab-tiktok"
+                    class="platform-tab px-6 py-2.5 rounded-full text-sm font-semibold transition-all">
+                <i class="fab fa-tiktok mr-2" aria-hidden="true"></i>TikTok
             </button>
         </div>
-    </div>
-</section>
 
-<!-- ЧТО ПОЛУЧИШЬ -->
-<section class="bg-gradient-to-br from-purple-50 to-blue-50 py-20">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6">
-        <div class="text-center mb-14">
-            <p class="text-purple-600 font-semibold text-sm uppercase tracking-widest mb-3">Результат</p>
-            <h2 class="text-3xl sm:text-4xl font-black text-gray-900">Что ты получишь</h2>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl mx-auto">
-            <div class="flex items-start space-x-4 check-item bg-white rounded-2xl p-5 shadow-sm">
-                <div>
-                    <p class="font-semibold text-gray-900">Пожизненный доступ к урокам</p>
-                    <p class="text-gray-500 text-sm mt-1">Видеоуроки доступны через личный кабинет на сайте в любое время без ограничений по времени.</p>
+        <div class="reveal reveal-delay-2">
+            <div id="platform-instagram" class="platform-slides">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <figure class="reach-figure">
+                        <img src="/static/images/instagram-start.PNG" alt="Instagram: начало" class="reach-photo">
+                        <figcaption class="reach-caption">Было: начало пути</figcaption>
+                    </figure>
+                    <figure class="reach-figure">
+                        <img src="/static/images/instagram-now.PNG" alt="Instagram: сейчас" class="reach-photo">
+                        <figcaption class="reach-caption flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-[var(--cyan)] animate-pulse shrink-0" aria-hidden="true"></span>
+                            Стало: результат сейчас
+                        </figcaption>
+                    </figure>
                 </div>
             </div>
-            <div class="flex items-start space-x-4 check-item bg-white rounded-2xl p-5 shadow-sm">
-                <div>
-                    <p class="font-semibold text-gray-900">Материалы и шаблоны</p>
-                    <p class="text-gray-500 text-sm mt-1">Готовые промпты, шпаргалки и рабочие шаблоны к каждому уроку для скачивания.</p>
-                </div>
-            </div>
-            <div class="flex items-start space-x-4 check-item bg-white rounded-2xl p-5 shadow-sm">
-                <div>
-                    <p class="font-semibold text-gray-900">Обновления курса</p>
-                    <p class="text-gray-500 text-sm mt-1">Мир ИИ меняется быстро — все новые уроки и обновления материалов входят в стоимость.</p>
-                </div>
-            </div>
-            <div class="flex items-start space-x-4 check-item bg-white rounded-2xl p-5 shadow-sm">
-                <div>
-                    <p class="font-semibold text-gray-900">Практические навыки</p>
-                    <p class="text-gray-500 text-sm mt-1">Уроки построены по принципу "смотри и повторяй" — ты сразу делаешь, а не только смотришь.</p>
+
+            <div id="platform-tiktok" class="platform-slides hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <figure class="reach-figure">
+                        <img src="/static/images/tik-tok-start.PNG" alt="TikTok: начало" class="reach-photo">
+                        <figcaption class="reach-caption">Было: начало пути</figcaption>
+                    </figure>
+                    <figure class="reach-figure">
+                        <img src="/static/images/tik-tok-now.PNG" alt="TikTok: сейчас" class="reach-photo">
+                        <figcaption class="reach-caption flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-[var(--rose)] animate-pulse shrink-0" aria-hidden="true"></span>
+                            Стало: результат сейчас
+                        </figcaption>
+                    </figure>
                 </div>
             </div>
         </div>
-    </div>
-</section>
 
-<!-- ОБ АВТОРЕ -->
-<section id="about" class="bg-white py-20">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center max-w-4xl mx-auto">
-            <div class="flex justify-center">
-                <div class="relative">
-                    <div class="w-64 h-64 gradient-bg rounded-3xl opacity-20 absolute inset-0 blur-2xl"></div>
-                    <div class="relative w-64 h-64 gradient-bg rounded-3xl flex items-center justify-center">
-                        <img src="/static/images/site.jpg" alt="Елизавета Давыдова" class="w-48 h-48 object-contain">
-                    </div>
-                </div>
-            </div>
-            <div>
-                <p class="text-purple-600 font-semibold text-sm uppercase tracking-widest mb-3">Автор курса</p>
-                <h2 class="text-3xl font-black text-gray-900 mb-4">Елизавета Давыдова</h2>
-                <p class="text-gray-600 leading-relaxed mb-6">
-                    Практик в области ИИ-генерации контента. Помогает предпринимателям, дизайнерам и обычным людям освоить нейросетевые инструменты и применять их в реальных задачах.
-                </p>
-                <div class="space-y-3">
-                    <div class="flex items-center gap-3 text-gray-700">
-                        <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-check text-purple-600 text-sm"></i>
-                        </div>
-                        <span class="text-sm">Опыт работы с нейросетями с 2022 года</span>
-                    </div>
-                    <div class="flex items-center gap-3 text-gray-700">
-                        <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-check text-purple-600 text-sm"></i>
-                        </div>
-                        <span class="text-sm">Преподаёт только то, что применяет сама</span>
-                    </div>
-                    <div class="flex items-center gap-3 text-gray-700">
-                        <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-check text-purple-600 text-sm"></i>
-                        </div>
-                        <span class="text-sm">Следит за актуальностью материалов курса</span>
-                    </div>
-                </div>
-            </div>
+        <div class="reveal reveal-delay-2 reach-cta text-center sm:text-left">
+            <p class="text-[var(--pearl)] text-base sm:text-lg font-medium leading-relaxed">
+                Это не случайное везение. Это моя реальная система, которая принесла такие результаты, за столь короткое время.
+            </p>
+            <p class="mt-3 text-[var(--mist)] text-sm sm:text-base leading-relaxed max-w-2xl mx-auto sm:mx-0">
+                На курсе вы повторите тот же путь под себя: от идеи до роликов, которые набирают охваты.
+                Выберите тариф и начните собирать свою историю уже сегодня.
+            </p>
+            <a href="#tariffs"
+               class="btn-accent mt-5 font-semibold text-sm sm:text-base px-6 py-3 rounded-3xl inline-flex items-center justify-center">
+                Хочу такой же рост
+            </a>
         </div>
     </div>
 </section>
 
-<!-- ЦЕНА -->
-<section id="price" class="hero-bg py-20">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6">
-        <div class="text-center mb-14">
-            <p class="text-purple-300 font-semibold text-sm uppercase tracking-widest mb-3">Инвестиция</p>
-            <h2 class="text-3xl sm:text-4xl font-black text-white">Стоимость курса</h2>
-            <p class="text-gray-400 mt-4">Единоразовая оплата — пожизненный доступ</p>
+<!-- ТАРИФЫ -->
+<section id="tariffs" class="py-20 sm:py-24 border-t section-rule">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6">
+        <div class="reveal text-center mb-14">
+            <h2 class="section-title font-display text-3xl sm:text-4xl md:text-5xl text-[var(--pearl)] font-semibold leading-tight">
+                Готовы воплотить свою историю?
+            </h2>
+            <p class="mt-4 text-[var(--mist)] text-lg sm:text-xl font-medium max-w-xl mx-auto">
+                Выберите тариф и начните с нуля, уже сегодня.
+            </p>
+            <p class="mt-3 text-[var(--mist)] text-sm">Единоразовая оплата. Доступ к материалам без ограничения по времени.</p>
         </div>
 
-        <div class="max-w-md mx-auto">
-            <div class="bg-white/5 border border-white/20 rounded-3xl p-8 backdrop-blur-sm relative overflow-hidden">
-                <div class="absolute top-4 right-4">
-                    <span class="gradient-bg text-white text-xs font-bold px-3 py-1 rounded-full">Полный курс</span>
-                </div>
-
-                <div class="mb-6">
-                    <div class="text-gray-400 text-sm mb-2">Стоимость</div>
-                    <div class="flex items-baseline gap-3">
-                        <div class="text-5xl font-black text-white">2990 <span class="text-2xl text-gray-400">₽</span></div>
-                        <div class="text-2xl text-gray-500 line-through">7000 ₽</div>
+        {% if current_user and (current_user.has_access or has_story_access) %}
+        <div class="reveal reveal-delay-1 max-w-md mx-auto text-center">
+            <p class="text-[var(--mist)] mb-6">У вас уже есть доступ к курсу.</p>
+            <a href="/cabinet"
+               class="btn-accent font-semibold text-base px-8 py-3.5 rounded-3xl inline-flex items-center justify-center">
+                Перейти в кабинет
+            </a>
+        </div>
+        {% else %}
+        <div class="reveal reveal-delay-1 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            {% for t in tariffs %}
+            <article class="tariff-card rounded-3xl p-7 sm:p-8 flex flex-col {% if t.slug == 'vip' %}is-vip{% endif %}">
+                <header class="mb-6">
+                    <h3 class="font-display text-2xl text-[var(--pearl)] font-semibold">{{ t.name }}</h3>
+                    <div class="mt-4 flex items-baseline gap-3 flex-wrap">
+                        <span class="font-display text-4xl sm:text-5xl text-[var(--pearl)] font-semibold tabular-nums">
+                            {{ '{:,.0f}'.format(t.price)|replace(',', ' ') }}&nbsp;<span class="text-xl text-[var(--mist)]">₽</span>
+                        </span>
+                        {% if t.old_price %}
+                        <span class="text-lg text-[var(--mist)] line-through tabular-nums opacity-70">
+                            {{ '{:,.0f}'.format(t.old_price)|replace(',', ' ') }}&nbsp;₽
+                        </span>
+                        {% endif %}
                     </div>
-                    <p class="text-green-400 text-sm mt-2 font-medium">Скидка 57% — ограниченное предложение</p>
-                </div>
+                </header>
 
-                <ul class="space-y-3 mb-8">
-                    <li class="flex items-center gap-3 text-gray-300 text-sm">
-                        <i class="fas fa-check text-green-400 w-5"></i>
-                        <span>Все видеоуроки курса</span>
-                    </li>
-                    <li class="flex items-center gap-3 text-gray-300 text-sm">
-                        <i class="fas fa-check text-green-400 w-5"></i>
-                        <span>Материалы и шаблоны к урокам</span>
-                    </li>
-                    <li class="flex items-center gap-3 text-gray-300 text-sm">
-                        <i class="fas fa-check text-green-400 w-5"></i>
-                        <span>Пожизненный доступ</span>
-                    </li>
-                    <li class="flex items-center gap-3 text-gray-300 text-sm">
-                        <i class="fas fa-check text-green-400 w-5"></i>
-                        <span>Будущие обновления курса</span>
-                    </li>
-                    <li class="flex items-center gap-3 text-gray-300 text-sm">
-                        <i class="fas fa-check text-green-400 w-5"></i>
-                        <span>Доступ через сайт</span>
-                    </li>
+                {% if t.features_markdown %}
+                <ul class="space-y-2.5 mb-8 flex-1">
+                    {% for line in t.features_markdown.splitlines() %}
+                        {% set item = line.strip().lstrip('-•*').strip() %}
+                        {% if item %}
+                        <li class="flex gap-2.5 text-sm text-[var(--mist)] leading-snug">
+                            <span class="text-[var(--rose)] mt-0.5 shrink-0" aria-hidden="true">✓</span>
+                            <span>{{ item }}</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
                 </ul>
+                {% else %}
+                <div class="flex-1 mb-8"></div>
+                {% endif %}
 
-
-                <button type="button" onclick="buyOrAuth()" id="main-buy-btn"
-                        class="cta-pulse gradient-bg text-white font-bold text-lg px-6 py-4 rounded-2xl hover:opacity-90 transition-opacity w-full flex items-center justify-center space-x-3">
-                    <span>Купить курс</span>
+                <button type="button"
+                        onclick="buyOrAuth('{{ t.slug }}')"
+                        class="btn-accent w-full font-semibold text-base px-6 py-3.5 rounded-3xl">
+                    Купить {{ t.name }}
                 </button>
+            </article>
+            {% else %}
+            <p class="text-[var(--mist)] text-sm md:col-span-2 text-center">Тарифы скоро появятся.</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</section>
 
-                <p class="text-center text-gray-500 text-xs mt-4 flex items-center justify-center gap-2">
-                    <i class="fas fa-lock text-gray-500"></i>
-                    Безопасная оплата через YooKassa
-                </p>
-                <p class="text-center text-gray-400 text-sm mt-5 leading-relaxed">
-                    Удобнее в Telegram?
-                    <a href="{{ telegram_bot_url }}" target="_blank" rel="noopener noreferrer"
-                       class="text-sky-400 hover:text-sky-300 font-medium underline underline-offset-2">
-                        Купить и смотреть уроки в боте
-                    </a>
-                </p>
-            </div>
+<!-- ПРОГРАММА -->
+<section id="program" class="py-20 sm:py-24 border-t section-rule">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6">
+        <div class="reveal mb-12">
+            <h2 class="section-title font-display text-3xl sm:text-4xl text-[var(--pearl)] font-semibold">Программа</h2>
+            <p class="mt-4 text-[var(--mist)] text-base max-w-lg">
+                Модули курса{% if course %} «{{ course.title }}»{% endif %}. Смотри в своём темпе через личный кабинет.
+            </p>
+        </div>
+
+        <div class="reveal reveal-delay-1 space-y-0">
+            {% if modules %}
+                {% for module in modules %}
+                <div class="module-item{% if loop.first %} is-open{% endif %}">
+                    <button type="button" onclick="toggleModule(this)"
+                            class="w-full flex items-center justify-between gap-4 py-5 text-left"
+                            aria-expanded="{{ 'true' if loop.first else 'false' }}">
+                        <div class="flex items-baseline gap-3 sm:gap-4 min-w-0">
+                            <span class="font-display text-[var(--rose)] text-sm shrink-0">
+                                Модуль {{ module.order }}
+                            </span>
+                            <h3 class="font-display text-lg sm:text-xl text-[var(--pearl)] font-medium truncate sm:whitespace-normal">
+                                {{ module.title }}
+                            </h3>
+                        </div>
+                        <i class="fas fa-chevron-down chevron text-[var(--mist)] text-xs shrink-0" aria-hidden="true"></i>
+                    </button>
+                    <div class="module-panel{% if loop.first %} open{% endif %}">
+                        <div class="module-panel-inner">
+                            {% if module.lessons %}
+                            <ul class="pb-6 pl-1 sm:pl-28 space-y-2">
+                                {% for lesson in module.lessons %}
+                                <li class="text-sm sm:text-base text-[var(--mist)] leading-snug flex gap-2">
+                                    <span class="text-[var(--cyan)] select-none opacity-70">·</span>
+                                    <span>{{ lesson.title }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-[var(--mist)] text-sm">Программа скоро появится.</p>
+            {% endif %}
         </div>
     </div>
 </section>
 
 <!-- FAQ -->
-<section id="faq" class="bg-gray-50 py-20">
+<section id="faq" class="py-20 sm:py-24 border-t section-rule">
     <div class="max-w-3xl mx-auto px-4 sm:px-6">
-        <div class="text-center mb-14">
-            <p class="text-purple-600 font-semibold text-sm uppercase tracking-widest mb-3">Вопросы</p>
-            <h2 class="text-3xl sm:text-4xl font-black text-gray-900">Часто задают</h2>
+        <div class="reveal mb-12">
+            <h2 class="section-title font-display text-3xl sm:text-4xl text-[var(--pearl)] font-semibold">FAQ</h2>
         </div>
 
-        <div class="space-y-3">
-            <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                <button onclick="toggleFaq(this)" class="w-full text-left px-6 py-5 flex items-center justify-between font-semibold text-gray-900 hover:text-purple-600 transition-colors">
+        <div class="reveal reveal-delay-1">
+            <div class="faq-item">
+                <button type="button" onclick="toggleFaq(this)"
+                        class="w-full text-left py-5 flex items-center justify-between gap-4 font-medium text-[var(--pearl)] hover:text-[var(--rose-deep)] transition-colors">
                     <span>Нужны ли технические знания?</span>
-                    <i class="fas fa-chevron-down text-gray-400 transition-transform duration-300"></i>
+                    <i class="fas fa-chevron-down text-[var(--mist)] text-xs transition-transform duration-300 shrink-0" aria-hidden="true"></i>
                 </button>
-                <div class="faq-content px-6">
-                    <p class="text-gray-600 text-sm leading-relaxed pb-5">Нет. Курс создан с нуля — объясняю всё простым языком. Если ты умеешь пользоваться смартфоном, этого достаточно для старта.</p>
+                <div class="faq-content">
+                    <div class="faq-content-inner">
+                        <p class="text-[var(--mist)] text-sm leading-relaxed pb-5">Нет. Курс рассчитан на старт с нуля: инструменты, сценарий, генерация и монтаж разбираются по шагам.</p>
+                    </div>
                 </div>
             </div>
 
-            <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                <button onclick="toggleFaq(this)" class="w-full text-left px-6 py-5 flex items-center justify-between font-semibold text-gray-900 hover:text-purple-600 transition-colors">
-                    <span>Как долго у меня будет доступ?</span>
-                    <i class="fas fa-chevron-down text-gray-400 transition-transform duration-300"></i>
+            <div class="faq-item">
+                <button type="button" onclick="toggleFaq(this)"
+                        class="w-full text-left py-5 flex items-center justify-between gap-4 font-medium text-[var(--pearl)] hover:text-[var(--rose-deep)] transition-colors">
+                    <span>Чем отличаются тарифы Pro и VIP?</span>
+                    <i class="fas fa-chevron-down text-[var(--mist)] text-xs transition-transform duration-300 shrink-0" aria-hidden="true"></i>
                 </button>
-                <div class="faq-content px-6">
-                    <p class="text-gray-600 text-sm leading-relaxed pb-5">Пожизненно. Оплата один раз — доступ навсегда. Все новые уроки и обновления тоже входят.</p>
+                <div class="faq-content">
+                    <div class="faq-content-inner">
+                        <p class="text-[var(--mist)] text-sm leading-relaxed pb-5">Pro: обучение и поддержка куратора в общем чате. VIP: личный контакт с автором, разборы вашего сериала и стратегия продвижения. Подробности в блоке тарифов.</p>
+                    </div>
                 </div>
             </div>
 
-            <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                <button onclick="toggleFaq(this)" class="w-full text-left px-6 py-5 flex items-center justify-between font-semibold text-gray-900 hover:text-purple-600 transition-colors">
+            <div class="faq-item">
+                <button type="button" onclick="toggleFaq(this)"
+                        class="w-full text-left py-5 flex items-center justify-between gap-4 font-medium text-[var(--pearl)] hover:text-[var(--rose-deep)] transition-colors">
+                    <span>Как долго доступен курс?</span>
+                    <i class="fas fa-chevron-down text-[var(--mist)] text-xs transition-transform duration-300 shrink-0" aria-hidden="true"></i>
+                </button>
+                <div class="faq-content">
+                    <div class="faq-content-inner">
+                        <p class="text-[var(--mist)] text-sm leading-relaxed pb-5">Доступ к материалам бессрочный в рамках существования платформы. Оплата один раз.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button type="button" onclick="toggleFaq(this)"
+                        class="w-full text-left py-5 flex items-center justify-between gap-4 font-medium text-[var(--pearl)] hover:text-[var(--rose-deep)] transition-colors">
                     <span>Как проходит обучение?</span>
-                    <i class="fas fa-chevron-down text-gray-400 transition-transform duration-300"></i>
+                    <i class="fas fa-chevron-down text-[var(--mist)] text-xs transition-transform duration-300 shrink-0" aria-hidden="true"></i>
                 </button>
-                <div class="faq-content px-6">
-                    <p class="text-gray-600 text-sm leading-relaxed pb-5">Через личный кабинет на сайте. После оплаты получаешь мгновенный доступ к видеоурокам и материалам. Учишься в своём темпе, когда удобно.</p>
+                <div class="faq-content">
+                    <div class="faq-content-inner">
+                        <p class="text-[var(--mist)] text-sm leading-relaxed pb-5">Через личный кабинет на сайте. После оплаты открывается доступ к видеоурокам и материалам. Учитесь в удобном темпе.</p>
+                    </div>
                 </div>
             </div>
 
-            <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                <button onclick="toggleFaq(this)" class="w-full text-left px-6 py-5 flex items-center justify-between font-semibold text-gray-900 hover:text-purple-600 transition-colors">
-                    <span>Нужны ли платные подписки на сервисы?</span>
-                    <i class="fas fa-chevron-down text-gray-400 transition-transform duration-300"></i>
-                </button>
-                <div class="faq-content px-6">
-                    <p class="text-gray-600 text-sm leading-relaxed pb-5">В курсе показываю как платные, так и бесплатные инструменты. Для начала хватит бесплатных версий — их достаточно, чтобы освоить основы.</p>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                <button onclick="toggleFaq(this)" class="w-full text-left px-6 py-5 flex items-center justify-between font-semibold text-gray-900 hover:text-purple-600 transition-colors">
+            <div class="faq-item">
+                <button type="button" onclick="toggleFaq(this)"
+                        class="w-full text-left py-5 flex items-center justify-between gap-4 font-medium text-[var(--pearl)] hover:text-[var(--rose-deep)] transition-colors">
                     <span>Как оплатить?</span>
-                    <i class="fas fa-chevron-down text-gray-400 transition-transform duration-300"></i>
+                    <i class="fas fa-chevron-down text-[var(--mist)] text-xs transition-transform duration-300 shrink-0" aria-hidden="true"></i>
                 </button>
-                <div class="faq-content px-6">
-                    <p class="text-gray-600 text-sm leading-relaxed pb-5">Оплата на сайте банковской картой (Visa, Mastercard, Мир). Обработка платежей — YooKassa. Сразу после оплаты открывается доступ к курсу.</p>
+                <div class="faq-content">
+                    <div class="faq-content-inner">
+                        <p class="text-[var(--mist)] text-sm leading-relaxed pb-5">Банковской картой на сайте (Visa, Mastercard, Мир) через ЮKassa. После успешной оплаты доступ открывается сразу.</p>
+                    </div>
                 </div>
             </div>
 
-            <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                <button onclick="toggleFaq(this)" class="w-full text-left px-6 py-5 flex items-center justify-between font-semibold text-gray-900 hover:text-purple-600 transition-colors">
+            <div class="faq-item">
+                <button type="button" onclick="toggleFaq(this)"
+                        class="w-full text-left py-5 flex items-center justify-between gap-4 font-medium text-[var(--pearl)] hover:text-[var(--rose-deep)] transition-colors">
                     <span>Есть ли возврат?</span>
-                    <i class="fas fa-chevron-down text-gray-400 transition-transform duration-300"></i>
+                    <i class="fas fa-chevron-down text-[var(--mist)] text-xs transition-transform duration-300 shrink-0" aria-hidden="true"></i>
                 </button>
-                <div class="faq-content px-6">
-                    <p class="text-gray-600 text-sm leading-relaxed pb-5">Да, условия возврата описаны в <a href="/offer" class="text-purple-600 hover:underline">публичной оферте</a>. Напишите в бот, и мы разберёмся.</p>
+                <div class="faq-content">
+                    <div class="faq-content-inner">
+                        <p class="text-[var(--mist)] text-sm leading-relaxed pb-5">Условия возврата описаны в <a href="/offer" class="text-[var(--rose)] hover:underline">публичной оферте</a>.</p>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-</section>
-
-<!-- ФИНАЛЬНЫЙ CTA -->
-<section class="gradient-bg py-20">
-    <div class="max-w-3xl mx-auto px-4 sm:px-6 text-center">
-        <h2 class="text-3xl sm:text-4xl font-black text-white mb-6">
-            Начни создавать<br>AI-контент сегодня
-        </h2>
-        <p class="text-white/80 text-lg mb-10 max-w-xl mx-auto">
-            Присоединяйся к курсу и уже после первого урока у тебя будет своё первое AI-изображение.
-        </p>
-        <button type="button" onclick="buyOrAuth()"
-                class="bg-white text-purple-700 font-black text-xl px-12 py-5 rounded-2xl hover:bg-gray-50 transition-colors inline-flex items-center space-x-3 shadow-2xl">
-            <span>Купить курс</span>
-        </button>
-        <p class="text-white/50 text-sm mt-6">Мгновенный доступ после оплаты</p>
-        <p class="text-white/60 text-sm mt-4">
-            <a href="{{ telegram_bot_url }}" target="_blank" rel="noopener noreferrer"
-               class="inline-flex items-center gap-2 text-sky-300 hover:text-sky-200 font-medium">
-                <i class="fab fa-telegram"></i> Или перейти в Telegram-бота
-            </a>
-        </p>
     </div>
 </section>
 
 <!-- FOOTER -->
-<footer class="bg-gray-900 text-gray-400 py-12">
+<footer class="border-t section-rule py-12 text-[var(--mist)]">
     <div class="max-w-6xl mx-auto px-4 sm:px-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
             <div>
-                <img src="/static/images/logo.png" alt="Davydova AI" class="h-10 mb-4">
-                <p class="text-sm leading-relaxed">Экспресс-курс по созданию ИИ анимаций и изображений.</p>
-                <p class="text-sm mt-4">
-                    <a href="{{ telegram_bot_url }}" target="_blank" rel="noopener noreferrer"
-                       class="inline-flex items-center gap-2 text-sky-400 hover:text-sky-300">
-                        <i class="fab fa-telegram"></i> Курс в Telegram
-                    </a>
-                </p>
+                <p class="font-display text-[var(--pearl)] text-lg mb-3">Davydova&nbsp;AI</p>
+                <p class="text-sm leading-relaxed">AI STORY: воплоти свою историю.</p>
             </div>
             <div>
-                <h4 class="text-white font-semibold mb-4 text-sm">Навигация</h4>
+                <h4 class="text-[var(--pearl)] font-semibold mb-4 text-sm">Навигация</h4>
                 <ul class="space-y-2 text-sm">
-                    <li><a href="#program" class="hover:text-white transition-colors">Программа</a></li>
-                    <li><a href="#about" class="hover:text-white transition-colors">Об авторе</a></li>
-                    <li><a href="#price" class="hover:text-white transition-colors">Стоимость</a></li>
-                    <li><a href="#faq" class="hover:text-white transition-colors">FAQ</a></li>
+                    <li><a href="#about" class="hover:text-[var(--pearl)] transition-colors">Об авторе</a></li>
+                    <li><a href="#viral" class="hover:text-[var(--pearl)] transition-colors">Результат</a></li>
+                    <li><a href="#universe" class="hover:text-[var(--pearl)] transition-colors">Вселенная</a></li>
+                    <li><a href="#reach" class="hover:text-[var(--pearl)] transition-colors">Охваты</a></li>
+                    <li><a href="#tariffs" class="hover:text-[var(--pearl)] transition-colors">Тарифы</a></li>
+                    <li><a href="#program" class="hover:text-[var(--pearl)] transition-colors">Программа</a></li>
+                    <li><a href="#faq" class="hover:text-[var(--pearl)] transition-colors">FAQ</a></li>
                 </ul>
             </div>
             <div>
-                <h4 class="text-white font-semibold mb-4 text-sm">Документы</h4>
+                <h4 class="text-[var(--pearl)] font-semibold mb-4 text-sm">Документы</h4>
                 <ul class="space-y-2 text-sm">
-                    <li><a href="/offer" class="hover:text-white transition-colors">Публичная оферта</a></li>
-                    <li><a href="/privacy" class="hover:text-white transition-colors">Политика конфиденциальности</a></li>
+                    <li><a href="/offer" class="hover:text-[var(--pearl)] transition-colors">Публичная оферта</a></li>
+                    <li><a href="/privacy" class="hover:text-[var(--pearl)] transition-colors">Политика конфиденциальности</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="text-[var(--pearl)] font-semibold mb-4 text-sm">Связь</h4>
+                <ul class="space-y-2 text-sm">
+                    {% if telegram_bot_username %}
+                    <li>
+                        <a href="{{ telegram_bot_url }}" target="_blank" rel="noopener noreferrer"
+                           class="hover:text-[var(--pearl)] transition-colors inline-flex items-center gap-2">
+                            <i class="fab fa-telegram text-[var(--cyan)]" aria-hidden="true"></i> Telegram-бот
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if instagram_url %}
+                    <li>
+                        <a href="{{ instagram_url }}" target="_blank" rel="noopener noreferrer"
+                           class="hover:text-[var(--pearl)] transition-colors inline-flex items-center gap-2">
+                            <i class="fab fa-instagram text-[var(--rose)]" aria-hidden="true"></i> Instagram
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if tiktok_url %}
+                    <li>
+                        <a href="{{ tiktok_url }}" target="_blank" rel="noopener noreferrer"
+                           class="hover:text-[var(--pearl)] transition-colors inline-flex items-center gap-2">
+                            <i class="fab fa-tiktok" aria-hidden="true"></i> TikTok
+                        </a>
+                    </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
-        <div class="border-t border-gray-800 pt-8 text-xs text-gray-600 text-center">
+        <div class="border-t section-rule pt-8 text-xs text-center opacity-70">
             <p>© 2026 Давыдова Елизавета Александровна. ИНН: 244403464589. Самозанятый.</p>
-            <p class="mt-1">Все права защищены. Сайт не является публичной офертой — см. <a href="/offer" class="hover:text-gray-400 underline">оферту</a>.</p>
+            <p class="mt-1">Все права защищены. См. <a href="/offer" class="underline hover:text-[var(--pearl)]">оферту</a>.</p>
         </div>
     </div>
 </footer>
 
 <script>
+    function toggleTheme() {
+        var next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+        document.documentElement.dataset.theme = next;
+        localStorage.setItem('davydova-theme', next);
+    }
+
+    function toggleMobileDrawer(forceOpen) {
+        var drawer = document.getElementById('mobile-drawer');
+        var overlay = document.getElementById('mobile-drawer-overlay');
+        if (!drawer || !overlay) return;
+        var open = typeof forceOpen === 'boolean' ? forceOpen : !drawer.classList.contains('open');
+        drawer.classList.toggle('open', open);
+        overlay.classList.toggle('open', open);
+        drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+        overlay.setAttribute('aria-hidden', open ? 'false' : 'true');
+        document.body.classList.toggle('drawer-open', open);
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') toggleMobileDrawer(false);
+    });
+
     function toggleFaq(btn) {
         const content = btn.nextElementSibling;
         const icon = btn.querySelector('i');
         content.classList.toggle('open');
-        icon.style.transform = content.classList.contains('open') ? 'rotate(180deg)' : '';
+        if (icon) {
+            icon.style.transform = content.classList.contains('open') ? 'rotate(180deg)' : '';
+        }
     }
 
-    // ---- User state (injected by server) ----
-    const CURRENT_USER = {{ current_user_json | safe }};
+    function toggleModule(btn) {
+        const item = btn.closest('.module-item');
+        const panel = btn.nextElementSibling;
+        if (!item || !panel) return;
+        const willOpen = !panel.classList.contains('open');
+        panel.classList.toggle('open', willOpen);
+        item.classList.toggle('is-open', willOpen);
+        btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    }
 
-    // ---- Buy or Auth ----
-    function buyOrAuth() {
+    function switchPlatform(platform) {
+        document.querySelectorAll('.platform-slides').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.platform-tab').forEach(btn => btn.classList.remove('is-active'));
+        const panel = document.getElementById('platform-' + platform);
+        const activeTab = document.getElementById('tab-' + platform);
+        if (panel) panel.classList.remove('hidden');
+        if (activeTab) activeTab.classList.add('is-active');
+    }
+
+    var coverflowIndex = 0;
+    var coverflowBusy = false;
+
+    function coverflowStep(delta) {
+        var items = document.querySelectorAll('.coverflow-item');
+        if (!items.length) return;
+        coverflowIndex = (coverflowIndex + delta + items.length) % items.length;
+        renderCoverflow();
+    }
+
+    function renderCoverflow() {
+        var items = Array.prototype.slice.call(document.querySelectorAll('.coverflow-item'));
+        if (!items.length) return;
+        var n = items.length;
+        items.forEach(function (item, i) {
+            var offset = i - coverflowIndex;
+            if (offset > n / 2) offset -= n;
+            if (offset < -n / 2) offset += n;
+            var abs = Math.abs(offset);
+            var x = offset * 58;
+            var z = -Math.abs(offset) * 140;
+            var rot = offset * -42;
+            var scale = Math.max(0.72, 1 - abs * 0.12);
+            item.style.transform = 'translate(-50%, -50%) translateX(' + x + '%) translateZ(' + z + 'px) rotateY(' + rot + 'deg) scale(' + scale + ')';
+            item.style.zIndex = String(100 - abs);
+            item.style.filter = abs === 0 ? 'brightness(1)' : 'brightness(0.55)';
+            item.style.opacity = abs > 2 ? '0' : '1';
+            item.classList.toggle('is-active', abs === 0);
+            item.setAttribute('aria-hidden', abs === 0 ? 'false' : 'true');
+            var video = item.querySelector('video');
+            if (!video) return;
+            if (abs === 0) {
+                video.muted = true;
+                var playPromise = video.play();
+                if (playPromise && playPromise.catch) playPromise.catch(function () {});
+            } else {
+                video.pause();
+                try { video.currentTime = 0; } catch (e) {}
+            }
+        });
+    }
+
+    (function initCoverflow() {
+        var root = document.getElementById('coverflow');
+        var items = document.querySelectorAll('.coverflow-item');
+        if (!root || !items.length) return;
+
+        items.forEach(function (item) {
+            item.addEventListener('click', function () {
+                var idx = Number(item.getAttribute('data-index') || 0);
+                if (idx === coverflowIndex) return;
+                coverflowIndex = idx;
+                renderCoverflow();
+            });
+        });
+
+        root.addEventListener('wheel', function (e) {
+            if (Math.abs(e.deltaY) < 8 && Math.abs(e.deltaX) < 8) return;
+            e.preventDefault();
+            if (coverflowBusy) return;
+            coverflowBusy = true;
+            coverflowStep((e.deltaY > 0 || e.deltaX > 0) ? 1 : -1);
+            setTimeout(function () { coverflowBusy = false; }, 320);
+        }, { passive: false });
+
+        var startX = 0;
+        root.addEventListener('pointerdown', function (e) {
+            startX = e.clientX;
+            root.setPointerCapture(e.pointerId);
+        });
+        root.addEventListener('pointerup', function (e) {
+            var dx = e.clientX - startX;
+            if (Math.abs(dx) < 40) return;
+            coverflowStep(dx < 0 ? 1 : -1);
+        });
+
+        renderCoverflow();
+    })();
+
+    (function () {
+        const nodes = document.querySelectorAll('.reveal');
+        if (!nodes.length) return;
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            nodes.forEach(n => n.classList.add('is-visible'));
+            return;
+        }
+        const io = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.isIntersecting) {
+                    e.target.classList.add('is-visible');
+                    io.unobserve(e.target);
+                }
+            });
+        }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+        nodes.forEach(n => io.observe(n));
+    })();
+
+    const CURRENT_USER = {{ current_user_json | safe }};
+    const HAS_STORY_ACCESS = {{ 'true' if has_story_access else 'false' }};
+
+    const TARIFFS = {
+        {% for t in tariffs %}
+        "{{ t.slug }}": {
+            slug: "{{ t.slug }}",
+            name: {{ t.name | tojson }},
+            price: {{ t.price }},
+            old_price: {{ t.old_price if t.old_price else 'null' }},
+            features: {{ (t.features_markdown or '') | tojson }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    };
+
+    let selectedTariffSlug = 'pro';
+
+    function formatRub(n) {
+        if (n == null) return '';
+        return Math.round(Number(n)).toLocaleString('ru-RU') + ' ₽';
+    }
+
+    function buyOrAuth(tariffSlug) {
+        selectedTariffSlug = (tariffSlug || 'pro').toLowerCase();
         if (!CURRENT_USER) {
             openAuthModal('register');
             return;
         }
-        if (CURRENT_USER.has_access) {
+        if (CURRENT_USER.has_access || CURRENT_USER.has_story_access || HAS_STORY_ACCESS) {
             openAlreadyPaidModal();
             return;
         }
         openPayModal();
     }
 
+    function updatePayModalContent() {
+        const t = TARIFFS[selectedTariffSlug] || Object.values(TARIFFS)[0];
+        if (!t) return;
+        const titleEl = document.getElementById('pay-modal-title');
+        const priceEl = document.getElementById('pay-modal-price');
+        const oldEl = document.getElementById('pay-modal-old-price');
+        const listEl = document.getElementById('pay-modal-features');
+        if (titleEl) titleEl.textContent = 'Тариф ' + t.name;
+        if (priceEl) priceEl.textContent = formatRub(t.price);
+        if (oldEl) {
+            if (t.old_price) {
+                oldEl.textContent = formatRub(t.old_price);
+                oldEl.classList.remove('hidden');
+            } else {
+                oldEl.classList.add('hidden');
+            }
+        }
+        if (listEl) {
+            const lines = String(t.features || '')
+                .split('\n')
+                .map(l => l.replace(/^[-•*]\s*/, '').trim())
+                .filter(Boolean)
+                .slice(0, 4);
+            listEl.innerHTML = lines.map(item =>
+                '<li class="flex items-center gap-2.5 text-sm text-gray-700">' +
+                '<i class="fas fa-check text-[var(--rose,#e8a4b4)] w-4 flex-shrink-0"></i> ' +
+                item + '</li>'
+            ).join('');
+        }
+    }
+
     function openPayModal() {
+        updatePayModalContent();
         document.getElementById('pay-modal').classList.remove('hidden');
         const offerCheckbox = document.getElementById('pay-offer-checkbox');
         if (offerCheckbox) {
@@ -748,11 +1689,10 @@
         document.body.style.overflow = '';
     }
 
-    // Закрытие по клику на оверлей
-    document.getElementById('pay-modal').addEventListener('click', function(e) {
+    document.getElementById('pay-modal').addEventListener('click', function (e) {
         if (e.target === this) closePayModal();
     });
-    document.getElementById('already-paid-modal').addEventListener('click', function(e) {
+    document.getElementById('already-paid-modal').addEventListener('click', function (e) {
         if (e.target === this) closeAlreadyPaidModal();
     });
 
@@ -764,12 +1704,17 @@
             alert('Необходимо принять оферту перед оплатой.');
             return;
         }
+        const tariff_slug = selectedTariffSlug || 'pro';
+        if (!TARIFFS[tariff_slug]) {
+            alert('Выберите тариф Pro или VIP.');
+            return;
+        }
         if (btn) { btn.disabled = true; btn.textContent = 'Переход к оплате...'; }
         try {
             const res = await fetch('/api/v1/payments/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ accepted_offer }),
+                body: JSON.stringify({ accepted_offer, tariff_slug }),
                 credentials: 'same-origin',
             });
             if (res.ok) {
@@ -782,11 +1727,13 @@
         } catch {
             alert('Ошибка сети. Попробуйте снова.');
         } finally {
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-lock text-sm opacity-80"></i> <span>Перейти к оплате</span>'; }
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-lock text-sm opacity-80"></i> <span>Перейти к оплате</span>';
+            }
         }
     }
 
-    // ---- Resend verification ----
     async function resendVerification() {
         try {
             const res = await fetch('/auth/resend-verification', {
@@ -804,34 +1751,20 @@
         }
     }
 
-    // ---- Reach section platform switcher ----
-    function switchPlatform(platform) {
-        document.querySelectorAll('.platform-slides').forEach(el => el.classList.add('hidden'));
-        document.querySelectorAll('.platform-tab').forEach(btn => {
-            btn.classList.remove('gradient-bg', 'text-white', 'shadow-md');
-            btn.classList.add('border', 'border-gray-200', 'text-gray-600');
-        });
-        document.getElementById('platform-' + platform).classList.remove('hidden');
-        const activeTab = document.getElementById('tab-' + platform);
-        activeTab.classList.add('gradient-bg', 'text-white', 'shadow-md');
-        activeTab.classList.remove('border', 'border-gray-200', 'text-gray-600');
-    }
-
-    // ---- Flash messages from URL params ----
-    (function() {
+    (function () {
         const params = new URLSearchParams(location.search);
         const msg = params.get('auth_message');
         const err = params.get('auth_error');
         if (msg === 'email_verified') {
             const toast = document.createElement('div');
-            toast.className = 'fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg text-sm font-medium';
+            toast.className = 'fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-[#2a5a3a] text-white px-6 py-3 rounded-lg text-sm font-medium';
             toast.textContent = '✓ Email подтверждён! Теперь вы можете купить курс.';
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 5000);
         }
         if (err === 'invalid_token') {
             const toast = document.createElement('div');
-            toast.className = 'fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-6 py-3 rounded-xl shadow-lg text-sm font-medium';
+            toast.className = 'fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-[#7a2e2e] text-white px-6 py-3 rounded-lg text-sm font-medium';
             toast.textContent = '✗ Ссылка недействительна или истекла.';
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 5000);
@@ -839,100 +1772,77 @@
     })();
 </script>
 
-{% include 'partials/auth_modal.html' %}
+{% include "partials/auth_modal.html" %}
 
 <!-- ===== МОДАЛ ОФОРМЛЕНИЯ ПОКУПКИ ===== -->
-<div id="pay-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-    <div class="modal-panel bg-white rounded-3xl shadow-2xl max-w-md w-full animate-fadeIn">
+<div id="pay-modal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="modal-panel pay-modal-panel bg-[#f3eef5] text-gray-900 rounded-2xl shadow-lg relative">
+        <button type="button" onclick="closePayModal()" aria-label="Закрыть"
+                class="absolute top-3 right-3 z-20 w-8 h-8 bg-black/45 hover:bg-black/65 text-white rounded-2xl flex items-center justify-center transition-colors">
+            <i class="fas fa-xmark text-sm" aria-hidden="true"></i>
+        </button>
 
-        <!-- Изображение -->
-        <div class="relative">
-            <img src="/static/images/modal_pay.png" alt="Курс Davydova AI"
-                 class="w-full object-cover pay-modal-img">
-            <button type="button" onclick="closePayModal()" aria-label="Закрыть"
-                    class="absolute top-3 right-3 w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center transition-colors">
-                <i class="fas fa-xmark text-sm" aria-hidden="true"></i>
-            </button>
-            <!-- Бейдж скидки -->
-            <div class="absolute bottom-3 left-3 gradient-bg text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
-                Скидка 57% — только сейчас
-            </div>
-        </div>
-
-        <!-- Контент -->
-        <div class="p-6">
-            <h3 class="text-xl font-black text-gray-900 mb-1">Полный доступ к курсу</h3>
-            <p class="text-gray-500 text-sm mb-5">Единоразовая оплата — пожизненный доступ</p>
-
-            <!-- Цена -->
-            <div class="bg-gray-50 rounded-2xl p-4 mb-5 flex items-center justify-between">
-                <div>
-                    <div class="flex items-baseline gap-3">
-                        <span class="text-3xl font-black text-gray-900">2 990 ₽</span>
-                        <span class="text-lg text-gray-400 line-through">7 000 ₽</span>
-                    </div>
-                    <p class="text-green-600 text-xs font-semibold mt-0.5">Вы экономите 4 010 ₽</p>
-                </div>
-                <div class="gradient-bg text-white text-lg font-black px-4 py-2 rounded-xl">
-                    −57%
-                </div>
+        <div class="pay-modal-layout">
+            <div class="pay-modal-visual rounded-t-2xl md:rounded-tr-none md:rounded-l-2xl">
+                <img src="/static/images/modal_pay_mobile.png" alt="AI STORY · Davydova AI"
+                     class="pay-modal-img pay-modal-img--mobile">
+                <img src="/static/images/modal_pay_side.png" alt="AI STORY · Davydova AI"
+                     class="pay-modal-img pay-modal-img--desktop">
             </div>
 
-            <!-- Что включено -->
-            <ul class="space-y-2 mb-6">
-                <li class="flex items-center gap-2.5 text-sm text-gray-700">
-                    <i class="fas fa-check text-green-500 w-4 flex-shrink-0"></i> Все видеоуроки курса
-                </li>
-                <li class="flex items-center gap-2.5 text-sm text-gray-700">
-                    <i class="fas fa-check text-green-500 w-4 flex-shrink-0"></i> Материалы и шаблоны к урокам
-                </li>
-                <li class="flex items-center gap-2.5 text-sm text-gray-700">
-                    <i class="fas fa-check text-green-500 w-4 flex-shrink-0"></i> Пожизненный доступ + будущие обновления
-                </li>
-            </ul>
+            <div class="pay-form flex flex-col justify-center">
+                <h3 id="pay-modal-title" class="font-display font-semibold text-gray-900">Тариф Pro</h3>
+                <p class="pay-subtitle text-gray-500 text-sm">Единоразовая оплата. Доступ к материалам</p>
 
-            <label class="flex items-start gap-3 text-xs text-gray-600 mb-5">
-                <input id="pay-offer-checkbox" type="checkbox"
-                       class="mt-0.5 w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500">
-                <span>
-                    Я принимаю <a href="/offer" target="_blank" class="text-purple-600 hover:underline">публичную оферту</a>
-                    и <a href="/privacy" target="_blank" class="text-purple-600 hover:underline">политику конфиденциальности</a>
-                </span>
-            </label>
+                <div class="pay-price-box bg-white/80 border border-gray-200 rounded-xl flex items-baseline gap-3">
+                    <span id="pay-modal-price" class="font-display font-semibold text-gray-900">9 990 ₽</span>
+                    <span id="pay-modal-old-price" class="text-base text-gray-400 line-through">12 990 ₽</span>
+                </div>
 
-            <!-- Кнопка оплаты -->
-            <button type="button" id="pay-modal-btn" onclick="startPayment()"
-                    class="cta-pulse gradient-bg text-white font-bold text-base px-6 py-4 rounded-2xl hover:opacity-90 transition-opacity w-full flex items-center justify-center gap-2">
-                <i class="fas fa-lock text-sm opacity-80"></i>
-                <span>Перейти к оплате</span>
-            </button>
+                <ul id="pay-modal-features" class="space-y-1.5"></ul>
 
-            <p class="text-center text-gray-400 text-xs mt-3 flex items-center justify-center gap-1.5">
-                <i class="fas fa-shield-alt"></i>
-                Безопасная оплата через YooKassa
-            </p>
+                <label class="pay-offer flex items-start gap-2.5 text-gray-800 cursor-pointer">
+                    <input id="pay-offer-checkbox" type="checkbox"
+                           class="mt-0.5 w-4 h-4 rounded border-gray-300 accent-[#c4788c] shrink-0">
+                    <span class="text-gray-800 leading-relaxed">
+                        Я принимаю <a href="/offer" target="_blank" class="text-[#c4788c] hover:underline">публичную оферту</a>
+                        и <a href="/privacy" target="_blank" class="text-[#c4788c] hover:underline">политику конфиденциальности</a>
+                    </span>
+                </label>
+
+                <button type="button" id="pay-modal-btn" onclick="startPayment()"
+                        class="btn-accent w-full font-semibold text-sm sm:text-base px-6 rounded-3xl flex items-center justify-center gap-2">
+                    <i class="fas fa-lock text-sm opacity-80"></i>
+                    <span>Перейти к оплате</span>
+                </button>
+
+                <p class="text-center text-gray-400 text-[11px] mt-2.5 flex items-center justify-center gap-1.5">
+                    <i class="fas fa-shield-alt"></i>
+                    Безопасная оплата через ЮKassa
+                </p>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- ===== МОДАЛ: КУРС УЖЕ ПРИОБРЕТЁН ===== -->
-<div id="already-paid-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-    <div class="modal-panel bg-white rounded-3xl shadow-2xl max-w-md w-full animate-fadeIn">
+<div id="already-paid-modal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div class="modal-panel bg-[#f3eef5] rounded-2xl max-w-md w-full shadow-lg">
         <div class="p-6 sm:p-7">
-            <div class="w-12 h-12 rounded-2xl bg-green-100 text-green-600 flex items-center justify-center mb-4">
-                <i class="fas fa-check-circle text-xl"></i>
+            <div class="w-11 h-11 rounded-lg bg-[#e8f0e6] text-[#2a5a3a] flex items-center justify-center mb-4">
+                <i class="fas fa-check-circle text-lg"></i>
             </div>
-            <h3 class="text-xl font-black text-gray-900 mb-2">Курс уже приобретён</h3>
+            <h3 class="font-display text-xl font-semibold text-gray-900 mb-2">Доступ уже есть</h3>
             <p class="text-gray-600 text-sm leading-relaxed mb-6">
-                У вас уже есть доступ к материалам. Перейдите к урокам, чтобы продолжить обучение.
+                Перейдите в кабинет, чтобы продолжить обучение по AI STORY.
             </p>
             <div class="flex flex-col sm:flex-row gap-3">
-                <a href="/cabinet/lessons"
-                   class="gradient-bg text-white font-bold text-sm px-5 py-3 rounded-xl hover:opacity-90 transition-opacity text-center w-full">
-                    Перейти к урокам
+                <a href="/cabinet"
+                   class="btn-accent font-semibold text-sm px-5 py-3 rounded-2xl text-center w-full">
+                    Перейти в кабинет
                 </a>
                 <button type="button" onclick="closeAlreadyPaidModal()"
-                        class="border border-gray-200 text-gray-700 font-semibold text-sm px-5 py-3 rounded-xl hover:bg-gray-50 transition-colors w-full">
+                        class="border border-gray-300 text-gray-700 font-semibold text-sm px-5 py-3 rounded-2xl hover:bg-white/60 transition-colors w-full">
                     Закрыть
                 </button>
             </div>

@@ -12,19 +12,17 @@ from yookassa import Payment as YooPayment
 from app.database import get_db
 from app.models.user import User
 from app.models.payment import Payment
+from app.models.course import Course, Tariff
 from app.services.payment import PaymentService
-from app.services.video import VideoService
+from app.services.access import grant_course_access, get_primary_course
 from app.bot.bot import bot
 from app.config import settings
 
-# Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
-# Сети, с которых ЮKassa шлёт уведомления.
-# https://yookassa.ru/developers/using-api/webhooks#ip
 YOOKASSA_NETWORKS = [
     ipaddress.ip_network(net)
     for net in (
@@ -38,17 +36,10 @@ YOOKASSA_NETWORKS = [
     )
 ]
 
-# Расхождение суммы в пределах копейки считаем округлением, а не подменой.
 AMOUNT_TOLERANCE = 0.01
 
 
 async def verify_yookassa_source(request: Request) -> None:
-    """
-    Пропускает только запросы с IP-адресов ЮKassa.
-
-    Требует, чтобы uvicorn запускался с --proxy-headers --forwarded-allow-ips=127.0.0.1:
-    иначе за nginx сюда придёт 127.0.0.1 и все уведомления будут отклонены.
-    """
     client = request.client
     if client is None:
         logger.warning("Webhook rejected: no client address")
@@ -66,11 +57,6 @@ async def verify_yookassa_source(request: Request) -> None:
 
 
 async def _fetch_remote_payment(payment_id: str):
-    """
-    Забирает платёж из API ЮKassa. SDK синхронный — уводим в тред,
-    чтобы не блокировать event loop. None, если запрос не удался.
-    """
-    # PaymentService в __init__ проставляет Configuration.account_id/secret_key
     PaymentService()
     try:
         return await asyncio.to_thread(YooPayment.find_one, payment_id)
@@ -79,20 +65,135 @@ async def _fetch_remote_payment(payment_id: str):
         return None
 
 
+def _render_email(template_name: str, **ctx) -> str:
+    from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+    jinja = Environment(
+        loader=FileSystemLoader("app/templates/emails"),
+        autoescape=select_autoescape(["html"]),
+    )
+    return jinja.get_template(template_name).render(**ctx)
+
+
+async def _notify_purchase(user: User, payment: Payment, course: Course | None, tariff_slug: str):
+    from app.tasks import enqueue_email
+
+    course_title = course.title if course else "курс"
+    tariff_name = (tariff_slug or "pro").upper()
+    paid_at_str = (payment.paid_at or datetime.utcnow()).strftime("%d.%m.%Y %H:%M")
+    if tariff_slug == "pro":
+        chat_invite_url = settings.PRO_CHAT_INVITE_URL or None
+    elif tariff_slug == "vip":
+        chat_invite_url = settings.VIP_CHAT_INVITE_URL or None
+    else:
+        chat_invite_url = None
+    cabinet_url = f"{settings.SITE_URL}/cabinet/lessons"
+
+    use_telegram = (
+        settings.BOT_ENABLED
+        and user.telegram_id is not None
+        and getattr(user, "registration_source", None) != "web"
+    )
+
+    if use_telegram:
+        welcome_text = (
+            f"🎉 <b>Поздравляю с покупкой!</b>\n\n"
+            f"✅ Доступ к курсу «{course_title}» ({tariff_name}) открыт бессрочно.\n\n"
+            f"🔐 Видео защищены персональными водяными знаками.\n\n"
+            f"📚 Нажмите «Перейти к курсу», чтобы начать обучение."
+        )
+        if chat_invite_url:
+            chat_label = "VIP-канал" if tariff_slug == "vip" else "чат с куратором"
+            welcome_text += f"\n\n💬 Закрытый {chat_label}:\n{chat_invite_url}"
+        elif tariff_slug == "vip":
+            welcome_text += (
+                "\n\n⭐ VIP: куратор свяжется с вами для личного чата и Zoom-разборов."
+            )
+
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="📖 Перейти к курсу",
+                        url=f"https://t.me/{settings.BOT_USERNAME}?start=course",
+                    )
+                ]
+            ]
+        )
+        if chat_invite_url:
+            btn_label = "💬 VIP-канал" if tariff_slug == "vip" else "💬 Чат с куратором"
+            keyboard.inline_keyboard.append(
+                [InlineKeyboardButton(text=btn_label, url=chat_invite_url)]
+            )
+        await bot.send_message(
+            chat_id=user.telegram_id,
+            text=welcome_text,
+            reply_markup=keyboard,
+        )
+        logger.info("Telegram notification sent to user %s", user.telegram_id)
+    elif user.email:
+        html = _render_email(
+            "payment_success.html",
+            amount=int(payment.amount),
+            paid_at=paid_at_str,
+            email=user.email,
+            cabinet_url=cabinet_url,
+            course_title=course_title,
+            tariff_name=tariff_name,
+            tariff_slug=tariff_slug,
+            chat_invite_url=chat_invite_url,
+        )
+        enqueue_email(
+            user.email,
+            f"Оплата прошла успешно — доступ к «{course_title}» открыт",
+            html,
+        )
+        logger.info("Payment success email queued for %s", user.email)
+
+    # VIP: notify admin (manual personal chat)
+    if tariff_slug == "vip":
+        admin_html = _render_email(
+            "admin_vip_purchase.html",
+            user_id=user.id,
+            email=user.email or "—",
+            telegram_id=user.telegram_id or "—",
+            username=user.username or user.name or "—",
+            amount=int(payment.amount),
+            paid_at=paid_at_str,
+            course_title=course_title,
+        )
+        if settings.ADMIN_NOTIFY_EMAIL:
+            enqueue_email(
+                settings.ADMIN_NOTIFY_EMAIL,
+                f"VIP покупка: user #{user.id}",
+                admin_html,
+            )
+        if settings.BOT_ENABLED and settings.ADMIN_TELEGRAM_ID:
+            try:
+                await bot.send_message(
+                    chat_id=settings.ADMIN_TELEGRAM_ID,
+                    text=(
+                        f"⭐ VIP покупка\n"
+                        f"User #{user.id}\n"
+                        f"Email: {user.email or '—'}\n"
+                        f"TG: {user.telegram_id or '—'}\n"
+                        f"Курс: {course_title}\n"
+                        f"Сумма: {int(payment.amount)} ₽"
+                    ),
+                )
+            except Exception as e:
+                logger.error("Failed to notify admin via Telegram: %s", e)
+
+
 @router.post("/yookassa", dependencies=[Depends(verify_yookassa_source)])
 async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db)):
-    """
-    Обрабатывает уведомления от ЮKassa о статусе платежей.
-
-    Телу запроса не доверяем: оно лишь указывает, какой платёж перепроверить.
-    Факт и сумма оплаты подтверждаются запросом к API ЮKassa, а сам платёж
-    должен быть заранее создан нами в /api/v1/payments/create.
-    Документация: https://yookassa.ru/developers/using-api/webhooks
-    """
-
     try:
         body = await request.json()
-        logger.info(f"Received webhook: {json.dumps(body, indent=2, ensure_ascii=False)}")
+        logger.info(
+            "Received webhook: %s", json.dumps(body, indent=2, ensure_ascii=False)
+        )
 
         if body.get("event") != "payment.succeeded":
             return {"status": "ok", "message": "Event ignored"}
@@ -102,31 +203,29 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
             logger.error("No payment_id in webhook")
             raise HTTPException(status_code=400, detail="No payment_id")
 
-        # Платёж обязан существовать в нашей БД: его создаёт /api/v1/payments/create.
-        # Записи «на лету» из тела запроса не создаём — иначе доступ можно выпросить
-        # произвольным POST-ом.
         query = select(Payment).where(Payment.payment_id == payment_id)
         result = await db.execute(query)
         payment = result.scalar_one_or_none()
 
         if not payment:
-            logger.error(f"Payment not found in DB, ignoring webhook: {payment_id}")
+            logger.error("Payment not found in DB, ignoring webhook: %s", payment_id)
             return {"status": "ok", "message": "Unknown payment ignored"}
 
-        # Если платеж уже обработан — не дублируем
         if payment.status == "succeeded":
-            logger.info(f"Payment {payment_id} already processed")
+            logger.info("Payment %s already processed", payment_id)
             return {"status": "ok", "message": "Already processed"}
 
-        # Подтверждаем оплату у ЮKassa, а не по телу запроса
         remote = await _fetch_remote_payment(payment_id)
         if remote is None:
-            raise HTTPException(status_code=502, detail="Cannot verify payment with YooKassa")
+            raise HTTPException(
+                status_code=502, detail="Cannot verify payment with YooKassa"
+            )
 
         if getattr(remote, "status", None) != "succeeded":
             logger.warning(
-                "Payment %s is not succeeded in YooKassa (status=%s), access not granted",
-                payment_id, getattr(remote, "status", None),
+                "Payment %s is not succeeded in YooKassa (status=%s)",
+                payment_id,
+                getattr(remote, "status", None),
             )
             return {"status": "ok", "message": "Payment not succeeded"}
 
@@ -134,110 +233,79 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
         if abs(remote_amount - float(payment.amount)) > AMOUNT_TOLERANCE:
             logger.error(
                 "Amount mismatch for payment %s: DB=%s, YooKassa=%s",
-                payment_id, payment.amount, remote_amount,
+                payment_id,
+                payment.amount,
+                remote_amount,
             )
             raise HTTPException(status_code=400, detail="Amount mismatch")
 
-        # Обновляем статус платежа
+        # Enrich from YooKassa metadata if DB row missing course/tariff
+        meta = getattr(remote, "metadata", None) or {}
+        if isinstance(meta, dict):
+            if not payment.course_id and meta.get("course_id"):
+                payment.course_id = int(meta["course_id"])
+            if not payment.tariff_slug and meta.get("tariff_slug"):
+                payment.tariff_slug = meta["tariff_slug"]
+            if not payment.tariff_id and meta.get("tariff_id"):
+                payment.tariff_id = int(meta["tariff_id"])
+
         payment.status = "succeeded"
         payment.paid_at = datetime.utcnow()
 
-        # Находим пользователя
         user_query = select(User).where(User.id == payment.user_id)
         user_result = await db.execute(user_query)
         user = user_result.scalar_one_or_none()
 
         if not user:
-            logger.error(f"User not found: {payment.user_id}")
+            logger.error("User not found: %s", payment.user_id)
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Выдаем пользователю доступ к курсу
-        user.has_access = True
-        user.access_granted_at = datetime.utcnow()
-
-        # Сохраняем изменения
-        await db.commit()
-
-        logger.info(f"Access granted to user {user.id} for payment {payment_id}")
-
-        # Уведомление: Telegram если бот включён и есть telegram_id, иначе email
-        try:
-            use_telegram = (
-                settings.BOT_ENABLED
-                and user.telegram_id is not None
-                and getattr(user, "registration_source", None) != "web"
+        course = None
+        if payment.course_id:
+            c_result = await db.execute(
+                select(Course).where(Course.id == payment.course_id)
             )
+            course = c_result.scalar_one_or_none()
+        if course is None:
+            course = await get_primary_course(db)
+            if course and not payment.course_id:
+                payment.course_id = course.id
 
-            if use_telegram:
-                welcome_text = (
-                    "🎉 *Поздравляю с покупкой!*\n\n"
-                    "✅ Доступ к курсу полностью открыт и будет действовать бессрочно.\n\n"
-                    "🔐 *Важно:* Все видео защищены персональными водяными знаками с вашими данными.\n"
-                    "Пожалуйста, не передавайте доступ третьим лицам — это может привести к блокировке.\n\n"
-                    "📚 *Как начать обучение:*\n"
-                    "1. Нажмите кнопку ниже «📖 Перейти к курсу»\n"
-                    "2. Вы попадете в личный кабинет, где собраны все уроки\n"
-                    "3. Каждое видео открывается по защищенной ссылке\n\n"
-                    "💡 Если возникнут вопросы — пишите сюда, я на связи!"
-                )
-                from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-                keyboard = InlineKeyboardMarkup(
-                    inline_keyboard=[
-                        [InlineKeyboardButton(text="📖 Перейти к курсу",
-                                              url=f"https://t.me/{settings.BOT_USERNAME}?start=course")]
-                    ]
-                )
-                await bot.send_message(
-                    chat_id=user.telegram_id,
-                    text=welcome_text,
-                    parse_mode="Markdown",
-                    reply_markup=keyboard,
-                )
-                logger.info(f"Telegram notification sent to user {user.telegram_id}")
+        tariff_slug = payment.tariff_slug or "pro"
+        if payment.course_id:
+            await grant_course_access(db, user, payment.course_id, tariff_slug)
+        else:
+            user.has_access = True
+            user.access_granted_at = datetime.utcnow()
 
-            elif user.email:
-                from jinja2 import Environment, FileSystemLoader, select_autoescape
-                from app.tasks import enqueue_email
+        await db.commit()
+        logger.info(
+            "Access granted to user %s for payment %s (course=%s tariff=%s)",
+            user.id,
+            payment_id,
+            payment.course_id,
+            tariff_slug,
+        )
 
-                _jinja = Environment(
-                    loader=FileSystemLoader("app/templates/emails"),
-                    autoescape=select_autoescape(["html"]),
-                )
-                paid_at_str = (payment.paid_at or datetime.utcnow()).strftime("%d.%m.%Y %H:%M")
-                html = _jinja.get_template("payment_success.html").render(
-                    amount=int(payment.amount),
-                    paid_at=paid_at_str,
-                    email=user.email,
-                    cabinet_url=f"{settings.SITE_URL}/",
-                )
-                # enqueue_email, а не .delay(): без Redis задача бы не поставилась
-                # и письмо о покупке потерялось бы. Здесь при отсутствии брокера
-                # письмо уходит синхронно.
-                enqueue_email(user.email, "Оплата прошла успешно — доступ к курсу открыт", html)
-                logger.info(f"Payment success email sent/queued for {user.email}")
-
+        try:
+            await _notify_purchase(user, payment, course, tariff_slug)
         except Exception as e:
-            logger.error(f"Failed to send payment notification: {e}")
-            # Не блокируем основной процесс
+            logger.error("Failed to send payment notification: %s", e)
 
         return {"status": "ok", "message": "Payment processed"}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error processing webhook: {e}", exc_info=True)
+        logger.error("Error processing webhook: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/test-payment")
 async def test_payment_webhook(db: AsyncSession = Depends(get_db)):
-    """
-    Тестовый эндпоинт для ручного создания успешного платежа (только для разработки!)
-    """
     if not settings.DEBUG:
         raise HTTPException(status_code=403, detail="Only available in debug mode")
 
-    # Создаем тестового пользователя, если его нет
     query = select(User).where(User.telegram_id == 123456789)
     result = await db.execute(query)
     user = result.scalar_one_or_none()
@@ -247,24 +315,29 @@ async def test_payment_webhook(db: AsyncSession = Depends(get_db)):
             telegram_id=123456789,
             username="test_user",
             first_name="Test",
-            has_access=False
+            has_access=False,
         )
         db.add(user)
         await db.flush()
 
-    # Создаем тестовый платеж
+    course = await get_primary_course(db)
     payment = Payment(
         user_id=user.id,
-        amount=5000,
+        amount=9990,
         payment_id=f"test_{datetime.utcnow().timestamp()}",
-        status="pending"
+        status="pending",
+        course_id=course.id if course else None,
+        tariff_slug="pro",
     )
     db.add(payment)
-    await db.commit()
+    await db.flush()
 
-    # Выдаем доступ
-    user.has_access = True
-    user.access_granted_at = datetime.utcnow()
+    if course:
+        await grant_course_access(db, user, course.id, "pro")
+    else:
+        user.has_access = True
+        user.access_granted_at = datetime.utcnow()
+
     payment.status = "succeeded"
     payment.paid_at = datetime.utcnow()
     await db.commit()
@@ -273,5 +346,5 @@ async def test_payment_webhook(db: AsyncSession = Depends(get_db)):
         "status": "ok",
         "user_id": user.id,
         "payment_id": payment.payment_id,
-        "message": "Test payment processed"
+        "message": "Test payment processed",
     }

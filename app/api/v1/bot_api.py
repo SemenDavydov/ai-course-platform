@@ -15,6 +15,7 @@ from app.models.material import Material
 from app.models.user import User
 from app.models.course import Course, Lesson
 from app.services.video import VideoService
+from app.services.access import get_primary_course, user_has_course
 
 router = APIRouter(prefix="/api/v1/bot", tags=["bot-api"])
 
@@ -69,18 +70,24 @@ async def get_user(telegram_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/course", response_model=CourseResponse)
-async def get_course(db: AsyncSession = Depends(get_db)):
-    """
-    Получает информацию о курсе со всеми уроками
-    Используется ботом для отображения содержания
-    """
-    query = (
-        select(Course)
-        .where(Course.is_published == True)
-        .options(selectinload(Course.lessons))
-    )
-    result = await db.execute(query)
-    course = result.scalar_one_or_none()
+async def get_course(db: AsyncSession = Depends(get_db), slug: Optional[str] = None):
+    if slug:
+        query = (
+            select(Course)
+            .where(Course.slug == slug, Course.is_published == True)
+            .options(selectinload(Course.lessons))
+        )
+        result = await db.execute(query)
+        course = result.scalar_one_or_none()
+    else:
+        course = await get_primary_course(db)
+        if course:
+            result = await db.execute(
+                select(Course)
+                .where(Course.id == course.id)
+                .options(selectinload(Course.lessons))
+            )
+            course = result.scalar_one_or_none()
 
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
@@ -114,7 +121,7 @@ async def get_lesson_video(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if not user.has_access:
+    if not await user_has_course(db, user, lesson.course_id):
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Генерируем ссылку на видео

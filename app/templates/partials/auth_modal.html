@@ -1,15 +1,15 @@
 <!-- Auth Modal (Login / Register) -->
-<div id="auth-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 overflow-y-auto">
+<div id="auth-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-3 sm:p-4 overflow-y-auto">
   <!-- Backdrop -->
   <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeAuthModal()"></div>
 
   <!-- Dialog -->
-  <div class="modal-panel relative w-full max-w-md bg-white rounded-2xl shadow-2xl">
+  <div class="modal-panel relative w-full max-w-md mx-auto my-auto bg-white rounded-3xl shadow-2xl max-h-[min(92dvh,920px)]">
 
     <!-- Header -->
-    <div class="gradient-bg px-6 pt-6 pb-0">
+    <div class="gradient-bg px-6 pt-6 pb-0 rounded-t-3xl">
       <div class="flex justify-between items-center mb-4">
-        <h2 class="text-white font-bold text-xl">Доступ к курсу</h2>
+        <h2 class="text-white font-bold text-xl">Авторизация</h2>
         <button onclick="closeAuthModal()" class="text-white/70 hover:text-white text-2xl leading-none">&times;</button>
       </div>
       <!-- Tabs -->
@@ -29,35 +29,37 @@
     <div class="px-6 py-6">
 
       <!-- Error banner -->
-      <div id="auth-error" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm"></div>
+      <div id="auth-error" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm"></div>
       <!-- Success banner -->
-      <div id="auth-success" class="hidden mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm"></div>
+      <div id="auth-success" class="hidden mb-4 p-3 bg-green-50 border border-green-200 rounded-2xl text-green-700 text-sm"></div>
 
       <!-- LOGIN FORM -->
       <form id="form-login" onsubmit="submitLogin(event)" class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
           <input type="email" id="login-email" required autocomplete="email"
-                 class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+                 style="color:#111;background:#fff;"
+                 class="w-full border border-gray-300 rounded-2xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-rose-400 transition placeholder:text-gray-400"
                  placeholder="you@example.com">
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Пароль</label>
           <input type="password" id="login-password" required autocomplete="current-password"
-                 class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+                 style="color:#111;background:#fff;"
+                 class="w-full border border-gray-300 rounded-2xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-rose-400 transition placeholder:text-gray-400"
                  placeholder="Введите пароль">
         </div>
         <div class="text-right">
           <button type="button" onclick="showResetForm()"
-                  class="text-xs text-purple-600 hover:underline">Забыли пароль?</button>
+                  class="text-xs text-rose-600 hover:underline">Забыли пароль?</button>
         </div>
         <button type="submit" id="login-submit"
-                class="w-full gradient-bg text-white font-semibold py-3 rounded-xl hover:opacity-90 transition text-sm">
+                class="w-full gradient-bg text-white font-semibold py-3 rounded-3xl hover:opacity-90 transition text-sm">
           Войти
         </button>
         <p class="text-center text-xs text-gray-500">
           Нет аккаунта?
-          <button type="button" onclick="switchTab('register')" class="text-purple-600 hover:underline">Зарегистрируйтесь</button>
+          <button type="button" onclick="switchTab('register')" class="text-cyan-700 hover:underline">Зарегистрируйтесь</button>
         </p>
       </form>
 
@@ -66,54 +68,58 @@
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
           <input type="email" id="reg-email" required autocomplete="email"
-                 class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+                 style="color:#111;background:#fff;"
+                 class="w-full border border-gray-300 rounded-2xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-rose-400 transition placeholder:text-gray-400"
                  placeholder="you@example.com">
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Пароль</label>
           <input type="password" id="reg-password" required autocomplete="new-password"
-                 class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+                 style="color:#111;background:#fff;"
+                 class="w-full border border-gray-300 rounded-2xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-rose-400 transition placeholder:text-gray-400"
                  placeholder="Не менее 8 символов">
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Повторите пароль</label>
           <input type="password" id="reg-password2" required autocomplete="new-password"
-                 class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+                 style="color:#111;background:#fff;"
+                 class="w-full border border-gray-300 rounded-2xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-rose-400 transition placeholder:text-gray-400"
                  placeholder="Повторите пароль">
         </div>
         <div class="flex items-start gap-3">
           <input type="checkbox" id="reg-offer" required
-                 class="mt-1 w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500">
-          <label for="reg-offer" class="text-xs text-gray-600 leading-relaxed">
-            Я принимаю <a href="/offer" target="_blank" class="text-purple-600 hover:underline">публичную оферту</a>
-            и <a href="/privacy" target="_blank" class="text-purple-600 hover:underline">политику конфиденциальности</a>
+                 class="mt-1 w-4 h-4 rounded border-gray-300 text-rose-600 accent-[#c4788c] focus:ring-rose-400 shrink-0">
+          <label for="reg-offer" class="text-xs text-gray-800 leading-relaxed">
+            Я принимаю <a href="/offer" target="_blank" class="text-rose-600 hover:underline">публичную оферту</a>
+            и <a href="/privacy" target="_blank" class="text-cyan-700 hover:underline">политику конфиденциальности</a>
           </label>
         </div>
         <button type="submit" id="reg-submit"
-                class="w-full gradient-bg text-white font-semibold py-3 rounded-xl hover:opacity-90 transition text-sm">
+                class="w-full gradient-bg text-white font-semibold py-3 rounded-3xl hover:opacity-90 transition text-sm">
           Создать аккаунт
         </button>
         <p class="text-center text-xs text-gray-500">
           Уже есть аккаунт?
-          <button type="button" onclick="switchTab('login')" class="text-purple-600 hover:underline">Войти</button>
+          <button type="button" onclick="switchTab('login')" class="text-rose-600 hover:underline">Войти</button>
         </p>
       </form>
 
       <!-- PASSWORD RESET FORM -->
       <form id="form-reset" onsubmit="submitReset(event)" class="space-y-4 hidden">
-        <p class="text-sm text-gray-600">Введите email — пришлём ссылку для сброса пароля.</p>
+        <p class="text-sm text-gray-600">Введите email, пришлём ссылку для сброса пароля.</p>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
           <input type="email" id="reset-email" required autocomplete="email"
-                 class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+                 style="color:#111;background:#fff;"
+                 class="w-full border border-gray-300 rounded-2xl px-4 py-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-rose-400 transition placeholder:text-gray-400"
                  placeholder="you@example.com">
         </div>
         <button type="submit"
-                class="w-full gradient-bg text-white font-semibold py-3 rounded-xl hover:opacity-90 transition text-sm">
+                class="w-full gradient-bg text-white font-semibold py-3 rounded-3xl hover:opacity-90 transition text-sm">
           Отправить письмо
         </button>
         <p class="text-center text-xs text-gray-500">
-          <button type="button" onclick="switchTab('login')" class="text-purple-600 hover:underline">← Назад</button>
+          <button type="button" onclick="switchTab('login')" class="text-rose-600 hover:underline">Назад</button>
         </p>
       </form>
 
@@ -123,11 +129,11 @@
           Ваш аккаунт был создан через Telegram. Установите пароль для входа на сайт.
         </p>
         <button onclick="requestPasswordSetup()"
-                class="w-full gradient-bg text-white font-semibold py-3 rounded-xl hover:opacity-90 transition text-sm">
+                class="w-full gradient-bg text-white font-semibold py-3 rounded-3xl hover:opacity-90 transition text-sm">
           Получить письмо с паролем
         </button>
         <p class="text-center text-xs text-gray-500">
-          <button type="button" onclick="switchTab('login')" class="text-purple-600 hover:underline">← Назад</button>
+          <button type="button" onclick="switchTab('login')" class="text-rose-600 hover:underline">Назад</button>
         </p>
       </div>
 

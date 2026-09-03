@@ -6,11 +6,15 @@ BASE_DIR = Path(__file__).parent.parent
 
 class Settings(BaseSettings):
     # App
-    APP_NAME: str = "Экспресс курс по созданию ИИ анимаций и изображений"
+    APP_NAME: str = "AI STORY: воплоти свою историю"
     DEBUG: bool = False
     SECRET_KEY: str
     ADMIN_SECRET_CODE: str = "admin"
     CLC_API_KEY: str = ""  # API ключ для clc.li
+
+    # Соцсети (лендинг)
+    INSTAGRAM_URL: str = ""
+    TIKTOK_URL: str = ""
 
     # Database
     DATABASE_URL: str
@@ -41,6 +45,14 @@ class Settings(BaseSettings):
 
     # Bot feature flag
     BOT_ENABLED: bool = False
+
+    # Invite-ссылки в закрытые Telegram-каналы после оплаты
+    PRO_CHAT_INVITE_URL: str = ""
+    VIP_CHAT_INVITE_URL: str = ""
+
+    # Уведомление админу о VIP-покупке
+    ADMIN_NOTIFY_EMAIL: str = ""
+    ADMIN_TELEGRAM_ID: str = ""
 
     # Письма уходят в фоновом потоке, чтобы не задерживать HTTP-запрос.
     # False — синхронно (используется в тестах).

@@ -10,12 +10,26 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
+from app.models.course import Course
 from app.services import auth as auth_service
+from app.services.access import grant_course_access
 
 
 @pytest_asyncio.fixture
 async def bot_buyer(db_session: AsyncSession) -> User:
     """Покупатель из бота: есть доступ и telegram_id, но нет ни email, ни пароля."""
+    course = Course(
+        title="Классический",
+        description="legacy",
+        price=2990,
+        is_published=True,
+        slug="ai-animations",
+        is_legacy=True,
+        sort_order=100,
+    )
+    db_session.add(course)
+    await db_session.flush()
+
     user = User(
         telegram_id=555000111,
         username="bot_buyer",
@@ -25,7 +39,8 @@ async def bot_buyer(db_session: AsyncSession) -> User:
         registration_source="bot_migrated",
     )
     db_session.add(user)
-    await db_session.commit()
+    await db_session.flush()
+    await grant_course_access(db_session, user, course.id, "legacy", commit=True)
     await db_session.refresh(user)
     return user
 

@@ -10,22 +10,24 @@ class Payment(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
-    # Данные платежа
     amount = Column(Float, nullable=False)
-    payment_id = Column(String, unique=True, nullable=False)  # ID от ЮKassa
+    payment_id = Column(String, unique=True, nullable=False)
     status = Column(String, default="pending")  # pending, succeeded, cancelled
     description = Column(String, nullable=True)
 
-    # Чеки для налоговой
-    receipt_sent = Column(Boolean, default=False)
-    receipt_data = Column(Text, nullable=True)  # JSON с данными чека
+    course_id = Column(Integer, ForeignKey("courses.id", ondelete="SET NULL"), nullable=True)
+    tariff_id = Column(Integer, ForeignKey("tariffs.id", ondelete="SET NULL"), nullable=True)
+    tariff_slug = Column(String, nullable=True)  # pro | vip | legacy
 
-    # Временные метки
+    receipt_sent = Column(Boolean, default=False)
+    receipt_data = Column(Text, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     paid_at = Column(DateTime(timezone=True), nullable=True)
 
-    # Связи
     user = relationship("User")
+    course = relationship("Course")
+    tariff = relationship("Tariff")
 
     def __repr__(self):
         return f"<Payment {self.payment_id} {self.status}>"

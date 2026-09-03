@@ -1,0 +1,231 @@
+{% extends "cabinet/base.html" %}
+
+{% block title %}Мои уроки{% endblock %}
+{% block page_title %}Мои уроки{% endblock %}
+{% set active_page = 'lessons' %}
+
+{% block extra_styles %}
+.paywall-empty {
+  min-height: 40vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--mist);
+  gap: 1rem;
+}
+.paywall-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
+}
+.paywall-modal-panel {
+  width: 100%;
+  max-width: 52rem;
+  background: var(--ink-soft);
+  border: 1px solid var(--glass-border);
+  border-radius: 1.5rem;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.paywall-banner {
+  background: linear-gradient(135deg, rgba(212, 137, 154, 0.18), rgba(74, 158, 171, 0.12));
+  border-bottom: 1px solid var(--glass-border);
+  padding: 1.25rem 1.5rem;
+  text-align: center;
+}
+.paywall-tariff {
+  background: var(--card-bg);
+  border: 2px solid var(--glass-border);
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.paywall-tariff:hover { border-color: rgba(212, 137, 154, 0.45); }
+.paywall-tariff.is-selected {
+  border-color: var(--rose);
+  box-shadow: 0 0 0 1px var(--rose);
+}
+.paywall-tariff.is-vip.is-selected { border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan); }
+.paywall-footer {
+  border-top: 1px solid var(--glass-border);
+  padding: 1.25rem 1.5rem;
+  background: var(--surface);
+}
+{% endblock %}
+
+{% block content %}
+<div class="paywall-empty">
+  <i class="fa-solid fa-lock text-4xl opacity-40"></i>
+  <p class="text-lg font-display font-semibold text-[var(--pearl)]">Уроки пока недоступны</p>
+  <p class="text-sm max-w-sm">Оформите доступ к курсу, чтобы начать обучение.</p>
+  <button type="button" onclick="openPaywallModal()"
+          class="mt-2 px-5 py-2.5 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-[var(--rose-deep)] to-[#a8687a]">
+    Выбрать тариф
+  </button>
+</div>
+
+<div id="paywall-modal" class="paywall-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="paywall-title">
+  <div class="paywall-modal-panel">
+    <div class="paywall-banner relative">
+      <button type="button" onclick="closePaywallModal()" aria-label="Закрыть"
+              class="absolute top-3 right-3 w-8 h-8 rounded-full border border-[var(--glass-border)] text-[var(--mist)] hover:text-[var(--pearl)] hover:bg-white/5 transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <p id="paywall-title" class="font-display font-semibold text-[var(--pearl)] text-lg sm:text-xl">
+        Вы ещё не оплатили курс
+      </p>
+      <p class="text-sm text-[var(--mist)] mt-1.5">
+        {% if course %}«{{ course.title }}»{% else %}Выберите тариф и получите доступ к урокам{% endif %}
+      </p>
+    </div>
+
+    <div class="p-4 sm:p-6">
+      {% if tariffs %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {% for t in tariffs %}
+        <article class="paywall-tariff {% if t.slug == 'vip' %}is-vip{% endif %}"
+                 data-slug="{{ t.slug }}"
+                 onclick="selectPaywallTariff('{{ t.slug }}')">
+          <h3 class="font-display font-semibold text-[var(--pearl)] text-xl">{{ t.name }}</h3>
+          <div class="mt-3 flex items-baseline gap-2 flex-wrap">
+            <span class="font-display text-3xl font-semibold text-[var(--pearl)] tabular-nums">
+              {{ '{:,.0f}'.format(t.price)|replace(',', ' ') }}&nbsp;₽
+            </span>
+            {% if t.old_price %}
+            <span class="text-sm text-[var(--mist)] line-through tabular-nums opacity-70">
+              {{ '{:,.0f}'.format(t.old_price)|replace(',', ' ') }}&nbsp;₽
+            </span>
+            {% endif %}
+          </div>
+          {% if t.features_markdown %}
+          <ul class="mt-4 space-y-1.5">
+            {% for line in t.features_markdown.splitlines() %}
+              {% set item = line.strip().lstrip('-•*').strip() %}
+              {% if item and loop.index <= 5 %}
+              <li class="flex gap-2 text-xs sm:text-sm text-[var(--mist)] leading-snug">
+                <span class="text-[var(--rose)] shrink-0">✓</span>
+                <span>{{ item }}</span>
+              </li>
+              {% endif %}
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-center text-[var(--mist)] text-sm py-8">Тарифы скоро появятся.</p>
+      {% endif %}
+    </div>
+
+    {% if tariffs %}
+    <div class="paywall-footer">
+      <label class="flex items-start gap-2.5 text-xs sm:text-sm text-[var(--mist)] mb-4 cursor-pointer">
+        <input type="checkbox" id="paywall-offer-checkbox" class="mt-0.5 rounded border-[var(--glass-border)]"
+               {% if user.accepted_offer %}checked{% endif %}>
+        <span>
+          Принимаю условия
+          <a href="/offer" target="_blank" rel="noopener" class="text-[var(--cyan)] underline underline-offset-2">публичной оферты</a>
+        </span>
+      </label>
+      <button type="button" id="paywall-pay-btn" onclick="startCabinetPayment()"
+              class="w-full py-3 rounded-2xl font-semibold text-sm text-white bg-gradient-to-r from-[var(--rose-deep)] to-[#a8687a] hover:opacity-95 transition disabled:opacity-50 disabled:cursor-not-allowed">
+        <i class="fa-solid fa-lock text-xs opacity-80 mr-1"></i>
+        Перейти к оплате
+      </button>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const PAYWALL_TARIFFS = {
+  {% for t in tariffs %}
+  "{{ t.slug }}": { slug: "{{ t.slug }}", name: {{ t.name | tojson }}, price: {{ t.price }} }{% if not loop.last %},{% endif %}
+  {% endfor %}
+};
+let selectedPaywallTariff = '{{ tariffs[0].slug if tariffs else "pro" }}';
+
+function selectPaywallTariff(slug) {
+  selectedPaywallTariff = slug;
+  document.querySelectorAll('.paywall-tariff').forEach(el => {
+    el.classList.toggle('is-selected', el.dataset.slug === slug);
+  });
+}
+
+function openPaywallModal() {
+  const modal = document.getElementById('paywall-modal');
+  modal.style.display = 'flex';
+  document.body.classList.add('cabinet-drawer-open');
+}
+
+function closePaywallModal() {
+  const modal = document.getElementById('paywall-modal');
+  modal.style.display = 'none';
+  document.body.classList.remove('cabinet-drawer-open');
+}
+
+document.getElementById('paywall-modal').addEventListener('click', function (e) {
+  if (e.target === this) closePaywallModal();
+});
+
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('paywall-modal');
+    if (modal && modal.style.display !== 'none') closePaywallModal();
+  }
+});
+
+async function startCabinetPayment() {
+  const btn = document.getElementById('paywall-pay-btn');
+  const offerCheckbox = document.getElementById('paywall-offer-checkbox');
+  const accepted_offer = Boolean(offerCheckbox && offerCheckbox.checked);
+  if (!accepted_offer) {
+    alert('Необходимо принять оферту перед оплатой.');
+    return;
+  }
+  const tariff_slug = selectedPaywallTariff || 'pro';
+  if (!PAYWALL_TARIFFS[tariff_slug]) {
+    alert('Выберите тариф Pro или VIP.');
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = 'Переход к оплате...'; }
+  try {
+    const res = await fetch('/api/v1/payments/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accepted_offer, tariff_slug }),
+      credentials: 'same-origin',
+    });
+    if (res.ok) {
+      const data = await res.json();
+      window.location.href = data.confirmation_url;
+      return;
+    }
+    const err = await res.json().catch(() => ({}));
+    alert(err.detail || 'Ошибка создания платежа. Попробуйте снова.');
+  } catch {
+    alert('Ошибка сети. Попробуйте снова.');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-lock text-xs opacity-80 mr-1"></i> Перейти к оплате';
+    }
+  }
+}
+
+selectPaywallTariff(selectedPaywallTariff);
+openPaywallModal();
+</script>
+{% endblock %}

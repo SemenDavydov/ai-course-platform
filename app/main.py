@@ -11,8 +11,11 @@ from app.api.v1 import bot_api, materials, payments, progress
 from app.config import settings
 from app.database import get_db
 from app.models.payment import Payment
+from app.models.course import Course, Module, Tariff
 from app.services.auth import get_optional_user
+from app.services.access import get_primary_course, list_user_accesses
 from app.templating import templates
+from sqlalchemy.orm import selectinload
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -46,21 +49,51 @@ app.include_router(progress.router)
 async def root(
     request: Request,
     current_user=Depends(get_optional_user),
+    db=Depends(get_db),
 ):
     user_json = "null"
+    has_story_access = False
     if current_user:
+        accesses = await list_user_accesses(db, current_user.id)
+        has_story_access = any(
+            a.course and a.course.slug == "ai-story" for a in accesses
+        )
         user_json = json.dumps({
             "id": current_user.id,
             "email": current_user.email,
             "email_verified": current_user.email_verified,
             "has_access": current_user.has_access,
+            "has_story_access": has_story_access,
             "accepted_offer": current_user.accepted_offer,
         })
+
+    course = await get_primary_course(db)
+    modules = []
+    tariffs = []
+    if course:
+        m_result = await db.execute(
+            select(Module)
+            .where(Module.course_id == course.id)
+            .options(selectinload(Module.lessons))
+            .order_by(Module.order)
+        )
+        modules = list(m_result.scalars().unique().all())
+        t_result = await db.execute(
+            select(Tariff)
+            .where(Tariff.course_id == course.id, Tariff.is_active == True)
+            .order_by(Tariff.sort_order, Tariff.price)
+        )
+        tariffs = list(t_result.scalars().all())
+
     return templates.TemplateResponse("landing.html", {
         "request": request,
         "app_name": settings.APP_NAME,
         "current_user": current_user,
         "current_user_json": user_json,
+        "course": course,
+        "modules": modules,
+        "tariffs": tariffs,
+        "has_story_access": has_story_access,
     })
 
 @app.get("/robots.txt", include_in_schema=False)

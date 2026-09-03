@@ -14,14 +14,37 @@ from app.models.user import User
 from app.models.user_session import UserSession
 from app.models.course import Course, Lesson
 from app.models.lesson_progress import LessonProgress
+from app.services.access import grant_course_access
 
-
-# ---------------------------------------------------------------------------
-# Вспомогательные фикстуры
-# ---------------------------------------------------------------------------
 
 @pytest_asyncio.fixture
-async def user_with_access(db_session: AsyncSession) -> User:
+async def lesson(db_session: AsyncSession) -> Lesson:
+    """Урок в опубликованном курсе."""
+    course = Course(
+        title="Тестовый курс",
+        description="Описание",
+        price=2990.0,
+        is_published=True,
+        slug="progress-course",
+    )
+    db_session.add(course)
+    await db_session.flush()
+
+    lesson = Lesson(
+        course_id=course.id,
+        title="Тестовый урок",
+        description="Описание урока",
+        video_id="test_video_id",
+        order=1,
+    )
+    db_session.add(lesson)
+    await db_session.commit()
+    await db_session.refresh(lesson)
+    return lesson
+
+
+@pytest_asyncio.fixture
+async def user_with_access(db_session: AsyncSession, lesson: Lesson) -> User:
     """Пользователь с доступом к курсу."""
     user = User(
         email="progress@test.com",
@@ -32,7 +55,8 @@ async def user_with_access(db_session: AsyncSession) -> User:
     )
     user.set_password("password123")
     db_session.add(user)
-    await db_session.commit()
+    await db_session.flush()
+    await grant_course_access(db_session, user, lesson.course_id, "pro", commit=True)
     await db_session.refresh(user)
     return user
 
@@ -78,31 +102,6 @@ async def no_access_cookie(db_session: AsyncSession, user_no_access: User) -> st
     db_session.add(session)
     await db_session.commit()
     return token
-
-
-@pytest_asyncio.fixture
-async def lesson(db_session: AsyncSession) -> Lesson:
-    """Урок в опубликованном курсе."""
-    course = Course(
-        title="Тестовый курс",
-        description="Описание",
-        price=2990.0,
-        is_published=True,
-    )
-    db_session.add(course)
-    await db_session.flush()
-
-    lesson = Lesson(
-        course_id=course.id,
-        title="Тестовый урок",
-        description="Описание урока",
-        video_id="test_video_id",
-        order=1,
-    )
-    db_session.add(lesson)
-    await db_session.commit()
-    await db_session.refresh(lesson)
-    return lesson
 
 
 # ---------------------------------------------------------------------------

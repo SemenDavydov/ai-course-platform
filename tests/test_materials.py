@@ -1,7 +1,5 @@
 """
 Скачивание материалов урока из личного кабинета.
-Раньше эндпоинт требовал JWT в query (ссылки из бота) и веб-пользователь
-получал 422 Unprocessable Entity, просто кликнув по ссылке в кабинете.
 """
 import os
 
@@ -16,6 +14,7 @@ from app.models.course import Course, Lesson
 from app.models.material import Material
 from app.models.user import User
 from app.models.user_session import UserSession
+from app.services.access import grant_course_access
 
 MATERIALS_DIR = os.path.join("uploads", "materials")
 
@@ -23,7 +22,13 @@ MATERIALS_DIR = os.path.join("uploads", "materials")
 @pytest_asyncio.fixture
 async def material(db_session: AsyncSession) -> Material:
     """Материал урока + реальный файл на диске."""
-    course = Course(title="Курс", description="-", price=2990.0, is_published=True)
+    course = Course(
+        title="Курс",
+        description="-",
+        price=2990.0,
+        is_published=True,
+        slug="mat-course",
+    )
     db_session.add(course)
     await db_session.commit()
     await db_session.refresh(course)
@@ -51,6 +56,7 @@ async def material(db_session: AsyncSession) -> Material:
     db_session.add(item)
     await db_session.commit()
     await db_session.refresh(item)
+    item._course_id = course.id  # type: ignore
 
     yield item
 
@@ -60,21 +66,30 @@ async def material(db_session: AsyncSession) -> Material:
 
 async def _session_token(db_session: AsyncSession, user: User) -> str:
     token = f"materials_session_{user.id}"
-    db_session.add(UserSession(
-        user_id=user.id,
-        session_token=token,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=30),
-    ))
+    db_session.add(
+        UserSession(
+            user_id=user.id,
+            session_token=token,
+            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+        )
+    )
     await db_session.commit()
     return token
 
 
 @pytest_asyncio.fixture
-async def buyer(db_session: AsyncSession) -> User:
-    user = User(email="materials_buyer@test.com", has_access=True, registration_source="web")
+async def buyer(db_session: AsyncSession, material: Material) -> User:
+    user = User(
+        email="materials_buyer@test.com",
+        has_access=True,
+        registration_source="web",
+    )
     user.set_password("password123")
     db_session.add(user)
-    await db_session.commit()
+    await db_session.flush()
+    await grant_course_access(
+        db_session, user, material._course_id, "pro", commit=True  # type: ignore
+    )
     await db_session.refresh(user)
     return user
 

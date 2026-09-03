@@ -3,6 +3,27 @@
 {% block title %}Управление курсом{% endblock %}
 
 {% block content %}
+{# Переключатель курсов #}
+<div class="bg-white rounded-lg shadow mb-6">
+    <div class="px-6 py-3 border-b flex flex-wrap gap-2 items-center">
+        <span class="text-sm font-bold text-gray-500 mr-2">Курсы:</span>
+        {% for c in courses %}
+        <a href="/admin/course?course_id={{ c.id }}"
+           class="px-3 py-1.5 rounded text-sm font-medium transition-colors
+                  {% if course and c.id == course.id %}bg-blue-500 text-white
+                  {% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
+            {{ c.title }}
+            {% if c.is_legacy %}<span class="text-xs opacity-75">(legacy)</span>{% endif %}
+            {% if not c.is_published %}<span class="text-xs opacity-75">· черновик</span>{% endif %}
+        </a>
+        {% else %}
+        <span class="text-sm text-gray-400">Курсов пока нет</span>
+        {% endfor %}
+    </div>
+</div>
+
+{% if course %}
+{# Редактирование курса #}
 <div class="bg-white rounded-lg shadow mb-8">
     <div class="px-6 py-4 border-b">
         <h2 class="text-xl font-bold">Редактирование курса</h2>
@@ -10,34 +31,52 @@
 
     <div class="p-6">
         <form method="post" action="/admin/course/update">
+            <input type="hidden" name="course_id" value="{{ course.id }}">
+
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2">Название курса</label>
-                <input type="text" name="title" value="{{ course.title if course else '' }}"
+                <input type="text" name="title" value="{{ course.title }}"
                        class="shadow border rounded w-full py-2 px-3 text-gray-700" required>
             </div>
 
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2">Описание</label>
-                <textarea name="description" rows="10"
-                          class="shadow border rounded w-full py-2 px-3 text-gray-700 font-mono text-sm">{{ course.description if course else '' }}</textarea>
+                <textarea name="description" rows="8"
+                          class="shadow border rounded w-full py-2 px-3 text-gray-700 font-mono text-sm">{{ course.description or '' }}</textarea>
                 <p class="text-xs text-gray-500 mt-1">Поддерживается Markdown</p>
             </div>
 
-            <div class="mb-4 flex space-x-4">
-                <div class="w-48">
+            <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
                     <label class="block text-gray-700 text-sm font-bold mb-2">Цена (₽)</label>
-                    <input type="number" name="price" value="{{ course.price if course else 2990 }}"
+                    <input type="number" name="price" value="{{ course.price }}" step="0.01"
                            class="shadow border rounded w-full py-2 px-3 text-gray-700" required>
                 </div>
-
-                <div class="flex items-center">
-                    <label class="flex items-center">
-                        <input type="checkbox" name="is_published" value="true"
-                               {% if course and course.is_published %}checked{% endif %}
-                               class="mr-2">
-                        <span class="text-sm">Опубликован</span>
-                    </label>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Slug</label>
+                    <input type="text" name="slug" value="{{ course.slug or '' }}"
+                           class="shadow border rounded w-full py-2 px-3 text-gray-700 font-mono text-sm">
                 </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Порядок сортировки</label>
+                    <input type="number" name="sort_order" value="{{ course.sort_order or 0 }}"
+                           class="shadow border rounded w-full py-2 px-3 text-gray-700">
+                </div>
+            </div>
+
+            <div class="mb-6 flex flex-wrap gap-6">
+                <label class="flex items-center">
+                    <input type="checkbox" name="is_published" value="true"
+                           {% if course.is_published %}checked{% endif %}
+                           class="mr-2">
+                    <span class="text-sm">Опубликован</span>
+                </label>
+                <label class="flex items-center">
+                    <input type="checkbox" name="is_legacy" value="true"
+                           {% if course.is_legacy %}checked{% endif %}
+                           class="mr-2">
+                    <span class="text-sm">Legacy-курс</span>
+                </label>
             </div>
 
             <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
@@ -47,6 +86,154 @@
     </div>
 </div>
 
+{# Модули #}
+<div class="bg-white rounded-lg shadow mb-8">
+    <div class="px-6 py-4 border-b">
+        <h2 class="text-xl font-bold">Модули</h2>
+    </div>
+
+    <div class="p-6 overflow-x-auto">
+        <table class="w-full mb-6">
+            <thead>
+                <tr class="bg-gray-50">
+                    <th class="px-4 py-2 text-left">Порядок</th>
+                    <th class="px-4 py-2 text-left">Название</th>
+                    <th class="px-4 py-2 text-left">Кнопка</th>
+                    <th class="px-4 py-2 text-left">Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in modules %}
+                <tr class="border-t hover:bg-gray-50 align-top">
+                    <td class="px-4 py-3" colspan="4">
+                        <div class="admin-form-row">
+                        <form method="post" action="/admin/modules/{{ m.id }}/update"
+                              class="admin-form-row flex-1">
+                            <div class="w-20">
+                                <label class="block text-xs text-gray-500 mb-1">Порядок</label>
+                                <input type="number" name="order" value="{{ m.order }}" required
+                                       class="shadow border border-gray-200 rounded-lg w-full py-2 px-2 text-sm">
+                            </div>
+                            <div class="flex-1 min-w-[160px]">
+                                <label class="block text-xs text-gray-500 mb-1">Название</label>
+                                <input type="text" name="title" value="{{ m.title }}" required
+                                       class="shadow border border-gray-200 rounded-lg w-full py-2 px-2 text-sm">
+                            </div>
+                            <div class="flex-1 min-w-[140px]">
+                                <label class="block text-xs text-gray-500 mb-1">Текст кнопки</label>
+                                <input type="text" name="button_label" value="{{ m.button_label or '' }}"
+                                       class="shadow border border-gray-200 rounded-lg w-full py-2 px-2 text-sm">
+                            </div>
+                            <button type="submit" class="admin-btn admin-btn-primary self-end">
+                                Сохранить
+                            </button>
+                        </form>
+                        <form method="post" action="/admin/modules/{{ m.id }}/delete"
+                              onsubmit="return confirm('Удалить модуль? Уроки останутся без модуля.');">
+                            <button type="submit" class="admin-btn admin-btn-danger self-end">
+                                Удалить
+                            </button>
+                        </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" class="px-4 py-6 text-center text-gray-400 text-sm">Модулей пока нет</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="border-t pt-6">
+            <h3 class="font-bold text-gray-700 mb-3">Добавить модуль</h3>
+            <form method="post" action="/admin/modules/add" class="flex flex-wrap items-end gap-3">
+                <input type="hidden" name="course_id" value="{{ course.id }}">
+                <div class="w-20">
+                    <label class="block text-xs text-gray-500 mb-1">Порядок</label>
+                    <input type="number" name="order" value="{{ modules|length + 1 }}" required
+                           class="shadow border rounded w-full py-1.5 px-2 text-sm">
+                </div>
+                <div class="flex-1 min-w-[160px]">
+                    <label class="block text-xs text-gray-500 mb-1">Название</label>
+                    <input type="text" name="title" required
+                           class="shadow border rounded w-full py-1.5 px-2 text-sm"
+                           placeholder="Модуль 1">
+                </div>
+                <div class="flex-1 min-w-[140px]">
+                    <label class="block text-xs text-gray-500 mb-1">Текст кнопки</label>
+                    <input type="text" name="button_label"
+                           class="shadow border rounded w-full py-1.5 px-2 text-sm"
+                           placeholder="Модуль 1">
+                </div>
+                <button type="submit"
+                        class="bg-green-500 hover:bg-green-600 text-white text-sm px-4 py-1.5 rounded">
+                    + Добавить
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# Тарифы #}
+<div class="bg-white rounded-lg shadow mb-8">
+    <div class="px-6 py-4 border-b">
+        <h2 class="text-xl font-bold">Тарифы</h2>
+    </div>
+
+    <div class="p-6 space-y-6">
+        {% for t in tariffs %}
+        <form method="post" action="/admin/tariffs/{{ t.id }}/update"
+              class="border rounded-lg p-4 bg-gray-50">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-mono bg-white border px-2 py-1 rounded text-gray-600">
+                    slug: {{ t.slug }}
+                </span>
+                <label class="flex items-center text-sm">
+                    <input type="checkbox" name="is_active" value="true"
+                           {% if t.is_active %}checked{% endif %}
+                           class="mr-2">
+                    Активен
+                </label>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Название</label>
+                    <input type="text" name="name" value="{{ t.name }}" required
+                           class="shadow border rounded w-full py-1.5 px-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Цена (₽)</label>
+                    <input type="number" name="price" value="{{ t.price }}" step="0.01" required
+                           class="shadow border rounded w-full py-1.5 px-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Старая цена (₽)</label>
+                    <input type="number" name="old_price" value="{{ t.old_price if t.old_price is not none else '' }}"
+                           step="0.01"
+                           class="shadow border rounded w-full py-1.5 px-2 text-sm">
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="block text-xs text-gray-500 mb-1">Особенности (Markdown)</label>
+                <textarea name="features_markdown" rows="5"
+                          class="shadow border rounded w-full py-2 px-3 text-sm font-mono">{{ t.features_markdown or '' }}</textarea>
+            </div>
+
+            <button type="submit"
+                    class="bg-blue-500 hover:bg-blue-600 text-white text-sm px-4 py-1.5 rounded">
+                Сохранить тариф
+            </button>
+        </form>
+        {% else %}
+        <p class="text-gray-400 text-sm">Тарифов для этого курса нет</p>
+        {% endfor %}
+    </div>
+</div>
+
+{# Уроки #}
 <div class="bg-white rounded-lg shadow">
     <div class="px-6 py-4 border-b flex justify-between items-center">
         <h2 class="text-xl font-bold">Уроки</h2>
@@ -61,10 +248,10 @@
             <thead>
                 <tr class="bg-gray-50">
                     <th class="px-4 py-2 text-left">Порядок</th>
+                    <th class="px-4 py-2 text-left">Модуль</th>
                     <th class="px-4 py-2 text-left">Название</th>
-                    <th class="px-4 py-2 text-left">Описание</th>
                     <th class="px-4 py-2 text-left">Video ID</th>
-                    <th class="px-4 py-2 text-left">Материалы</th>  <!-- Новая колонка -->
+                    <th class="px-4 py-2 text-left">Материалы</th>
                     <th class="px-4 py-2 text-left">Действия</th>
                 </tr>
             </thead>
@@ -72,12 +259,12 @@
                 {% for lesson in lessons %}
                 <tr class="border-t hover:bg-gray-50">
                     <td class="px-4 py-2">{{ lesson.order }}</td>
+                    <td class="px-4 py-2 text-sm text-gray-600">
+                        {% if lesson.module %}{{ lesson.module.title }}{% else %}—{% endif %}
+                    </td>
                     <td class="px-4 py-2 font-medium">{{ lesson.title }}</td>
                     <td class="px-4 py-2">
-                        <div class="max-w-xs truncate">{{ lesson.description[:100] }}...</div>
-                    </td>
-                    <td class="px-4 py-2">
-                        {% if lesson.video_id %}
+                        {% if lesson.video_id and lesson.video_id != 'pending' %}
                         <span class="text-xs font-mono">{{ lesson.video_id[:8] }}...</span>
                         {% else %}
                         <span class="text-gray-400">нет видео</span>
@@ -86,14 +273,13 @@
                     <td class="px-4 py-2">
                         <div class="flex items-center space-x-2">
                             <button onclick="showUploadMaterialModal({{ lesson.id }})"
-                            class="text-xs bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded">
-                            + Загрузить
+                                    class="text-xs bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded">
+                                + Загрузить
                             </button>
-
                             {% if lesson.materials %}
                             <button onclick="viewMaterials({{ lesson.id }}, '{{ lesson.title|replace('"', '&quot;')|safe }}')"
-                            class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded">
-                            {{ lesson.materials|length }} файлов
+                                    class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded">
+                                {{ lesson.materials|length }} файлов
                             </button>
                             {% else %}
                             <span class="text-xs text-gray-400">нет файлов</span>
@@ -103,10 +289,11 @@
                     <td class="px-4 py-2 space-x-2">
                         <button onclick="editLesson(this)"
                                 data-id="{{ lesson.id }}"
-                                data-title="{{ lesson.title|replace('"', '&quot;')|safe }}"
-                                data-description="{{ lesson.description|replace('"', '&quot;')|safe }}"
+                                data-title="{{ lesson.title|e }}"
+                                data-description="{{ (lesson.description or '')|e }}"
                                 data-video="{{ lesson.video_id or '' }}"
                                 data-order="{{ lesson.order }}"
+                                data-module="{{ lesson.module_id or '' }}"
                                 class="text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
                             ✏️
                         </button>
@@ -116,11 +303,56 @@
                         </button>
                     </td>
                 </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="px-4 py-6 text-center text-gray-400 text-sm">Уроков пока нет</td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+
+{% else %}
+<div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+    Выберите курс или создайте первый курс через форму ниже.
+    <form method="post" action="/admin/course/update" class="mt-6 text-left max-w-xl mx-auto">
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2">Название курса</label>
+            <input type="text" name="title" class="shadow border rounded w-full py-2 px-3" required>
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2">Описание</label>
+            <textarea name="description" rows="4" class="shadow border rounded w-full py-2 px-3"></textarea>
+        </div>
+        <div class="mb-4 grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-gray-700 text-sm font-bold mb-2">Цена (₽)</label>
+                <input type="number" name="price" value="2990" class="shadow border rounded w-full py-2 px-3" required>
+            </div>
+            <div>
+                <label class="block text-gray-700 text-sm font-bold mb-2">Slug</label>
+                <input type="text" name="slug" class="shadow border rounded w-full py-2 px-3 font-mono text-sm">
+            </div>
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2">Порядок сортировки</label>
+            <input type="number" name="sort_order" value="0" class="shadow border rounded w-full py-2 px-3">
+        </div>
+        <div class="mb-4 flex gap-6">
+            <label class="flex items-center text-sm">
+                <input type="checkbox" name="is_published" value="true" class="mr-2"> Опубликован
+            </label>
+            <label class="flex items-center text-sm">
+                <input type="checkbox" name="is_legacy" value="true" class="mr-2"> Legacy
+            </label>
+        </div>
+        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
+            Создать курс
+        </button>
+    </form>
+</div>
+{% endif %}
 
 <!-- Модальное окно добавления/редактирования урока -->
 <div id="lessonModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
@@ -129,6 +361,18 @@
             <h3 id="modalTitle" class="text-xl font-bold mb-4">Добавить урок</h3>
 
             <input type="hidden" id="lessonId" name="lesson_id">
+            <input type="hidden" id="courseId" name="course_id" value="{{ course.id if course else '' }}">
+
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Модуль</label>
+                <select id="module_id" name="module_id"
+                        class="shadow border rounded w-full py-2 px-3 text-gray-700">
+                    <option value="">— Без модуля —</option>
+                    {% for m in modules %}
+                    <option value="{{ m.id }}">{{ m.order }}. {{ m.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2">Порядок</label>
@@ -251,27 +495,29 @@ function showAddLessonModal() {
     document.getElementById('modalTitle').textContent = 'Добавить урок';
     document.getElementById('lessonForm').reset();
     document.getElementById('lessonForm').action = '/admin/lessons/add';
+    document.getElementById('courseId').value = '{{ course.id if course else '' }}';
+    document.getElementById('module_id').value = '';
     document.getElementById('lessonModal').classList.remove('hidden');
     document.getElementById('lessonModal').classList.add('flex');
 }
 
 function editLesson(button) {
-    // Получаем данные из атрибутов data-*
     const lessonId = button.getAttribute('data-id');
     const title = button.getAttribute('data-title');
     const description = button.getAttribute('data-description');
     const videoId = button.getAttribute('data-video');
     const order = button.getAttribute('data-order');
+    const moduleId = button.getAttribute('data-module');
 
     currentAction = 'edit';
     document.getElementById('modalTitle').textContent = 'Редактировать урок';
     document.getElementById('lessonForm').action = `/admin/lessons/${lessonId}/update`;
 
-    // Заполняем поля данными урока
     document.getElementById('order').value = order;
     document.getElementById('title').value = title;
     document.getElementById('lesson_description').value = description;
     document.getElementById('video_id').value = videoId || '';
+    document.getElementById('module_id').value = moduleId || '';
 
     document.getElementById('lessonModal').classList.remove('hidden');
     document.getElementById('lessonModal').classList.add('flex');
@@ -299,8 +545,6 @@ function insertFormat(before, after) {
     const selectedText = textarea.value.substring(start, end);
     const newText = before + selectedText + after;
     textarea.value = textarea.value.substring(0, start) + newText + textarea.value.substring(end);
-
-    // Возвращаем фокус и выделяем вставленный текст
     textarea.focus();
     textarea.setSelectionRange(start + before.length, end + before.length);
 }
@@ -309,16 +553,10 @@ function insertBullet() {
     const textarea = document.getElementById('lesson_description');
     const start = textarea.selectionStart;
     const text = textarea.value;
-
-    // Находим начало текущей строки
     let lineStart = text.lastIndexOf('\n', start - 1) + 1;
     if (lineStart === -1) lineStart = 0;
-
-    // Вставляем маркер в начало строки
     const newText = text.substring(0, lineStart) + '• ' + text.substring(lineStart);
     textarea.value = newText;
-
-    // Устанавливаем курсор после маркера
     textarea.focus();
     textarea.setSelectionRange(lineStart + 2, lineStart + 2);
 }
@@ -335,21 +573,13 @@ function insertHeader() {
     const textarea = document.getElementById('lesson_description');
     const start = textarea.selectionStart;
     const text = textarea.value;
-
-    // Находим начало и конец текущей строки
     let lineStart = text.lastIndexOf('\n', start - 1) + 1;
     if (lineStart === -1) lineStart = 0;
-
     let lineEnd = text.indexOf('\n', lineStart);
     if (lineEnd === -1) lineEnd = text.length;
-
     const line = text.substring(lineStart, lineEnd);
-
-    // Оборачиваем строку в звездочки
     const newText = text.substring(0, lineStart) + '*' + line + '*' + text.substring(lineEnd);
     textarea.value = newText;
-
-    // Устанавливаем курсор в конец заголовка
     textarea.focus();
     textarea.setSelectionRange(lineEnd + 2, lineEnd + 2);
 }

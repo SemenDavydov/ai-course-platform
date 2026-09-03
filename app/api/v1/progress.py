@@ -11,6 +11,7 @@ from app.database import get_db
 from app.models.lesson_progress import LessonProgress
 from app.models.course import Lesson
 from app.services.auth import get_current_user
+from app.services.access import user_has_course
 
 router = APIRouter(prefix="/api/v1/progress", tags=["progress"])
 
@@ -31,30 +32,24 @@ class ProgressItem(BaseModel):
         from_attributes = True
 
 
-# ---------------------------------------------------------------------------
-# POST /api/v1/progress  — апсерт прогресса
-# ---------------------------------------------------------------------------
-
 @router.post("", response_model=ProgressItem)
 async def update_progress(
     body: ProgressUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Обновляет прогресс просмотра урока. Прогресс может только расти:
-    если в БД уже есть бо́льшее значение — оно сохраняется.
-    При достижении COMPLETION_THRESHOLD% → is_completed = True.
-    """
     user = await get_current_user(request, db)
 
     if not user.has_access:
         raise HTTPException(status_code=403, detail="Нет доступа к курсу")
 
-    # Проверяем, что урок существует
     lesson_result = await db.execute(select(Lesson).where(Lesson.id == body.lesson_id))
-    if not lesson_result.scalar_one_or_none():
+    lesson = lesson_result.scalar_one_or_none()
+    if not lesson:
         raise HTTPException(status_code=404, detail="Урок не найден")
+
+    if not await user_has_course(db, user, lesson.course_id):
+        raise HTTPException(status_code=403, detail="Нет доступа к этому курсу")
 
     # Ищем существующую запись
     result = await db.execute(

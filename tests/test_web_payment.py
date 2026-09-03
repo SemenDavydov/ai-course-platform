@@ -14,7 +14,8 @@ from sqlalchemy import select
 from app.models.user import User
 from app.models.payment import Payment
 from app.models.user_session import UserSession
-from app.models.course import Course
+from app.models.course import Course, Tariff, UserCourseAccess
+from app.services.access import grant_course_access
 
 
 # ---------------------------------------------------------------------------
@@ -23,14 +24,40 @@ from app.models.course import Course
 
 @pytest_asyncio.fixture
 async def published_course(db_session: AsyncSession) -> Course:
-    """Опубликованный курс."""
+    """Опубликованный AI STORY курс с тарифами Pro/VIP."""
     course = Course(
-        title="ИИ анимации",
-        description="Экспресс курс",
-        price=2990.0,
+        title="AI STORY: воплоти свою историю",
+        description="Новый курс",
+        price=9990.0,
         is_published=True,
+        slug="ai-story",
+        sort_order=0,
+        is_legacy=False,
     )
     db_session.add(course)
+    await db_session.flush()
+    db_session.add_all(
+        [
+            Tariff(
+                course_id=course.id,
+                slug="pro",
+                name="Pro",
+                price=9990.0,
+                old_price=12990.0,
+                is_active=True,
+                sort_order=0,
+            ),
+            Tariff(
+                course_id=course.id,
+                slug="vip",
+                name="VIP",
+                price=29990.0,
+                old_price=34990.0,
+                is_active=True,
+                sort_order=1,
+            ),
+        ]
+    )
     await db_session.commit()
     await db_session.refresh(course)
     return course
@@ -54,8 +81,10 @@ async def web_user(db_session: AsyncSession) -> User:
 
 
 @pytest_asyncio.fixture
-async def web_user_with_access(db_session: AsyncSession) -> User:
-    """Веб-пользователь, у которого уже есть доступ."""
+async def web_user_with_access(
+    db_session: AsyncSession, published_course: Course
+) -> User:
+    """Веб-пользователь с Pro-доступом к AI STORY."""
     user = User(
         email="hasaccess@test.com",
         email_verified=True,
@@ -65,7 +94,8 @@ async def web_user_with_access(db_session: AsyncSession) -> User:
     )
     user.set_password("password123")
     db_session.add(user)
-    await db_session.commit()
+    await db_session.flush()
+    await grant_course_access(db_session, user, published_course.id, "pro", commit=True)
     await db_session.refresh(user)
     return user
 
@@ -140,7 +170,7 @@ async def test_create_payment_success(
 
     response = await client.post(
         "/api/v1/payments/create",
-        json={},
+        json={"tariff_slug": "pro"},
         cookies={"user_session": token},
     )
 
@@ -156,7 +186,8 @@ async def test_create_payment_success(
     payment = result.scalar_one()
     assert payment.status == "pending"
     assert payment.user_id == web_user.id
-    assert payment.amount == published_course.price
+    assert payment.amount == 9990.0
+    assert payment.tariff_slug == "pro"
 
     # create_payment вызван с правильным return_url
     call_kwargs = mock_create.call_args
@@ -181,7 +212,7 @@ async def test_create_payment_unverified_email(
 
     response = await client.post(
         "/api/v1/payments/create",
-        json={},
+        json={"tariff_slug": "pro"},
         cookies={"user_session": token},
     )
     assert response.status_code == 200
@@ -212,7 +243,7 @@ async def test_create_payment_no_offer(
 
     response = await client.post(
         "/api/v1/payments/create",
-        json={},
+        json={"tariff_slug": "pro"},
         cookies={"user_session": token},
     )
     assert response.status_code == 403
@@ -227,12 +258,12 @@ async def test_create_payment_already_has_access(
     web_user_with_access: User,
     published_course: Course,
 ):
-    """Пользователь уже купил курс → 400."""
+    """Пользователь уже купил тот же тариф Pro → 400."""
     token = await _make_session(db_session, web_user_with_access)
 
     response = await client.post(
         "/api/v1/payments/create",
-        json={},
+        json={"tariff_slug": "pro"},
         cookies={"user_session": token},
     )
     assert response.status_code == 400
@@ -244,7 +275,9 @@ async def test_create_payment_unauthenticated(
     published_course: Course,
 ):
     """Без авторизации → 401."""
-    response = await client.post("/api/v1/payments/create", json={})
+    response = await client.post(
+        "/api/v1/payments/create", json={"tariff_slug": "pro"}
+    )
     assert response.status_code == 401
 
 
@@ -262,7 +295,7 @@ async def test_create_payment_yookassa_error(
 
     response = await client.post(
         "/api/v1/payments/create",
-        json={},
+        json={"tariff_slug": "pro"},
         cookies={"user_session": token},
     )
     assert response.status_code == 502
@@ -272,13 +305,13 @@ async def test_create_payment_yookassa_error(
 # POST /webhooks/yookassa — логика уведомлений
 # ---------------------------------------------------------------------------
 
-def _webhook_body(user_id: int, payment_id: str = "pay_webhook_001") -> dict:
+def _webhook_body(user_id: int, payment_id: str = "pay_webhook_001", amount: str = "9990.00") -> dict:
     return {
         "event": "payment.succeeded",
         "object": {
             "id": payment_id,
             "status": "succeeded",
-            "amount": {"value": "2990.00", "currency": "RUB"},
+            "amount": {"value": amount, "currency": "RUB"},
             "description": "Оплата курса",
             "metadata": {"user_id": user_id},
         },
@@ -299,7 +332,7 @@ async def test_webhook_web_user_sends_email(
     # Сохраняем pending-платёж
     payment = Payment(
         user_id=web_user.id,
-        amount=2990.0,
+        amount=9990.0,
         payment_id="pay_web_001",
         status="pending",
     )
@@ -337,7 +370,7 @@ async def test_webhook_bot_user_sends_telegram(
     """
     payment = Payment(
         user_id=bot_user.id,
-        amount=2990.0,
+        amount=9990.0,
         payment_id="pay_bot_001",
         status="pending",
     )
@@ -372,7 +405,7 @@ async def test_webhook_bot_user_sends_telegram_when_bot_enabled(
     """Legacy: BOT_ENABLED=True → бот-пользователь получает Telegram-сообщение, email НЕ отправлен."""
     payment = Payment(
         user_id=bot_user.id,
-        amount=2990.0,
+        amount=9990.0,
         payment_id="pay_bot_002",
         status="pending",
     )
@@ -390,6 +423,79 @@ async def test_webhook_bot_user_sends_telegram_when_bot_enabled(
 
     mock_tg.assert_called_once()
     mock_email.assert_not_called()
+
+
+@patch("app.tasks.send_email")
+@patch("app.api.webhooks.bot.send_message", new_callable=AsyncMock)
+@patch("app.api.webhooks.settings.BOT_ENABLED", True)
+@patch("app.api.webhooks.settings.PRO_CHAT_INVITE_URL", "https://t.me/+XEjS_T_aSqozN2Ri")
+async def test_webhook_bot_pro_includes_chat_link(
+    mock_tg,
+    mock_email,
+    client: AsyncClient,
+    db_session: AsyncSession,
+    bot_user: User,
+    yookassa_api,
+):
+    payment = Payment(
+        user_id=bot_user.id,
+        amount=9990.0,
+        payment_id="pay_bot_pro_chat",
+        status="pending",
+        tariff_slug="pro",
+    )
+    db_session.add(payment)
+    await db_session.commit()
+
+    response = await client.post(
+        "/webhooks/yookassa",
+        json=_webhook_body(bot_user.id, "pay_bot_pro_chat"),
+    )
+    assert response.status_code == 200
+
+    mock_tg.assert_called_once()
+    tg_text = mock_tg.call_args.kwargs.get("text") or mock_tg.call_args.args[1]
+    assert "https://t.me/+XEjS_T_aSqozN2Ri" in tg_text
+    keyboard = mock_tg.call_args.kwargs.get("reply_markup")
+    chat_btn = keyboard.inline_keyboard[1][0]
+    assert chat_btn.url == "https://t.me/+XEjS_T_aSqozN2Ri"
+
+
+@patch("app.tasks.send_email")
+@patch("app.api.webhooks.bot.send_message", new_callable=AsyncMock)
+@patch("app.api.webhooks.settings.BOT_ENABLED", True)
+@patch("app.api.webhooks.settings.VIP_CHAT_INVITE_URL", "https://t.me/+rrTQSEiQjA4zMTQy")
+async def test_webhook_bot_vip_includes_chat_link(
+    mock_tg,
+    mock_email,
+    client: AsyncClient,
+    db_session: AsyncSession,
+    bot_user: User,
+    yookassa_api,
+):
+    payment = Payment(
+        user_id=bot_user.id,
+        amount=29990.0,
+        payment_id="pay_bot_vip_chat",
+        status="pending",
+        tariff_slug="vip",
+    )
+    db_session.add(payment)
+    await db_session.commit()
+    yookassa_api.set_payment(amount="29990.00")
+
+    response = await client.post(
+        "/webhooks/yookassa",
+        json=_webhook_body(bot_user.id, "pay_bot_vip_chat", amount="29990.00"),
+    )
+    assert response.status_code == 200
+
+    mock_tg.assert_called_once()
+    tg_text = mock_tg.call_args.kwargs.get("text") or mock_tg.call_args.args[1]
+    assert "https://t.me/+rrTQSEiQjA4zMTQy" in tg_text
+    keyboard = mock_tg.call_args.kwargs.get("reply_markup")
+    chat_btn = keyboard.inline_keyboard[1][0]
+    assert chat_btn.url == "https://t.me/+rrTQSEiQjA4zMTQy"
 
 
 @patch("app.tasks.send_email")
@@ -418,7 +524,7 @@ async def test_webhook_already_processed(
     """Повторный webhook для уже обработанного платежа → 200, доступ не меняется."""
     payment = Payment(
         user_id=web_user.id,
-        amount=2990.0,
+        amount=9990.0,
         payment_id="pay_dup_001",
         status="succeeded",  # уже обработан
         paid_at=datetime.utcnow(),
@@ -497,7 +603,7 @@ async def test_webhook_amount_mismatch_denies_access(
     """Сумма в ЮKassa не совпадает с нашей записью → доступ не выдаётся."""
     db_session.add(Payment(
         user_id=web_user.id,
-        amount=2990.0,
+        amount=9990.0,
         payment_id="pay_amount_mismatch",
         status="pending",
     ))
@@ -527,13 +633,13 @@ async def test_webhook_not_succeeded_in_api_denies_access(
     """Тело говорит succeeded, а API ЮKassa — pending → верим API, доступ не выдаётся."""
     db_session.add(Payment(
         user_id=web_user.id,
-        amount=2990.0,
+        amount=9990.0,
         payment_id="pay_still_pending",
         status="pending",
     ))
     await db_session.commit()
 
-    yookassa_api.set_payment(status="pending", amount="2990.00")
+    yookassa_api.set_payment(status="pending", amount="9990.00")
 
     response = await client.post(
         "/webhooks/yookassa",
@@ -561,7 +667,7 @@ async def test_payment_success_page_succeeded(
     db_session.add(web_user)
     payment = Payment(
         user_id=web_user.id,
-        amount=2990.0,
+        amount=9990.0,
         payment_id="pay_success_page",
         status="succeeded",
         paid_at=datetime.utcnow(),
@@ -586,7 +692,7 @@ async def test_payment_success_page_pending(
     """Страница /payment/success при pending-платеже показывает 'Обрабатывается'."""
     payment = Payment(
         user_id=web_user.id,
-        amount=2990.0,
+        amount=9990.0,
         payment_id="pay_pending_page",
         status="pending",
     )

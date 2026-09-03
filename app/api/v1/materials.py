@@ -12,7 +12,9 @@ from app.api.admin import get_current_admin
 from app.database import get_db
 from app.models.user import User
 from app.models.material import Material
+from app.models.course import Lesson
 from app.services.auth import get_optional_user
+from app.services.access import user_has_course
 from app.config import settings
 
 router = APIRouter(prefix="/api/v1/materials", tags=["materials"])
@@ -23,11 +25,6 @@ async def _resolve_material_user(
     token: Optional[str],
     db: AsyncSession,
 ) -> User:
-    """
-    Кто скачивает материал.
-    Веб-пользователь — по cookie-сессии (основной путь, ссылка из кабинета).
-    Ссылки из бота приходят с JWT в query — их продолжаем поддерживать.
-    """
     if token:
         try:
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
@@ -52,12 +49,15 @@ async def download_material(
         token: Optional[str] = None,
         db: AsyncSession = Depends(get_db)
 ):
-    """Скачивание материала с проверкой доступа"""
-    await _resolve_material_user(request, token, db)
+    user = await _resolve_material_user(request, token, db)
 
     material = await db.get(Material, material_id)
     if not material:
         raise HTTPException(status_code=404, detail="Material not found")
+
+    lesson = await db.get(Lesson, material.lesson_id)
+    if lesson and not await user_has_course(db, user, lesson.course_id):
+        raise HTTPException(status_code=403, detail="Access denied")
 
     file_path = os.path.join("uploads", "materials", material.file_name)
     if not os.path.exists(file_path):

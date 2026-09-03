@@ -8,3 +8,4 @@ uploads/
 .DS_Store
 *.db
 *.log
+_extract_old.py

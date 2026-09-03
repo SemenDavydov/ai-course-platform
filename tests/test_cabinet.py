@@ -15,6 +15,7 @@ from sqlalchemy import select
 from app.models.user import User
 from app.models.user_session import UserSession
 from app.models.course import Course, Lesson
+from app.services.access import grant_course_access
 
 
 # ---------------------------------------------------------------------------
@@ -22,7 +23,35 @@ from app.models.course import Course, Lesson
 # ---------------------------------------------------------------------------
 
 @pytest_asyncio.fixture
-async def user_with_access(db_session: AsyncSession) -> User:
+async def published_course(db_session: AsyncSession) -> Course:
+    """Опубликованный курс с одним уроком."""
+    course = Course(
+        title="Тестовый курс",
+        description="Описание",
+        price=2990.0,
+        is_published=True,
+        slug="test-course",
+        sort_order=0,
+        is_legacy=False,
+    )
+    db_session.add(course)
+    await db_session.flush()
+
+    lesson = Lesson(
+        course_id=course.id,
+        title="Урок 1",
+        description="Описание урока",
+        video_id="vid123",
+        order=1,
+    )
+    db_session.add(lesson)
+    await db_session.commit()
+    await db_session.refresh(course)
+    return course
+
+
+@pytest_asyncio.fixture
+async def user_with_access(db_session: AsyncSession, published_course: Course) -> User:
     """Верифицированный веб-пользователь с доступом к курсу."""
     user = User(
         email="cabinet@test.com",
@@ -33,7 +62,8 @@ async def user_with_access(db_session: AsyncSession) -> User:
     )
     user.set_password("password123")
     db_session.add(user)
-    await db_session.commit()
+    await db_session.flush()
+    await grant_course_access(db_session, user, published_course.id, "pro", commit=True)
     await db_session.refresh(user)
     return user
 
@@ -83,31 +113,6 @@ async def no_access_cookie(db_session: AsyncSession, user_no_access: User) -> st
     return token
 
 
-@pytest_asyncio.fixture
-async def published_course(db_session: AsyncSession) -> Course:
-    """Опубликованный курс с одним уроком."""
-    course = Course(
-        title="Тестовый курс",
-        description="Описание",
-        price=2990.0,
-        is_published=True,
-    )
-    db_session.add(course)
-    await db_session.flush()  # получаем id
-
-    lesson = Lesson(
-        course_id=course.id,
-        title="Урок 1",
-        description="Первый урок",
-        video_id="test_video_id",
-        order=1,
-    )
-    db_session.add(lesson)
-    await db_session.commit()
-    await db_session.refresh(course)
-    return course
-
-
 # ---------------------------------------------------------------------------
 # Доступ к ЛК: авторизация и has_access
 # ---------------------------------------------------------------------------
@@ -131,14 +136,15 @@ async def test_lessons_requires_auth(client: AsyncClient):
 
 
 async def test_lessons_requires_access(client: AsyncClient, no_access_cookie: str):
-    """/cabinet/lessons с is has_access=False → редирект на /?no_access=1."""
+    """/cabinet/lessons без доступа → страница с модалом тарифов (200)."""
     response = await client.get(
         "/cabinet/lessons",
         cookies={"user_session": no_access_cookie},
         follow_redirects=False,
     )
-    assert response.status_code == 302
-    assert "no_access=1" in response.headers["location"]
+    assert response.status_code == 200
+    assert "Вы ещё не оплатили курс" in response.text
+    assert "paywall-modal" in response.text
 
 
 async def test_lessons_page_ok(
