@@ -54,6 +54,20 @@ class Settings(BaseSettings):
     ADMIN_NOTIFY_EMAIL: str = ""
     ADMIN_TELEGRAM_ID: str = ""
 
+    # --- Webinar / lead-magnet бот (отдельный процесс) ---
+    WEBINAR_BOT_TOKEN: str = ""
+    WEBINAR_BOT_ENABLED: bool = False
+    # Invite / ссылка на TG-канал с инфой по вебинару
+    WEBINAR_CHAT_INVITE_URL: str = "https://t.me/ai_story_news"
+    # Ссылка на эфир (Telemost и т.п.)
+    WEBINAR_TELEMOST_URL: str = "https://telemost.yandex.ru/j/84788316089639"
+    # Расписание в МСК: YYYY-MM-DDTHH:MM:SS
+    WEBINAR_ANNOUNCE_AT: str = "2026-09-14T12:00:00"
+    WEBINAR_REMIND_AT: str = "2026-09-15T12:00:00"
+    WEBINAR_LAST_PUSH_AT: str = "2026-09-15T18:00:00"
+    # Telegram ID админов через запятую (/stats, /send_now)
+    WEBINAR_ADMIN_TELEGRAM_IDS: str = ""
+
     # Письма уходят в фоновом потоке, чтобы не задерживать HTTP-запрос.
     # False — синхронно (используется в тестах).
     EMAIL_BACKGROUND: bool = True

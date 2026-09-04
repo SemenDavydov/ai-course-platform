@@ -17,6 +17,7 @@ from app.models.material import Material
 from app.models.admin_session import AdminSession
 from app.models.user_session import UserSession
 from app.models.lesson_progress import LessonProgress
+from app.models.webinar import WebinarSubscriber, WebinarBroadcastLog
 
 config = context.config
 

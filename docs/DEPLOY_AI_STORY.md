@@ -47,6 +47,41 @@ sudo systemctl restart ai-course    # подставьте своё имя се�
 4. Письмо после оплаты Pro/VIP содержит ссылку на соответствующий канал; VIP — также письмо админу на `ADMIN_NOTIFY_EMAIL`.
 5. Бот: AI STORY первым, классический курс во втором пункте меню.
 
+## Webinar / lead-magnet bot
+
+Отдельный процесс PM2 `webinar-bot` (`python -m app.bot.webinar_bot`).
+
+В `.env` на сервере:
+
+```env
+WEBINAR_BOT_TOKEN=...          # токен нового бота
+WEBINAR_BOT_ENABLED=true
+TELEGRAM_API_BASE=...          # тот же прокси, что у основного бота
+WEBINAR_CHAT_INVITE_URL=https://t.me/ai_story_news
+WEBINAR_TELEMOST_URL=https://telemost.yandex.ru/j/84788316089639
+WEBINAR_ANNOUNCE_AT=2026-09-14T12:00:00
+WEBINAR_REMIND_AT=2026-09-15T12:00:00
+WEBINAR_LAST_PUSH_AT=2026-09-15T18:00:00
+WEBINAR_ADMIN_TELEGRAM_IDS=123456789
+```
+
+Время — **Москва**. После `git pull`:
+
+```bash
+alembic upgrade head
+pm2 start ecosystem.config.js --only webinar-bot
+# или если уже в ecosystem:
+pm2 delete webinar-bot 2>/dev/null; pm2 start ecosystem.config.js --only webinar-bot
+pm2 save
+pm2 logs webinar-bot
+```
+
+Команды бота:
+- `/start` — приветствие + через 5 сек лид-магнит
+- `/id` — узнать свой Telegram ID
+- `/stats` — число подписчиков (только админы)
+- `/send_now announce|remind|last_push` — ручная рассылка (только админы)
+
 ## Rollback
 
 ```bash

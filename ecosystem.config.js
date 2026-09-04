@@ -36,6 +36,22 @@ module.exports = {
       env: {
         PYTHONPATH: "/root/ai-course-platform"
       }
+    },
+    {
+      name: "webinar-bot",
+      // Лид-магнит + анонсы/напоминания вебинара.
+      // Требует WEBINAR_BOT_ENABLED=true и WEBINAR_BOT_TOKEN в .env.
+      // Использует тот же TELEGRAM_API_BASE (прокси), что и основной бот.
+      script: "/root/ai-course-platform/venv/bin/python",
+      args: "-m app.bot.webinar_bot",
+      cwd: "/root/ai-course-platform",
+      interpreter: "none",
+      autorestart: true,
+      watch: false,
+      max_memory_restart: "300M",
+      env: {
+        PYTHONPATH: "/root/ai-course-platform"
+      }
     }
   ]
 }

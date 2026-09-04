@@ -5,6 +5,7 @@ from .material import Material
 from .admin_session import AdminSession
 from .user_session import UserSession
 from .lesson_progress import LessonProgress
+from .webinar import WebinarSubscriber, WebinarBroadcastLog
 
 __all__ = [
     "User",
@@ -18,4 +19,6 @@ __all__ = [
     "AdminSession",
     "UserSession",
     "LessonProgress",
+    "WebinarSubscriber",
+    "WebinarBroadcastLog",
 ]
