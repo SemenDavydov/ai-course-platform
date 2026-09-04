@@ -3,11 +3,17 @@ from sqlalchemy.orm import declarative_base
 from app.config import settings
 
 
-# Создаем движок БД
+# Создаем движок БД.
+# pool_pre_ping / pool_recycle — чтобы не ловить asyncpg "connection is closed"
+# после idle-таймаута Postgres или краткого рестарта БД.
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DEBUG,
-    future=True
+    future=True,
+    pool_pre_ping=True,
+    pool_recycle=1800,
+    pool_size=5,
+    max_overflow=10,
 )
 
 # Фабрика сессий

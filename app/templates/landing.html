@@ -361,10 +361,10 @@
             background: #0a0a0a;
             box-shadow: 0 24px 48px -20px rgba(0, 0, 0, 0.35);
         }
-        .viral-phone video {
+        .viral-phone iframe {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            border: 0;
             display: block;
             background: #000;
         }
@@ -501,15 +501,15 @@
             box-shadow: 0 28px 56px -16px rgba(0, 0, 0, 0.55);
             cursor: default;
         }
-        .coverflow-item video {
+        .coverflow-item iframe {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            border: 0;
             display: block;
             background: #0a0a0a;
             pointer-events: none;
         }
-        .coverflow-item.is-active video {
+        .coverflow-item.is-active iframe {
             pointer-events: auto;
         }
         .coverflow-caption {
@@ -1052,10 +1052,12 @@
                      onerror="this.onerror=null;this.src='/static/images/matriarch-prime.jpg';">
             </figure>
             <div class="viral-phone">
-                <video controls playsinline preload="metadata"
-                       src="/static/videos/top_video.mp4">
-                    Ваш браузер не поддерживает видео.
-                </video>
+                <iframe
+                    src="https://kinescope.io/embed/uV9MAa83VEwcRNyCqDHPKJ"
+                    title="Матриархат-прайм"
+                    allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                    allowfullscreen
+                    loading="lazy"></iframe>
             </div>
         </div>
     </div>
@@ -1078,20 +1080,25 @@
             <div id="coverflow" class="coverflow" aria-roledescription="carousel" aria-label="Стили AI-роликов">
                 <div class="coverflow-stage" id="coverflow-stage">
                     {% set universe_reels = [
-                        {'file': 'universe-1.mp4', 'title': 'Стиль 1', 'sub': 'AI story reel'},
-                        {'file': 'universe-2.mp4', 'title': 'Стиль 2', 'sub': 'AI story reel'},
-                        {'file': 'universe-3.mp4', 'title': 'Стиль 3', 'sub': 'AI story reel'},
-                        {'file': 'universe-4.mp4', 'title': 'Стиль 4', 'sub': 'AI story reel'}
+                        {'id': 'uYjmLpHRDfE3p9fg3M3Ghe', 'title': 'Стиль 1', 'sub': 'AI story reel'},
+                        {'id': 'xbh5nxz1NWaMk9D9cKr4gJ', 'title': 'Стиль 2', 'sub': 'AI story reel'},
+                        {'id': 'safsajC2r1fu5XwSKgVDhL', 'title': 'Стиль 3', 'sub': 'AI story reel'},
+                        {'id': 'x8McqH1JQDTKkLfjA2MFwp', 'title': 'Стиль 4', 'sub': 'AI story reel'}
                     ] %}
                     {% for reel in universe_reels %}
-                    <button type="button" class="coverflow-item" data-index="{{ loop.index0 }}" aria-label="{{ reel.title }}">
-                        <video muted playsinline loop preload="metadata"
-                               src="/static/videos/{{ reel.file }}"></video>
+                    <div class="coverflow-item" data-index="{{ loop.index0 }}"
+                            data-embed="https://kinescope.io/embed/{{ reel.id }}?autoplay=1&muted=1&loop=1&controls=0"
+                            role="button" tabindex="0"
+                            aria-label="{{ reel.title }}">
+                        <iframe title="{{ reel.title }}"
+                                allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                                allowfullscreen
+                                loading="lazy"></iframe>
                         <div class="coverflow-caption">
                             <strong>{{ reel.title }}</strong>
                             <span>{{ reel.sub }}</span>
                         </div>
-                    </button>
+                    </div>
                     {% endfor %}
                 </div>
             </div>
@@ -1530,15 +1537,13 @@
             item.style.opacity = abs > 2 ? '0' : '1';
             item.classList.toggle('is-active', abs === 0);
             item.setAttribute('aria-hidden', abs === 0 ? 'false' : 'true');
-            var video = item.querySelector('video');
-            if (!video) return;
+            var iframe = item.querySelector('iframe');
+            if (!iframe) return;
+            var embed = item.getAttribute('data-embed') || '';
             if (abs === 0) {
-                video.muted = true;
-                var playPromise = video.play();
-                if (playPromise && playPromise.catch) playPromise.catch(function () {});
-            } else {
-                video.pause();
-                try { video.currentTime = 0; } catch (e) {}
+                if (iframe.getAttribute('src') !== embed) iframe.setAttribute('src', embed);
+            } else if (iframe.getAttribute('src')) {
+                iframe.removeAttribute('src');
             }
         });
     }
@@ -1554,6 +1559,11 @@
                 if (idx === coverflowIndex) return;
                 coverflowIndex = idx;
                 renderCoverflow();
+            });
+            item.addEventListener('keydown', function (e) {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                item.click();
             });
         });
 
