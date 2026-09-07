@@ -20,7 +20,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.telegram import PRODUCTION, TelegramAPIServer
 from aiogram.enums import ParseMode
-from aiogram.filters import Command, CommandStart
+from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.types import Message
 from sqlalchemy import select
 
@@ -29,6 +29,11 @@ from app.bot import webinar_messages as msg
 from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.webinar import WebinarBroadcastLog, WebinarSubscriber
+from app.services.webinar_funnel import (
+    ANNOUNCE_AFTER_LEAD_SEC,
+    build_track_url,
+    send_funnel_announce_once,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("webinar_bot")
@@ -38,6 +43,11 @@ LEAD_MAGNET_DELAY_SEC = 5
 BROADCAST_PAUSE_SEC = 0.05  # ~20 msg/s — безопасный лимит Telegram
 CATCHUP_HOURS = 6  # если бот был выключен в момент рассылки — догоняем в окне
 
+
+async def _send_funnel_announce_later(chat_id: int) -> None:
+    """Третье сообщение (анонс вебинара) через 1 минуту после лид-магнита."""
+    await asyncio.sleep(ANNOUNCE_AFTER_LEAD_SEC)
+    await send_funnel_announce_once(chat_id)
 
 def _parse_msk(value: str) -> datetime | None:
     """Парсит 'YYYY-MM-DDTHH:MM:SS' или ISO как время Москвы."""
@@ -118,8 +128,14 @@ async def _send_lead_magnet_later(chat_id: int) -> None:
     if bot is None:
         return
     try:
-        await bot.send_message(chat_id, msg.lead_magnet_message(), disable_web_page_preview=False)
+        text = msg.lead_magnet_message(
+            youtube_url=build_track_url(chat_id, "youtube"),
+            rutube_url=build_track_url(chat_id, "rutube"),
+        )
+        await bot.send_message(chat_id, text, disable_web_page_preview=False)
         await _mark_lead_magnet_sent(chat_id)
+        # Через 1 минуту — анонс (или раньше, если кликнут по ссылке ролика)
+        asyncio.create_task(_send_funnel_announce_later(chat_id))
     except Exception:
         logger.exception("Не удалось отправить лид-магнит chat_id=%s", chat_id)
 
@@ -139,22 +155,63 @@ async def cmd_start(message: Message) -> None:
     asyncio.create_task(_send_lead_magnet_later(user.id))
 
 
+@dp.message(Command("help"))
+async def cmd_help(message: Message) -> None:
+    await message.answer(
+        "<b>Команды:</b>\n"
+        "/start — приветствие → через 5 сек видео → через 1 мин (или после клика по ссылке) анонс вебинара\n"
+        "/id — узнать свой Telegram ID\n"
+        "/help — эта справка\n\n"
+        "<b>Только для админа:</b>\n"
+        "/stats — число людей, кто нажал Start\n"
+        "/send_now announce — массовая рассылка анонса\n"
+        "/send_now remind — напоминание\n"
+        "/send_now last_push — дожим за час до эфира"
+    )
+
+
 @dp.message(Command("id"))
 async def cmd_id(message: Message) -> None:
-    await message.answer(f"Ваш Telegram ID: <code>{message.from_user.id}</code>")
+    if not message.from_user:
+        return
+    tid = message.from_user.id
+    is_admin = _is_admin(tid)
+    await message.answer(
+        f"Ваш Telegram ID: <code>{tid}</code>\n"
+        f"Админ-доступ: <b>{'да' if is_admin else 'нет'}</b>\n\n"
+        "Если админ «нет» — добавь этот ID в "
+        "<code>WEBINAR_ADMIN_TELEGRAM_IDS</code> в .env на сервере "
+        "и выполни <code>pm2 restart webinar-bot</code>."
+    )
+
+
+def _admin_ids() -> set[int]:
+    raw = (settings.WEBINAR_ADMIN_TELEGRAM_IDS or "").strip().strip('"').strip("'")
+    if not raw:
+        return set()
+    allowed: set[int] = set()
+    for part in raw.replace(";", ",").split(","):
+        part = part.strip().strip('"').strip("'")
+        if part.isdigit():
+            allowed.add(int(part))
+    return allowed
 
 
 def _is_admin(telegram_id: int) -> bool:
-    raw = (settings.WEBINAR_ADMIN_TELEGRAM_IDS or "").strip()
-    if not raw:
-        return False
-    allowed = {int(x.strip()) for x in raw.split(",") if x.strip().isdigit()}
-    return telegram_id in allowed
+    return telegram_id in _admin_ids()
 
 
 @dp.message(Command("stats"))
 async def cmd_stats(message: Message) -> None:
-    if not message.from_user or not _is_admin(message.from_user.id):
+    if not message.from_user:
+        return
+    if not _is_admin(message.from_user.id):
+        await message.answer(
+            "Команда только для админа.\n"
+            f"Твой ID: <code>{message.from_user.id}</code>\n"
+            "Пропиши его в <code>WEBINAR_ADMIN_TELEGRAM_IDS</code> и "
+            "перезапусти бота: <code>pm2 restart webinar-bot</code>."
+        )
         return
     async with AsyncSessionLocal() as db:
         total = (
@@ -171,20 +228,34 @@ async def cmd_stats(message: Message) -> None:
 
 
 @dp.message(Command("send_now"))
-async def cmd_send_now(message: Message) -> None:
+async def cmd_send_now(message: Message, command: CommandObject) -> None:
     """Админ: /send_now announce|remind|last_push — принудительная рассылка."""
-    if not message.from_user or not _is_admin(message.from_user.id):
+    if not message.from_user:
         return
-    parts = (message.text or "").split(maxsplit=1)
-    if len(parts) < 2 or parts[1].strip() not in CAMPAIGNS:
+    if not _is_admin(message.from_user.id):
         await message.answer(
-            "Использование: <code>/send_now announce|remind|last_push</code>"
+            "Команда только для админа.\n"
+            f"Твой ID: <code>{message.from_user.id}</code>\n"
+            "Пропиши его в <code>WEBINAR_ADMIN_TELEGRAM_IDS</code> и "
+            "перезапусти бота: <code>pm2 restart webinar-bot</code>."
         )
         return
-    key = parts[1].strip()
+    key = (command.args or "").strip().split()[0] if command.args else ""
+    if key not in CAMPAIGNS:
+        await message.answer(
+            "Использование:\n"
+            "<code>/send_now announce</code>\n"
+            "<code>/send_now remind</code>\n"
+            "<code>/send_now last_push</code>"
+        )
+        return
     await message.answer(f"Запускаю рассылку <b>{key}</b>…")
-    ok, fail, total = await run_broadcast(key, force=True)
-    await message.answer(f"Готово: всего {total}, ок {ok}, ошибок {fail}.")
+    try:
+        ok, fail, total = await run_broadcast(key, force=True)
+        await message.answer(f"Готово: всего {total}, ок {ok}, ошибок {fail}.")
+    except Exception as e:
+        logger.exception("send_now failed")
+        await message.answer(f"Ошибка рассылки: <code>{e}</code>")
 
 
 async def _campaign_already_sent(campaign_key: str) -> bool:
@@ -351,8 +422,9 @@ async def main() -> None:
         return
 
     logger.info(
-        "Webinar bot starting (proxy=%s)",
+        "Webinar bot starting (proxy=%s, admins=%s)",
         "yes" if settings.TELEGRAM_API_BASE else "direct",
+        sorted(_admin_ids()) or "none",
     )
     scheduler_task = asyncio.create_task(start_scheduler(), name="webinar_scheduler")
     try:

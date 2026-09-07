@@ -15,6 +15,9 @@ class WebinarSubscriber(Base):
     last_name = Column(String, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     lead_magnet_sent = Column(Boolean, default=False, nullable=False)
+    funnel_announce_sent = Column(Boolean, default=False, nullable=False)
+    video_clicked = Column(Boolean, default=False, nullable=False)
+    video_click_slug = Column(String(32), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

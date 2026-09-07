@@ -6,7 +6,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import HTMLResponse, FileResponse
 from sqlalchemy import select
 
-from app.api import webhooks, admin, auth, cabinet
+from app.api import webhooks, admin, auth, cabinet, webinar_track
 from app.api.v1 import bot_api, materials, payments, progress
 from app.config import settings
 from app.database import get_db
@@ -44,6 +44,7 @@ app.include_router(bot_api.router)
 app.include_router(materials.router)
 app.include_router(payments.router)
 app.include_router(progress.router)
+app.include_router(webinar_track.router)
 
 @app.get("/", response_class=HTMLResponse)
 async def root(
