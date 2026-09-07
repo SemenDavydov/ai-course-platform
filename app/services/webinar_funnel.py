@@ -84,10 +84,18 @@ async def claim_funnel_announce(telegram_id: int) -> bool:
 async def send_funnel_announce_once(telegram_id: int) -> bool:
     """Отправить персональный announce один раз. False — уже отправляли / нет токена."""
     if not await claim_funnel_announce(telegram_id):
+        logger.info("Funnel announce skip for %s — already sent", telegram_id)
         return False
     bot = _build_bot()
     if bot is None:
-        logger.error("WEBINAR_BOT_TOKEN пуст — funnel announce не отправлен")
+        logger.error("WEBINAR_BOT_TOKEN пуст — funnel announce не отправлен, откатываю флаг")
+        async with AsyncSessionLocal() as db:
+            await db.execute(
+                update(WebinarSubscriber)
+                .where(WebinarSubscriber.telegram_id == telegram_id)
+                .values(funnel_announce_sent=False)
+            )
+            await db.commit()
         return False
     chat = (settings.WEBINAR_CHAT_INVITE_URL or "").strip()
     try:
@@ -110,6 +118,22 @@ async def send_funnel_announce_once(telegram_id: int) -> bool:
         return False
     finally:
         await bot.session.close()
+
+
+async def reset_funnel_for_user(telegram_id: int) -> None:
+    """Сброс персональной воронки (чтобы /start снова прошёл 3 шага)."""
+    async with AsyncSessionLocal() as db:
+        await db.execute(
+            update(WebinarSubscriber)
+            .where(WebinarSubscriber.telegram_id == telegram_id)
+            .values(
+                funnel_announce_sent=False,
+                video_clicked=False,
+                video_click_slug=None,
+                lead_magnet_sent=False,
+            )
+        )
+        await db.commit()
 
 
 async def mark_video_click(telegram_id: int, slug: str) -> None:

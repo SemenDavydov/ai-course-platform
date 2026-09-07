@@ -32,6 +32,7 @@ from app.models.webinar import WebinarBroadcastLog, WebinarSubscriber
 from app.services.webinar_funnel import (
     ANNOUNCE_AFTER_LEAD_SEC,
     build_track_url,
+    reset_funnel_for_user,
     send_funnel_announce_once,
 )
 
@@ -150,6 +151,14 @@ async def cmd_start(message: Message) -> None:
         username=user.username,
         first_name=user.first_name,
         last_name=user.last_name,
+    )
+    # Каждый /start заново запускает воронку из 3 сообщений
+    await reset_funnel_for_user(user.id)
+    track_preview = build_track_url(user.id, "youtube")
+    logger.info(
+        "Funnel start user=%s track_host=%s",
+        user.id,
+        track_preview.split("/go/")[0] if "/go/" in track_preview else track_preview,
     )
     await message.answer(msg.welcome_message())
     asyncio.create_task(_send_lead_magnet_later(user.id))
