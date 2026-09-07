@@ -21,8 +21,11 @@ from app.models.webinar import WebinarSubscriber
 logger = logging.getLogger(__name__)
 
 VIDEO_TARGETS = {
-    "youtube": "https://clck.ru/3VdCaZ",
-    "rutube": "https://clck.ru/3VdCdk",
+    "youtube": "https://youtu.be/6a2kAc91BJ4?si=ZC1qcnyg66q-P-c4",
+    "rutube": (
+        "https://rutube.ru/video/private/05f1190ab310d0aac0b501b619eb7130/"
+        "?p=J9J45bz_o4LNbmqflzGZBQ&r=a"
+    ),
 }
 
 ANNOUNCE_AFTER_LEAD_SEC = 60
