@@ -984,7 +984,7 @@
             Воплоти свою историю: от идеи ИИ-сериала до монетизации.
         </p>
         <div class="hero-enter hero-enter-delay-3 flex flex-col sm:flex-row gap-3 sm:gap-4">
-            {% if current_user and (current_user.has_access or has_story_access) %}
+            {% if has_story_access %}
             <a href="/cabinet"
                class="btn-accent font-semibold text-base px-7 py-3.5 rounded-3xl inline-flex items-center justify-center">
                 Перейти в кабинет
@@ -1214,9 +1214,9 @@
             <p class="mt-3 text-[var(--mist)] text-sm">Единоразовая оплата. Доступ к материалам без ограничения по времени.</p>
         </div>
 
-        {% if current_user and (current_user.has_access or has_story_access) %}
+        {% if has_story_access %}
         <div class="reveal reveal-delay-1 max-w-md mx-auto text-center">
-            <p class="text-[var(--mist)] mb-6">У вас уже есть доступ к курсу.</p>
+            <p class="text-[var(--mist)] mb-6">У вас уже есть доступ к курсу AI STORY.</p>
             <a href="/cabinet"
                class="btn-accent font-semibold text-base px-8 py-3.5 rounded-3xl inline-flex items-center justify-center">
                 Перейти в кабинет
@@ -1267,6 +1267,23 @@
             {% endfor %}
         </div>
         {% endif %}
+
+        <div class="reveal reveal-delay-2 mt-8 max-w-4xl mx-auto">
+            <article class="tariff-card rounded-3xl p-7 sm:p-8 text-center">
+                <h3 class="font-display text-xl sm:text-2xl text-[var(--pearl)] font-semibold tracking-wide uppercase">
+                    Рассрочка на любой тариф
+                </h3>
+                <p class="mt-3 text-[var(--mist)] text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
+                    Можно оформить любой тариф в рассрочку — без полной оплаты сразу.
+                </p>
+                <a href="https://crm.procourse.online/l/aistory/34511"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="btn-accent mt-6 font-semibold text-base px-8 py-3.5 rounded-3xl inline-flex items-center justify-center">
+                    Перейти к оформлению
+                </a>
+            </article>
+        </div>
     </div>
 </section>
 
@@ -1655,7 +1672,7 @@
             openAuthModal('register');
             return;
         }
-        if (CURRENT_USER.has_access || CURRENT_USER.has_story_access || HAS_STORY_ACCESS) {
+        if (CURRENT_USER.has_story_access || HAS_STORY_ACCESS) {
             openAlreadyPaidModal();
             return;
         }
