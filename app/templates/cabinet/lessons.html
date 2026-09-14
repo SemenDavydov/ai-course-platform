@@ -52,11 +52,12 @@
 {% if lessons_locked %}
 <div class="cabinet-card p-5 sm:p-6 mb-6">
   <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--rose)]">Старт обучения</p>
-  <h3 class="mt-1 text-lg sm:text-xl font-display font-semibold text-[var(--pearl)]">
-    Старт обучения {{ training_start_label }}
-  </h3>
-  <p class="mt-2 text-sm text-[var(--mist)] leading-relaxed">
-    Уроки пока закрыты. Видео и материалы откроются в день старта — сейчас на каждом уроке стоит замок.
+  <div class="mt-4">
+    {% set countdown_reload = true %}
+    {% include "partials/course_countdown.html" %}
+  </div>
+  <p class="mt-4 text-sm text-[var(--mist)] leading-relaxed">
+    Уроки пока закрыты. Видео и материалы откроются {{ training_start_label }}.
   </p>
   <p class="meta-disclaimer">
     Meta Platforms Inc. признана экстремистской, её продукты запрещены на территории РФ

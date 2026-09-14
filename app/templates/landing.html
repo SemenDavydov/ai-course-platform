@@ -1025,7 +1025,9 @@
             <p class="mt-3 text-[var(--mist)] text-base sm:text-lg">
                 Тариф <span class="text-[var(--pearl)] font-semibold uppercase">{{ story_tariff_slug or 'pro' }}</span>
             </p>
-            <p class="mt-2 text-[var(--mist)] text-sm">Старт обучения 21.09.2026 в 14:00 МСК</p>
+            <div class="mt-6">
+                {% include "partials/course_countdown.html" %}
+            </div>
             <a href="/cabinet"
                class="btn-accent mt-6 font-semibold text-base px-8 py-3.5 rounded-3xl inline-flex items-center justify-center">
                 Перейти в кабинет
@@ -1240,7 +1242,7 @@
 {% if not has_story_access %}
 <section id="tariffs" class="py-20 sm:py-24 border-t section-rule">
     <div class="max-w-5xl mx-auto px-4 sm:px-6">
-        <div class="reveal text-center mb-14">
+        <div class="reveal text-center mb-2">
             <h2 class="section-title font-display text-3xl sm:text-4xl md:text-5xl text-[var(--pearl)] font-semibold leading-tight">
                 Готовы воплотить свою историю?
             </h2>
@@ -1248,9 +1250,12 @@
                 Выберите тариф и начните с нуля, уже сегодня.
             </p>
             <p class="mt-3 text-[var(--mist)] text-sm">Единоразовая оплата. Доступ к материалам без ограничения по времени.</p>
+            <div class="mt-8">
+                {% include "partials/course_countdown.html" %}
+            </div>
         </div>
 
-        <div class="reveal reveal-delay-1 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        <div class="reveal reveal-delay-1 mt-10 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {% for t in tariffs %}
             <article class="tariff-card rounded-3xl p-7 sm:p-8 flex flex-col {% if t.slug == 'vip' %}is-vip{% endif %}">
                 <header class="mb-6">

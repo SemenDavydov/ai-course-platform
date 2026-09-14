@@ -1,0 +1,161 @@
+<div class="course-countdown{% if countdown_reload %} course-countdown--reload{% endif %}"
+     data-countdown-target="2026-09-21T14:00:00+03:00"
+     {% if countdown_reload %}data-countdown-reload="1"{% endif %}
+     role="timer"
+     aria-live="polite">
+    <p class="course-countdown__kicker" data-countdown-title>До старта обучения осталось</p>
+    <div class="course-countdown__grid" data-countdown-grid>
+        <div class="course-countdown__cell">
+            <span class="course-countdown__value" data-countdown-days>--</span>
+            <span class="course-countdown__label" data-countdown-days-label>дней</span>
+        </div>
+        <div class="course-countdown__cell">
+            <span class="course-countdown__value" data-countdown-hours>--</span>
+            <span class="course-countdown__label" data-countdown-hours-label>часов</span>
+        </div>
+        <div class="course-countdown__cell">
+            <span class="course-countdown__value" data-countdown-minutes>--</span>
+            <span class="course-countdown__label" data-countdown-minutes-label>минут</span>
+        </div>
+        <div class="course-countdown__cell">
+            <span class="course-countdown__value" data-countdown-seconds>--</span>
+            <span class="course-countdown__label" data-countdown-seconds-label>секунд</span>
+        </div>
+    </div>
+    <p class="course-countdown__when">21.09.2026, 14:00 МСК</p>
+    <p class="course-countdown__done" data-countdown-done hidden>Обучение уже началось</p>
+</div>
+<style>
+    .course-countdown { max-width: 36rem; margin-left: auto; margin-right: auto; text-align: center; }
+    .course-countdown__kicker {
+        margin: 0 0 0.9rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--rose);
+    }
+    .course-countdown__grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.45rem;
+    }
+    .course-countdown__cell {
+        position: relative;
+        overflow: hidden;
+        padding: 0.85rem 0.2rem 0.7rem;
+        border-radius: 1.15rem;
+        background: var(--dusk);
+        border: 1px solid var(--glass-border);
+        backdrop-filter: blur(12px);
+    }
+    .course-countdown__cell::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 18%;
+        right: 18%;
+        height: 2px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--rose), var(--cyan));
+    }
+    .course-countdown__value {
+        display: block;
+        font-family: Manrope, system-ui, sans-serif;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        font-size: clamp(1.25rem, 5.4vw, 2.35rem);
+        line-height: 1;
+        color: var(--pearl);
+    }
+    .course-countdown__label {
+        display: block;
+        margin-top: 0.4rem;
+        font-size: 0.62rem;
+        line-height: 1.2;
+        color: var(--mist);
+    }
+    .course-countdown__when {
+        margin: 0.85rem 0 0;
+        font-size: 0.78rem;
+        color: var(--mist);
+    }
+    .course-countdown__done {
+        margin: 0;
+        font-family: Manrope, system-ui, sans-serif;
+        font-weight: 700;
+        font-size: 1.15rem;
+        color: var(--pearl);
+    }
+    .course-countdown.is-done .course-countdown__grid,
+    .course-countdown.is-done .course-countdown__when,
+    .course-countdown.is-done .course-countdown__kicker { display: none; }
+    @media (min-width: 640px) {
+        .course-countdown__grid { gap: 0.75rem; }
+        .course-countdown__cell { padding: 1.05rem 0.4rem 0.9rem; border-radius: 1.35rem; }
+        .course-countdown__label { font-size: 0.78rem; }
+        .course-countdown__kicker { font-size: 0.78rem; margin-bottom: 1rem; }
+        .course-countdown__done { font-size: 1.35rem; }
+    }
+</style>
+<script>
+(function () {
+    if (window.__courseCountdownInit) return;
+    window.__courseCountdownInit = true;
+
+    function plural(n, one, few, many) {
+        var n100 = Math.abs(n) % 100;
+        var n10 = n100 % 10;
+        if (n100 > 10 && n100 < 20) return many;
+        if (n10 > 1 && n10 < 5) return few;
+        if (n10 === 1) return one;
+        return many;
+    }
+
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    function tick() {
+        var nodes = document.querySelectorAll('[data-countdown-target]');
+        var reload = false;
+        nodes.forEach(function (root) {
+            var target = Date.parse(root.getAttribute('data-countdown-target'));
+            var left = target - Date.now();
+            if (!Number.isFinite(target) || left <= 0) {
+                root.classList.add('is-done');
+                var done = root.querySelector('[data-countdown-done]');
+                if (done) done.hidden = false;
+                if (root.getAttribute('data-countdown-reload') === '1') reload = true;
+                return;
+            }
+            var total = Math.floor(left / 1000);
+            var days = Math.floor(total / 86400);
+            var hours = Math.floor((total % 86400) / 3600);
+            var minutes = Math.floor((total % 3600) / 60);
+            var seconds = total % 60;
+            root.querySelector('[data-countdown-days]').textContent = pad(days);
+            root.querySelector('[data-countdown-hours]').textContent = pad(hours);
+            root.querySelector('[data-countdown-minutes]').textContent = pad(minutes);
+            root.querySelector('[data-countdown-seconds]').textContent = pad(seconds);
+            root.querySelector('[data-countdown-days-label]').textContent = plural(days, 'день', 'дня', 'дней');
+            root.querySelector('[data-countdown-hours-label]').textContent = plural(hours, 'час', 'часа', 'часов');
+            root.querySelector('[data-countdown-minutes-label]').textContent = plural(minutes, 'минута', 'минуты', 'минут');
+            root.querySelector('[data-countdown-seconds-label]').textContent = plural(seconds, 'секунда', 'секунды', 'секунд');
+        });
+        if (reload && !sessionStorage.getItem('course-countdown-reloaded')) {
+            sessionStorage.setItem('course-countdown-reloaded', '1');
+            window.location.reload();
+        }
+    }
+
+    function start() {
+        tick();
+        window.setInterval(tick, 1000);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', start);
+    } else {
+        start();
+    }
+})();
+</script>

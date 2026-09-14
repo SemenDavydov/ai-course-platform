@@ -1,7 +1,10 @@
 import asyncio
 import logging
+from html import escape
+
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
@@ -25,6 +28,8 @@ from app.models.payment import Payment
 from app.services.auth import create_login_token
 from app.services.payment import PaymentService
 from app.services.access import (
+    TRAINING_START_LABEL,
+    course_lessons_locked,
     get_primary_course,
     list_accessible_courses,
     user_has_course,
@@ -101,6 +106,45 @@ async def get_or_create_user(telegram_id: int, db: AsyncSession, **kwargs) -> Us
         logger.info("Created new user: %s", telegram_id)
 
     return user
+
+
+def _html(value) -> str:
+    return escape(str(value or ""), quote=False)
+
+
+async def _safe_edit(callback: CallbackQuery, text: str, reply_markup=None, **kwargs) -> None:
+    """Показывает экран. Если править старое сообщение нельзя — шлёт новое."""
+    shown = False
+    message = callback.message
+    if message is not None and hasattr(message, "edit_text"):
+        try:
+            await message.edit_text(text, reply_markup=reply_markup, **kwargs)
+            shown = True
+        except TelegramBadRequest as exc:
+            if "message is not modified" in str(exc).lower():
+                shown = True
+            else:
+                logger.warning("edit_text failed: %s", exc)
+        except Exception:
+            logger.exception("edit_text failed")
+    if not shown:
+        try:
+            await callback.bot.send_message(
+                callback.from_user.id, text, reply_markup=reply_markup, **kwargs
+            )
+            shown = True
+        except Exception:
+            logger.exception("send_message fallback failed")
+    try:
+        if shown:
+            await callback.answer()
+        else:
+            await callback.answer(
+                "Не удалось открыть раздел. Отправьте /start",
+                show_alert=True,
+            )
+    except Exception:
+        logger.debug("callback.answer failed", exc_info=True)
 
 
 def _main_menu_keyboard(has_any_access: bool, has_story: bool, has_legacy: bool):
@@ -207,31 +251,32 @@ async def cmd_site(message: Message, db: AsyncSession):
 
 @dp.callback_query(lambda c: c.data == "about")
 async def process_about(callback: CallbackQuery, db: AsyncSession):
-    await callback.answer()
+    user = await get_or_create_user(callback.from_user.id, db)
     course = await get_primary_course(db)
+    existing = await get_access(db, user.id, course.id) if course else None
+    rows = []
     if course:
-        t_result = await db.execute(
-            select(Tariff)
-            .where(Tariff.course_id == course.id, Tariff.is_active == True)
-            .order_by(Tariff.sort_order)
-        )
-        tariffs = t_result.scalars().all()
-        lines = [f"<b>{course.title}</b>\n", course.description or "", ""]
-        for t in tariffs:
-            old = f" <s>{int(t.old_price)}₽</s>" if t.old_price else ""
-            lines.append(f"• <b>{t.name}</b> — {int(t.price)}₽{old}")
-        lines.append("\nДоступ к материалам бессрочный.")
-        about_text = "\n".join(lines)
+        lines = [f"<b>{_html(course.title)}</b>\n", _html(course.description), ""]
+        if existing:
+            lines.append(f"Ваш тариф: <b>{_html(existing.tariff_slug).upper()}</b>")
+            lines.append(f"Старт обучения {TRAINING_START_LABEL}.")
+            rows.append([InlineKeyboardButton(text="📖 К курсу", callback_data="course_story")])
+        else:
+            t_result = await db.execute(
+                select(Tariff)
+                .where(Tariff.course_id == course.id, Tariff.is_active == True)
+                .order_by(Tariff.sort_order)
+            )
+            for t in t_result.scalars().all():
+                old = f" <s>{int(t.old_price)}₽</s>" if t.old_price else ""
+                lines.append(f"• <b>{_html(t.name)}</b> — {int(t.price)}₽{old}")
+            lines.append("\nСтарт обучения " + TRAINING_START_LABEL + ".")
+            rows.append([InlineKeyboardButton(text="💰 Выбрать тариф", callback_data="buy")])
+        about_text = "\n".join(lines)[:4000]
     else:
         about_text = "Информация о курсе скоро появится!"
-
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="💰 Выбрать тариф", callback_data="buy")],
-            [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")],
-        ]
-    )
-    await callback.message.edit_text(about_text, reply_markup=keyboard)
+    rows.append([InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")])
+    await _safe_edit(callback, about_text, InlineKeyboardMarkup(inline_keyboard=rows))
 
 
 @dp.callback_query(lambda c: c.data == "buy")
@@ -240,29 +285,31 @@ async def process_buy(callback: CallbackQuery, state: FSMContext, db: AsyncSessi
     course = await get_primary_course(db)
 
     if not course:
-        await callback.message.edit_text(
+        await _safe_edit(
+            callback,
             "Курс временно недоступен.",
-            reply_markup=InlineKeyboardMarkup(
+            InlineKeyboardMarkup(
                 inline_keyboard=[
                     [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")]
                 ]
             ),
         )
-        await callback.answer()
         return
 
     existing = await get_access(db, user.id, course.id)
-    if existing and existing.tariff_slug == "vip":
-        await callback.message.edit_text(
-            "✅ У вас уже VIP-доступ к AI STORY.",
-            reply_markup=InlineKeyboardMarkup(
+    if existing:
+        await _safe_edit(
+            callback,
+            f"✅ Курс уже куплен, тариф <b>{_html(existing.tariff_slug).upper()}</b>.\n\n"
+            f"Старт обучения {TRAINING_START_LABEL}.\n"
+            "Повторно покупать не нужно — уроки откроются в это время.",
+            InlineKeyboardMarkup(
                 inline_keyboard=[
                     [InlineKeyboardButton(text="📖 К курсу", callback_data="course_story")],
                     [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")],
                 ]
             ),
         )
-        await callback.answer()
         return
 
     if not user.accepted_offer:
@@ -278,8 +325,9 @@ async def process_buy(callback: CallbackQuery, state: FSMContext, db: AsyncSessi
                 [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")],
             ]
         )
-        await callback.message.edit_text(offer_text, reply_markup=keyboard, disable_web_page_preview=True)
-        await callback.answer()
+        await _safe_edit(
+            callback, offer_text, keyboard, disable_web_page_preview=True
+        )
         return
 
     t_result = await db.execute(
@@ -299,11 +347,22 @@ async def process_buy(callback: CallbackQuery, state: FSMContext, db: AsyncSessi
             [InlineKeyboardButton(text=label, callback_data=f"tariff_{t.slug}")]
         )
     rows.append([InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")])
-    await callback.message.edit_text(
+    if not rows[:-1]:
+        await _safe_edit(
+            callback,
+            "Сейчас нет доступных тарифов для покупки.",
+            InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")]
+                ]
+            ),
+        )
+        return
+    await _safe_edit(
+        callback,
         "Выберите тариф AI STORY:",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),
+        InlineKeyboardMarkup(inline_keyboard=rows),
     )
-    await callback.answer()
 
 
 @dp.callback_query(lambda c: c.data == "accept_offer")
@@ -321,21 +380,24 @@ async def process_tariff(callback: CallbackQuery, state: FSMContext, db: AsyncSe
     user = await get_or_create_user(callback.from_user.id, db)
 
     if not user.email:
-        await callback.message.edit_text(
+        await state.set_state(Form.waiting_for_email)
+        await _safe_edit(
+            callback,
             "📧 Укажите email для чека:",
-            reply_markup=InlineKeyboardMarkup(
+            InlineKeyboardMarkup(
                 inline_keyboard=[
                     [InlineKeyboardButton(text="◀️ Отмена", callback_data="back_to_start")]
                 ]
             ),
         )
-        await state.set_state(Form.waiting_for_email)
-        await callback.answer()
         return
 
     course = await get_primary_course(db)
     await create_payment_and_send(callback.message, user, course, tariff_slug, db)
-    await callback.answer()
+    try:
+        await callback.answer()
+    except Exception:
+        pass
 
 
 @dp.message(Form.waiting_for_email)
@@ -368,6 +430,10 @@ async def create_payment_and_send(
     tariff_slug: str,
     db: AsyncSession,
 ):
+    if not course:
+        await message.answer("Курс временно недоступен.")
+        return
+
     t_result = await db.execute(
         select(Tariff).where(
             Tariff.course_id == course.id,
@@ -409,9 +475,10 @@ async def create_payment_and_send(
     await db.commit()
 
     payment_text = (
-        f"💳 <b>Оплата {tariff.name}</b>\n\n"
+        f"💳 <b>Оплата {_html(tariff.name)}</b>\n\n"
         f"Сумма: {int(tariff.price)}₽\n\n"
-        f"После оплаты доступ к материалам откроется автоматически и действует бессрочно."
+        f"После оплаты доступ откроется автоматически.\n"
+        f"Старт обучения {TRAINING_START_LABEL}."
     )
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -419,16 +486,20 @@ async def create_payment_and_send(
             [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")],
         ]
     )
-    await message.answer(payment_text, reply_markup=keyboard)
+    try:
+        await message.answer(payment_text, reply_markup=keyboard)
+    except Exception:
+        await bot.send_message(user.telegram_id, payment_text, reply_markup=keyboard)
 
 
 async def _show_story_modules(callback: CallbackQuery, db: AsyncSession):
     user = await get_or_create_user(callback.from_user.id, db)
     course = await get_primary_course(db)
     if not course or not await user_has_course(db, user, course.id):
-        await callback.message.edit_text(
+        await _safe_edit(
+            callback,
             "Нет доступа к AI STORY.",
-            reply_markup=InlineKeyboardMarkup(
+            InlineKeyboardMarkup(
                 inline_keyboard=[
                     [InlineKeyboardButton(text="💰 Купить", callback_data="buy")],
                     [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")],
@@ -441,7 +512,10 @@ async def _show_story_modules(callback: CallbackQuery, db: AsyncSession):
         select(Module).where(Module.course_id == course.id).order_by(Module.order)
     )
     modules = list(m_result.scalars().all())
-    text = f"<b>{course.title}</b>\n\nВыберите модуль:"
+    text = f"<b>{_html(course.title)}</b>\n\n"
+    if course_lessons_locked(course):
+        text += f"Старт обучения {TRAINING_START_LABEL}.\nМодули уже видны, уроки откроются в это время.\n\n"
+    text += "Выберите модуль:"
     rows = [
         [
             InlineKeyboardButton(
@@ -457,27 +531,26 @@ async def _show_story_modules(callback: CallbackQuery, db: AsyncSession):
             [InlineKeyboardButton(text="📚 Классический курс", callback_data="course_legacy")]
         )
     rows.append([InlineKeyboardButton(text="◀️ НАЗАД", callback_data="back_to_start")])
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
+    await _safe_edit(callback, text, InlineKeyboardMarkup(inline_keyboard=rows))
 
 
 @dp.callback_query(lambda c: c.data in ("course", "course_story"))
 async def process_course_story(callback: CallbackQuery, db: AsyncSession):
-    await callback.answer()
     await _show_story_modules(callback, db)
 
 
 @dp.callback_query(lambda c: c.data == "course_legacy")
 async def process_course_legacy(callback: CallbackQuery, db: AsyncSession):
-    await callback.answer()
     user = await get_or_create_user(callback.from_user.id, db)
     result = await db.execute(
         select(Course).where(Course.is_legacy == True, Course.is_published == True).limit(1)
     )
     course = result.scalar_one_or_none()
     if not course or not await user_has_course(db, user, course.id):
-        await callback.message.edit_text(
+        await _safe_edit(
+            callback,
             "Нет доступа к классическому курсу.",
-            reply_markup=InlineKeyboardMarkup(
+            InlineKeyboardMarkup(
                 inline_keyboard=[
                     [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")]
                 ]
@@ -489,12 +562,12 @@ async def process_course_legacy(callback: CallbackQuery, db: AsyncSession):
         select(Lesson).where(Lesson.course_id == course.id).order_by(Lesson.order)
     )
     lessons = lessons_result.scalars().all()
-    text = f"<b>{course.title}</b>\n\n"
+    text = f"<b>{_html(course.title)}</b>\n\n"
     buttons = []
     for lesson in lessons:
         if lesson.id in LESSON_DATA:
             emoji, button_text, full_title = LESSON_DATA[lesson.id]
-            text += f"{emoji} {full_title}\n\n"
+            text += f"{emoji} {_html(full_title)}\n\n"
             buttons.append(
                 [InlineKeyboardButton(text=button_text, callback_data=f"lesson_{lesson.id}")]
             )
@@ -509,103 +582,134 @@ async def process_course_legacy(callback: CallbackQuery, db: AsyncSession):
             )
     buttons.append([InlineKeyboardButton(text="📖 AI STORY", callback_data="course_story")])
     buttons.append([InlineKeyboardButton(text="◀️ НАЗАД", callback_data="back_to_start")])
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    await _safe_edit(callback, text[:4000], InlineKeyboardMarkup(inline_keyboard=buttons))
 
 
 @dp.callback_query(lambda c: c.data and c.data.startswith("module_"))
 async def process_module(callback: CallbackQuery, db: AsyncSession):
-    await callback.answer()
     module_id = int(callback.data.split("_")[1])
     user = await get_or_create_user(callback.from_user.id, db)
     module = await db.get(Module, module_id)
     if not module:
-        await callback.message.edit_text("Модуль не найден")
+        await _safe_edit(callback, "Модуль не найден")
         return
     if not await user_has_course(db, user, module.course_id):
-        await callback.message.edit_text("Нет доступа")
+        await _safe_edit(callback, "Нет доступа")
         return
 
+    course = await db.get(Course, module.course_id)
     lessons_result = await db.execute(
         select(Lesson).where(Lesson.module_id == module.id).order_by(Lesson.order)
     )
     lessons = list(lessons_result.scalars().all())
-    text = f"<b>Модуль {module.order}. {module.title}</b>\n\n"
+    locked = course_lessons_locked(course)
+    text = f"<b>Модуль {module.order}. {_html(module.title)}</b>\n\n"
+    if locked:
+        text += f"Уроки откроются {TRAINING_START_LABEL}.\n\n"
     for i, lesson in enumerate(lessons, start=1):
-        text += f"Урок {i}. {lesson.title}\n"
+        prefix = "🔒 " if locked else ""
+        text += f"{prefix}Урок {i}. {_html(lesson.title)}\n"
     rows = [
         [
             InlineKeyboardButton(
-                text=f"Урок {i}",
+                text=(f"🔒 Урок {i}" if locked else f"Урок {i}"),
                 callback_data=f"lesson_{lesson.id}",
             )
         ]
         for i, lesson in enumerate(lessons, start=1)
     ]
     rows.append([InlineKeyboardButton(text="◀️ К модулям", callback_data="course_story")])
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
+    await _safe_edit(callback, text[:4000], InlineKeyboardMarkup(inline_keyboard=rows))
 
 
 @dp.callback_query(lambda c: c.data and c.data.startswith("lesson_"))
 async def process_lesson(callback: CallbackQuery, db: AsyncSession):
-    await callback.answer()
     lesson_id = int(callback.data.split("_")[1])
     lesson = await db.get(Lesson, lesson_id)
     if not lesson:
-        await callback.message.edit_text("❌ Урок не найден")
+        await _safe_edit(callback, "❌ Урок не найден")
         return
 
     user = await get_or_create_user(callback.from_user.id, db)
     if not await user_has_course(db, user, lesson.course_id):
-        await callback.message.edit_text("❌ Нет доступа к этому курсу")
+        await _safe_edit(callback, "❌ Нет доступа к этому курсу")
         return
 
     course = await db.get(Course, lesson.course_id)
     back_cb = "course_legacy" if course and course.is_legacy else (
         f"module_{lesson.module_id}" if lesson.module_id else "course_story"
     )
+    keyboard_rows = [[InlineKeyboardButton(text="◀️ Назад", callback_data=back_cb)]]
+
+    if course_lessons_locked(course):
+        await _safe_edit(
+            callback,
+            f"🔒 <b>{_html(lesson.title)}</b>\n\n"
+            f"Урок откроется {TRAINING_START_LABEL}.",
+            InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
+        )
+        return
 
     if course and course.is_legacy and lesson_id in LESSON_DATA:
         emoji, _, full_title = LESSON_DATA[lesson_id]
-        title = f"{emoji} {full_title}"
+        title = f"{emoji} {_html(full_title)}"
     else:
-        title = lesson.title
+        title = _html(lesson.title)
 
-    text = f"<b>{title}</b>\n\n{lesson.description or ''}"
-    keyboard_rows = [[InlineKeyboardButton(text="◀️ Назад", callback_data=back_cb)]]
+    text = f"<b>{title}</b>\n\n{_html(lesson.description)}"
 
     vid = (lesson.video_id or "").strip()
     if vid and vid != "pending":
         display_url = f"https://kinescope.io/{vid}"
-        text += f"\n\n🔗 Ссылка на видео:\n<code>{display_url}</code>"
+        text += f"\n\n🔗 Ссылка на видео:\n<code>{_html(display_url)}</code>"
         keyboard_rows.insert(
             0, [InlineKeyboardButton(text="▶️ Смотреть видео", url=display_url)]
         )
     else:
         text += "\n\n<i>Видео скоро появится.</i>"
 
-    await callback.message.edit_text(
-        text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+    await _safe_edit(
+        callback,
+        text[:4000],
+        InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
     )
 
 
 @dp.callback_query(lambda c: c.data == "back_to_start")
 async def process_back_to_start(callback: CallbackQuery, db: AsyncSession):
-    await callback.answer()
     user = await get_or_create_user(callback.from_user.id, db)
     accessible = await list_accessible_courses(db, user.id)
     has_story = any(c.slug == "ai-story" for c in accessible)
     has_legacy = any(c.is_legacy for c in accessible)
     has_any = bool(accessible)
 
-    text = f"👋 Привет, {callback.from_user.first_name}!\n\n"
+    text = f"👋 Привет, {_html(callback.from_user.first_name)}!\n\n"
     if has_any:
         text += "Выберите курс или откройте кабинет на сайте."
     else:
         text += "Узнайте о AI STORY или выберите тариф."
 
-    await callback.message.edit_text(
-        text, reply_markup=_main_menu_keyboard(has_any, has_story, has_legacy)
+    await _safe_edit(
+        callback,
+        text,
+        _main_menu_keyboard(has_any, has_story, has_legacy),
     )
+
+
+@dp.error()
+async def on_bot_error(event):
+    logger.exception("Bot handler error: %s", event.exception)
+    update = event.update
+    callback = getattr(update, "callback_query", None)
+    if callback is not None:
+        try:
+            await callback.answer(
+                "Что-то пошло не так. Нажмите /start",
+                show_alert=True,
+            )
+        except Exception:
+            pass
+    return True
 
 
 async def start_bot():

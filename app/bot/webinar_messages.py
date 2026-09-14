@@ -13,7 +13,7 @@ def welcome_message() -> str:
     )
 
 
-def lead_magnet_message(*, youtube_url: str, rutube_url: str) -> str:
+def lead_magnet_message() -> str:
     return (
         "<b>ВИДЕО-РАЗБОР: КАК Я НАБРАЛА 47 000 ПОДПИСЧИКОВ БЕЗ БЮДЖЕТА, "
         "ТОЛЬКО С ИИ-СЕРИАЛАМИ</b> (до 20 минут)\n\n"
@@ -23,9 +23,9 @@ def lead_magnet_message(*, youtube_url: str, rutube_url: str) -> str:
         "3. Как я выкладывала серии и попала в рекомендации\n"
         "4. Сколько реально денег можно заработать сотрудничая с брендами\n\n"
         "🔗 ССЫЛКА на <b>YouTube</b>:\n"
-        f"{youtube_url}\n\n"
+        "https://youtu.be/6a2kAc91BJ4?si=ZC1qcnyg66q-P-c4\n\n"
         "🔗 Если ссылка не открывается, <b>Rutube</b>:\n"
-        f"{rutube_url}"
+        "https://rutube.ru/video/private/05f1190ab310d0aac0b501b619eb7130/?clckid=c76b7b6b"
     )
 
 
