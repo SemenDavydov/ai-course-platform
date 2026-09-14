@@ -2,8 +2,8 @@
 Auth router: регистрация, вход, выход, верификация email, сброс/установка пароля.
 Prefix: /auth
 """
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response
+from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
@@ -16,6 +16,7 @@ from app.models.payment import Payment
 from app.models.user_session import UserSession
 from app.services import auth as auth_service
 from app.tasks import enqueue_email
+from app.templating import templates
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -235,6 +236,38 @@ async def telegram_login(
 
     target = "/cabinet/lessons" if user.has_access else "/"
     resp = RedirectResponse(target, status_code=303)
+    _set_session_cookie(resp, session_token)
+    return resp
+
+
+@router.get("/open-lessons", response_class=HTMLResponse)
+async def open_lessons_page(request: Request, token: str = "", error: str = ""):
+    """Лёгкая страница входа в уроки. GET не тратит токен — почтовики часто его предзагружают."""
+    return templates.TemplateResponse(
+        "auth/open_lessons.html",
+        {
+            "request": request,
+            "token": (token or "").strip(),
+            "error": error,
+        },
+    )
+
+
+@router.post("/open-lessons")
+async def open_lessons(
+    token: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await auth_service.consume_login_token(
+        db,
+        (token or "").strip(),
+        ttl_minutes=auth_service.EMAIL_LOGIN_TOKEN_MINUTES,
+    )
+    if not user:
+        return RedirectResponse("/auth/open-lessons?error=expired", status_code=303)
+
+    session_token = await auth_service.create_session(db, user)
+    resp = RedirectResponse("/cabinet/lessons", status_code=303)
     _set_session_cookie(resp, session_token)
     return resp
 

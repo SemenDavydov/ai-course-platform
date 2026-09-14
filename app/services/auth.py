@@ -23,6 +23,8 @@ EMAIL_VERIFY_EXPIRY_HOURS = 24
 PASSWORD_RESET_EXPIRY_HOURS = 1
 PASSWORD_SETUP_EXPIRY_DAYS = 7
 LOGIN_TOKEN_EXPIRY_MINUTES = 15
+# Письмо об оплате открывают не сразу и часто из почтового приложения.
+EMAIL_LOGIN_TOKEN_MINUTES = 60 * 24
 
 # Jinja2 env для email-шаблонов (синхронный, для Celery-задач)
 _jinja_env = Environment(
@@ -349,7 +351,12 @@ async def create_login_token(db: AsyncSession, user: User) -> str:
     return token
 
 
-async def consume_login_token(db: AsyncSession, token: str) -> Optional[User]:
+async def consume_login_token(
+    db: AsyncSession,
+    token: str,
+    *,
+    ttl_minutes: int = LOGIN_TOKEN_EXPIRY_MINUTES,
+) -> Optional[User]:
     """
     Меняет одноразовый токен на пользователя и гасит токен.
     None, если токен не найден, просрочен или пользователь заблокирован.
@@ -362,7 +369,7 @@ async def consume_login_token(db: AsyncSession, token: str) -> Optional[User]:
     sent_at = user.login_token_sent_at
     expired = True
     if sent_at:
-        expires = sent_at.replace(tzinfo=timezone.utc) + timedelta(minutes=LOGIN_TOKEN_EXPIRY_MINUTES)
+        expires = sent_at.replace(tzinfo=timezone.utc) + timedelta(minutes=ttl_minutes)
         expired = datetime.now(timezone.utc) > expires
 
     # Токен одноразовый: гасим независимо от того, годен он или уже протух

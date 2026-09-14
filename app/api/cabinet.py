@@ -78,7 +78,7 @@ async def lessons_list(
     try:
         user = await get_current_user(request, db)
     except HTTPException:
-        return RedirectResponse("/", status_code=302)
+        return RedirectResponse("/auth/open-lessons", status_code=302)
 
     if await _user_needs_paywall(db, user):
         course, tariffs = await _load_primary_tariffs(db)
@@ -155,7 +155,7 @@ async def lesson_player(
     try:
         user = await get_current_user(request, db)
     except HTTPException:
-        return RedirectResponse("/", status_code=302)
+        return RedirectResponse("/auth/open-lessons", status_code=302)
 
     if await _user_needs_paywall(db, user):
         course, tariffs = await _load_primary_tariffs(db)
@@ -237,7 +237,7 @@ async def profile_page(
     try:
         user = await get_current_user(request, db)
     except HTTPException:
-        return RedirectResponse("/", status_code=302)
+        return RedirectResponse("/auth/open-lessons", status_code=302)
 
     accesses = await list_user_accesses(db, user.id)
 
@@ -259,7 +259,7 @@ async def update_profile(
     try:
         user = await get_current_user(request, db)
     except HTTPException:
-        return RedirectResponse("/", status_code=302)
+        return RedirectResponse("/auth/open-lessons", status_code=302)
 
     user.name = name.strip() or None
     await db.commit()
@@ -275,7 +275,7 @@ async def upload_avatar(
     try:
         user = await get_current_user(request, db)
     except HTTPException:
-        return RedirectResponse("/", status_code=302)
+        return RedirectResponse("/auth/open-lessons", status_code=302)
 
     content_type = avatar.content_type or ""
     if content_type not in ALLOWED_MIME:
@@ -312,7 +312,7 @@ async def change_password(
     try:
         user = await get_current_user(request, db)
     except HTTPException:
-        return RedirectResponse("/", status_code=302)
+        return RedirectResponse("/auth/open-lessons", status_code=302)
 
     if new_password != confirm_password:
         return RedirectResponse("/cabinet/profile?error=password_mismatch", status_code=303)

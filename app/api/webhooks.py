@@ -75,7 +75,13 @@ def _render_email(template_name: str, **ctx) -> str:
     return jinja.get_template(template_name).render(**ctx)
 
 
-async def _notify_purchase(user: User, payment: Payment, course: Course | None, tariff_slug: str):
+async def _notify_purchase(
+    user: User,
+    payment: Payment,
+    course: Course | None,
+    tariff_slug: str,
+    db: AsyncSession,
+):
     from app.tasks import enqueue_email
 
     course_title = course.title if course else "курс"
@@ -87,7 +93,10 @@ async def _notify_purchase(user: User, payment: Payment, course: Course | None, 
         chat_invite_url = settings.VIP_CHAT_INVITE_URL or None
     else:
         chat_invite_url = None
-    cabinet_url = f"{settings.SITE_URL}/cabinet/lessons"
+    from app.services.auth import create_login_token
+
+    login_token = await create_login_token(db, user)
+    cabinet_url = f"{settings.SITE_URL}/auth/open-lessons?token={login_token}"
 
     use_telegram = (
         settings.BOT_ENABLED
@@ -288,7 +297,7 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
         )
 
         try:
-            await _notify_purchase(user, payment, course, tariff_slug)
+            await _notify_purchase(user, payment, course, tariff_slug, db)
         except Exception as e:
             logger.error("Failed to send payment notification: %s", e)
 

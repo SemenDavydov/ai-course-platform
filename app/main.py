@@ -3,7 +3,7 @@ from fastapi import FastAPI, Depends
 from fastapi import Request
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.responses import HTMLResponse, FileResponse
+from starlette.responses import HTMLResponse, FileResponse, Response
 from sqlalchemy import select
 
 from app.api import webhooks, admin, auth, cabinet, webinar_track
@@ -34,6 +34,14 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+
+@app.middleware("http")
+async def block_legacy_course_videos(request: Request, call_next):
+    # Старые MP4 лендинга (~30–40 МБ каждый) с телефона забивают канал VPS.
+    if request.url.path.startswith("/static/videos/"):
+        return Response(status_code=404)
+    return await call_next(request)
 
 # Подключаем роутеры
 app.include_router(webhooks.router)

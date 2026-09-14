@@ -132,7 +132,7 @@ async def test_lessons_requires_auth(client: AsyncClient):
     """/cabinet/lessons без cookie → редирект на /."""
     response = await client.get("/cabinet/lessons", follow_redirects=False)
     assert response.status_code == 302
-    assert response.headers["location"] == "/"
+    assert response.headers["location"] == "/auth/open-lessons"
 
 
 async def test_lessons_requires_access(client: AsyncClient, no_access_cookie: str):
