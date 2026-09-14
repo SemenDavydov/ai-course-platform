@@ -51,7 +51,7 @@
         <p style="margin:0 0 12px; font-size:13px;">Поддержка куратора — 6 месяцев. Присоединяйтесь:</p>
         {% endif %}
         <p style="text-align:center; margin:0;">
-          <a class="btn btn-secondary" href="{{ chat_invite_url }}">Войти в канал</a>
+          <a class="btn btn-secondary" href="{{ chat_invite_url }}">{% if tariff_slug == 'vip' %}Войти в VIP-канал{% else %}Войти в чат{% endif %}</a>
         </p>
       </div>
       {% elif tariff_slug == 'vip' %}

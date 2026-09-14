@@ -46,6 +46,16 @@
     Тариф:
     <span class="font-medium uppercase text-[var(--rose)]">{{ access_map[course.id].tariff_slug }}</span>
   </p>
+  {% set invite_url = chat_invite_url_for(access_map[course.id].tariff_slug) %}
+  {% if invite_url and not course.is_legacy %}
+  <a href="{{ invite_url }}"
+     target="_blank"
+     rel="noopener noreferrer"
+     class="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-[var(--cyan)] hover:opacity-80 transition">
+    <i class="fab fa-telegram" aria-hidden="true"></i>
+    {{ chat_invite_label_for(access_map[course.id].tariff_slug) }}
+  </a>
+  {% endif %}
   {% endif %}
 </div>
 
@@ -59,6 +69,17 @@
   <p class="mt-4 text-sm text-[var(--mist)] leading-relaxed">
     Уроки пока закрыты. Видео и материалы откроются {{ training_start_label }}.
   </p>
+  {% set access = access_map.get(course.id) if access_map is defined else none %}
+  {% set invite_url = chat_invite_url_for(access.tariff_slug if access else none) %}
+  {% if invite_url and not course.is_legacy %}
+  <a href="{{ invite_url }}"
+     target="_blank"
+     rel="noopener noreferrer"
+     class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[var(--cyan)] hover:opacity-80 transition">
+    <i class="fab fa-telegram" aria-hidden="true"></i>
+    {{ chat_invite_label_for(access.tariff_slug if access else none) }}
+  </a>
+  {% endif %}
   <p class="meta-disclaimer">
     Meta Platforms Inc. признана экстремистской, её продукты запрещены на территории РФ
   </p>

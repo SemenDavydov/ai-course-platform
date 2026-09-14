@@ -1028,10 +1028,22 @@
             <div class="mt-6">
                 {% include "partials/course_countdown.html" %}
             </div>
-            <a href="/cabinet"
-               class="btn-accent mt-6 font-semibold text-base px-8 py-3.5 rounded-3xl inline-flex items-center justify-center">
-                Перейти в кабинет
-            </a>
+            {% set invite_url = chat_invite_url_for(story_tariff_slug) %}
+            <div class="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
+                <a href="/cabinet"
+                   class="btn-accent font-semibold text-base px-8 py-3.5 rounded-3xl inline-flex items-center justify-center">
+                    Перейти в кабинет
+                </a>
+                {% if invite_url %}
+                <a href="{{ invite_url }}"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="btn-ghost font-semibold text-base px-8 py-3.5 rounded-3xl inline-flex items-center justify-center gap-2">
+                    <i class="fab fa-telegram" aria-hidden="true"></i>
+                    {{ chat_invite_label_for(story_tariff_slug) }}
+                </a>
+                {% endif %}
+            </div>
         </article>
     </div>
 </section>
@@ -1247,9 +1259,9 @@
                 Готовы воплотить свою историю?
             </h2>
             <p class="mt-4 text-[var(--mist)] text-lg sm:text-xl font-medium max-w-xl mx-auto">
-                Выберите тариф и начните с нуля, уже сегодня.
+                Выберите тариф и начните с нуля, уже 21.09.2026.
             </p>
-            <p class="mt-3 text-[var(--mist)] text-sm">Единоразовая оплата. Доступ к материалам без ограничения по времени.</p>
+            <p class="mt-3 text-[var(--mist)] text-sm">Единоразовая оплата.</p>
             <div class="mt-8">
                 {% include "partials/course_countdown.html" %}
             </div>
@@ -1422,7 +1434,7 @@
                 </button>
                 <div class="faq-content">
                     <div class="faq-content-inner">
-                        <p class="text-[var(--mist)] text-sm leading-relaxed pb-5">Доступ к материалам бессрочный в рамках существования платформы. Оплата один раз.</p>
+                        <p class="text-[var(--mist)] text-sm leading-relaxed pb-5">Доступ к материалам предоставляется в зависимости от выбранного тарифа: PRO - в течение 3-ч месяцев после обучения , VIP - бессрочно. Оплата один раз.</p>
                     </div>
                 </div>
             </div>
@@ -1435,7 +1447,7 @@
                 </button>
                 <div class="faq-content">
                     <div class="faq-content-inner">
-                        <p class="text-[var(--mist)] text-sm leading-relaxed pb-5">Через личный кабинет на сайте. После оплаты открывается доступ к видеоурокам и материалам. Учитесь в удобном темпе.</p>
+                        <p class="text-[var(--mist)] text-sm leading-relaxed pb-5">Через личный кабинет на сайте или telegram бот. После оплаты открывается доступ к модулям курса, старт обучения с 21.09.2026. Учитесь в удобном темпе.</p>
                     </div>
                 </div>
             </div>
@@ -1448,7 +1460,7 @@
                 </button>
                 <div class="faq-content">
                     <div class="faq-content-inner">
-                        <p class="text-[var(--mist)] text-sm leading-relaxed pb-5">Банковской картой на сайте (Visa, Mastercard, Мир) через ЮKassa. После успешной оплаты доступ открывается сразу.</p>
+                        <p class="text-[var(--mist)] text-sm leading-relaxed pb-5">Банковской картой на сайте (Visa, Mastercard, Мир) через ЮKassa, Оформив рассрочку на любой тариф. После успешной оплаты доступ открывается сразу, старт обучения 21.09.2026.</p>
                     </div>
                 </div>
             </div>
