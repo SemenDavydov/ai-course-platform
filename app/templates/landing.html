@@ -452,6 +452,14 @@
             border-color: rgba(74, 158, 171, 0.45);
             box-shadow: 0 6px 20px -6px rgba(74, 158, 171, 0.45);
         }
+        .meta-disclaimer {
+            margin-top: 0.85rem;
+            font-size: 0.7rem;
+            line-height: 1.45;
+            color: var(--mist);
+            opacity: 0.75;
+            max-width: 36rem;
+        }
 
         /* 3D Coverflow gallery */
         .coverflow {
@@ -1022,6 +1030,11 @@
                     </a>
                     {% endif %}
                 </div>
+                {% if instagram_url %}
+                <p class="meta-disclaimer">
+                    Meta Platforms Inc. признана экстремистской, её продукты запрещены на территории РФ
+                </p>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -1167,6 +1180,9 @@
                     </figure>
                 </div>
             </div>
+            <p class="meta-disclaimer mt-6 mx-auto text-center">
+                Meta Platforms Inc. признана экстремистской, её продукты запрещены на территории РФ
+            </p>
         </div>
 
         <div class="reveal reveal-delay-2 reach-cta text-center sm:text-left">
@@ -1453,6 +1469,9 @@
         <div class="border-t section-rule pt-8 text-xs text-center opacity-70">
             <p>© 2026 Давыдова Елизавета Александровна. ИНН: 244403464589. Самозанятый.</p>
             <p class="mt-1">Все права защищены. См. <a href="/offer" class="underline hover:text-[var(--pearl)]">оферту</a>.</p>
+            <p class="meta-disclaimer mx-auto mt-3 text-center opacity-100">
+                Meta Platforms Inc. признана экстремистской, её продукты запрещены на территории РФ
+            </p>
         </div>
     </div>
 </footer>
