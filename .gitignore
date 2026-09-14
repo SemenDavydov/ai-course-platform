@@ -9,3 +9,8 @@ uploads/
 *.db
 *.log
 _extract_old.py
+
+# Large course videos — never ship via git; landing uses Kinescope embeds
+app/static/videos/*.mp4
+app/static/videos/*.webm
+app/static/videos/*.mov
