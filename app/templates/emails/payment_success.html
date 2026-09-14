@@ -28,7 +28,14 @@
       <p>Здравствуйте!</p>
       <p>Ваш платёж за курс <strong>«{{ course_title }}»</strong>
         {% if tariff_name %}(тариф <strong>{{ tariff_name }}</strong>){% endif %}
-        успешно обработан. Доступ к урокам уже открыт и действует бессрочно.</p>
+        успешно обработан.
+        {% if tariff_slug == 'pro' %}
+        Доступ к материалам открыт на 3 месяца после окончания обучения.
+        {% else %}
+        Доступ к урокам уже открыт и действует бессрочно.
+        {% endif %}
+      </p>
+      <p><strong>Старт обучения 21.09.2026 в 14:00 МСК</strong></p>
       <div class="summary">
         <p><strong>Сумма:</strong> {{ amount }}₽</p>
         <p><strong>Дата:</strong> {{ paid_at }}</p>
@@ -53,9 +60,8 @@
       </div>
       {% endif %}
       <p style="text-align:center;">
-        <a class="btn" href="{{ cabinet_url }}">Перейти к урокам</a>
+        <a class="btn" href="{{ cabinet_url }}">В личный кабинет</a>
       </p>
-      <p style="font-size:13px; color:#78716c;">Чек отправлен в ФНС автоматически. Если у вас возникли вопросы — ответьте на это письмо.</p>
     </div>
     <div class="footer">
       © 2026 AI STORY · Davydova AI

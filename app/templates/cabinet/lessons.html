@@ -4,6 +4,20 @@
 {% block page_title %}Мои уроки{% endblock %}
 {% set active_page = 'lessons' %}
 
+{% block extra_styles %}
+.meta-disclaimer {
+  margin-top: 0.75rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--mist);
+  opacity: 0.8;
+  max-width: 40rem;
+}
+.lesson-card-locked {
+  opacity: 0.82;
+}
+{% endblock %}
+
 {% block content %}
 {% if not course %}
   <div class="text-center py-20 text-[var(--mist)]">
@@ -35,6 +49,25 @@
   {% endif %}
 </div>
 
+{% if lessons_locked %}
+<div class="cabinet-card p-5 sm:p-6 mb-6">
+  <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--rose)]">Старт обучения</p>
+  <h3 class="mt-1 text-lg sm:text-xl font-display font-semibold text-[var(--pearl)]">
+    Старт обучения {{ training_start_label }}
+  </h3>
+  <p class="mt-2 text-sm text-[var(--mist)] leading-relaxed">
+    Уроки пока закрыты. Видео и материалы откроются в день старта — сейчас на каждом уроке стоит замок.
+  </p>
+  <p class="meta-disclaimer">
+    Meta Platforms Inc. признана экстремистской, её продукты запрещены на территории РФ
+  </p>
+</div>
+{% else %}
+<p class="meta-disclaimer mb-6">
+  Meta Platforms Inc. признана экстремистской, её продукты запрещены на территории РФ
+</p>
+{% endif %}
+
 {% if modules_with_progress %}
   {% for block in modules_with_progress %}
   <section class="mb-10">
@@ -47,6 +80,21 @@
         {% set lesson = item.lesson %}
         {% set pct = item.percent_watched %}
         {% set done = item.is_completed %}
+        {% if lessons_locked %}
+        <div class="lesson-card-locked rounded-3xl border border-[var(--glass-border)] bg-[var(--card-bg)] overflow-hidden flex flex-col cursor-not-allowed"
+             aria-disabled="true">
+          <div class="bg-[var(--dusk)] px-4 py-3 flex items-center justify-between border-b border-[var(--glass-border)]">
+            <span class="text-[var(--mist)] text-xs font-medium">Урок {{ loop.index }}</span>
+            <span class="text-[var(--rose)] text-xs font-semibold" title="Закрыто до старта"><i class="fa-solid fa-lock"></i></span>
+          </div>
+          <div class="p-4 flex-1 flex flex-col">
+            <h4 class="font-semibold text-[var(--pearl)] text-sm leading-snug">{{ lesson.title }}</h4>
+            <p class="mt-auto pt-4 text-xs text-[var(--mist)]">
+              <i class="fa-solid fa-lock text-[var(--rose)] mr-1"></i>Откроется {{ training_start_label }}
+            </p>
+          </div>
+        </div>
+        {% else %}
         <a href="/cabinet/lessons/{{ lesson.id }}"
            class="group rounded-3xl border border-[var(--glass-border)] bg-[var(--card-bg)] backdrop-blur-sm hover:border-[rgba(232,164,180,0.4)] hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col">
           <div class="bg-[var(--dusk)] px-4 py-3 flex items-center justify-between border-b border-[var(--glass-border)]">
@@ -69,6 +117,7 @@
             </div>
           </div>
         </a>
+        {% endif %}
       {% endfor %}
     </div>
   </section>
@@ -85,6 +134,21 @@
         {% set lesson = item.lesson %}
         {% set pct = item.percent_watched %}
         {% set done = item.is_completed %}
+        {% if lessons_locked %}
+        <div class="lesson-card-locked rounded-3xl border border-[var(--glass-border)] bg-[var(--card-bg)] overflow-hidden flex flex-col cursor-not-allowed"
+             aria-disabled="true">
+          <div class="bg-[var(--dusk)] px-4 py-3 flex items-center justify-between border-b border-[var(--glass-border)]">
+            <span class="text-[var(--mist)] text-xs">Урок {{ lesson.order }}</span>
+            <span class="text-[var(--rose)] text-xs"><i class="fa-solid fa-lock"></i></span>
+          </div>
+          <div class="p-4">
+            <h4 class="font-semibold text-sm text-[var(--pearl)]">{{ lesson.title }}</h4>
+            <p class="mt-3 text-xs text-[var(--mist)]">
+              <i class="fa-solid fa-lock text-[var(--rose)] mr-1"></i>Откроется {{ training_start_label }}
+            </p>
+          </div>
+        </div>
+        {% else %}
         <a href="/cabinet/lessons/{{ lesson.id }}"
            class="group rounded-3xl border border-[var(--glass-border)] bg-[var(--card-bg)] hover:border-[rgba(126,202,212,0.35)] transition-all overflow-hidden flex flex-col">
           <div class="bg-[var(--dusk)] px-4 py-3 flex items-center justify-between border-b border-[var(--glass-border)]">
@@ -98,6 +162,7 @@
             </div>
           </div>
         </a>
+        {% endif %}
       {% endfor %}
     </div>
   </section>

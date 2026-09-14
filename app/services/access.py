@@ -1,7 +1,7 @@
 """Per-course access entitlements."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +9,21 @@ from sqlalchemy.orm import selectinload
 
 from app.models.course import Course, UserCourseAccess
 from app.models.user import User
+
+# Moscow is UTC+3 year-round. Unlock at 14:00 MSK on the training start day.
+MSK = timezone(timedelta(hours=3))
+TRAINING_START = datetime(2026, 9, 21, 14, 0, tzinfo=MSK)
+TRAINING_START_LABEL = "21.09.2026 в 14:00 МСК"
+
+
+def course_lessons_locked(course: Course | None, *, now: datetime | None = None) -> bool:
+    """Новый курс закрыт до старта обучения. Старый (legacy) курс не трогаем."""
+    if course is None or course.is_legacy:
+        return False
+    current = now or datetime.now(MSK)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=MSK)
+    return current.astimezone(MSK) < TRAINING_START
 
 
 async def get_access(

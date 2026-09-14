@@ -12,9 +12,9 @@ from app.api.admin import get_current_admin
 from app.database import get_db
 from app.models.user import User
 from app.models.material import Material
-from app.models.course import Lesson
+from app.models.course import Course, Lesson
 from app.services.auth import get_optional_user
-from app.services.access import user_has_course
+from app.services.access import course_lessons_locked, user_has_course
 from app.config import settings
 
 router = APIRouter(prefix="/api/v1/materials", tags=["materials"])
@@ -58,6 +58,10 @@ async def download_material(
     lesson = await db.get(Lesson, material.lesson_id)
     if lesson and not await user_has_course(db, user, lesson.course_id):
         raise HTTPException(status_code=403, detail="Access denied")
+    if lesson:
+        course = await db.get(Course, lesson.course_id)
+        if course_lessons_locked(course):
+            raise HTTPException(status_code=403, detail="Lessons open on 21.09.2026 at 14:00 MSK")
 
     file_path = os.path.join("uploads", "materials", material.file_name)
     if not os.path.exists(file_path):

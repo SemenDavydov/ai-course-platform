@@ -19,6 +19,8 @@ from app.models.lesson_progress import LessonProgress
 from app.models.material import Material
 from app.services.auth import get_current_user
 from app.services.access import (
+    TRAINING_START_LABEL,
+    course_lessons_locked,
     list_accessible_courses,
     list_user_accesses,
     user_has_course,
@@ -134,6 +136,7 @@ async def lessons_list(
 
     accesses = await list_user_accesses(db, user.id)
     access_map = {a.course_id: a for a in accesses}
+    lessons_locked = course_lessons_locked(course)
 
     return templates.TemplateResponse("cabinet/lessons.html", {
         "request": request,
@@ -143,6 +146,8 @@ async def lessons_list(
         "modules_with_progress": modules_with_progress,
         "orphan_lessons": orphan_lessons,
         "access_map": access_map,
+        "lessons_locked": lessons_locked,
+        "training_start_label": TRAINING_START_LABEL,
     })
 
 
@@ -173,6 +178,14 @@ async def lesson_player(
     if not await user_has_course(db, user, lesson.course_id):
         course, tariffs = await _load_primary_tariffs(db)
         return _render_lessons_paywall(request, user, course, tariffs)
+
+    course_result = await db.execute(select(Course).where(Course.id == lesson.course_id))
+    course = course_result.scalar_one_or_none()
+    if course_lessons_locked(course):
+        return RedirectResponse(
+            f"/cabinet/lessons?course_id={lesson.course_id}",
+            status_code=302,
+        )
 
     materials_result = await db.execute(
         select(Material).where(Material.lesson_id == lesson.id)
@@ -206,8 +219,6 @@ async def lesson_player(
         parts[4] = new_query
         embed_url = urllib.parse.urlunparse(parts)
 
-    course_result = await db.execute(select(Course).where(Course.id == lesson.course_id))
-    course = course_result.scalar_one_or_none()
     all_lessons_result = await db.execute(
         select(Lesson).where(Lesson.course_id == lesson.course_id).order_by(Lesson.order)
     )

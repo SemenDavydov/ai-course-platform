@@ -883,7 +883,7 @@
             <a href="#viral" class="nav-link">Результат</a>
             <a href="#universe" class="nav-link">Вселенная</a>
             <a href="#reach" class="nav-link">Охваты</a>
-            <a href="#tariffs" class="nav-link">Тарифы</a>
+            <a href="#{% if has_story_access %}purchased{% else %}tariffs{% endif %}" class="nav-link">{% if has_story_access %}Доступ{% else %}Тарифы{% endif %}</a>
             <a href="#program" class="nav-link">Программа</a>
             <a href="#faq" class="nav-link">FAQ</a>
             {% if telegram_bot_username %}
@@ -946,7 +946,7 @@
         <a href="#viral" class="drawer-link" onclick="toggleMobileDrawer(false)">Результат</a>
         <a href="#universe" class="drawer-link" onclick="toggleMobileDrawer(false)">Вселенная</a>
         <a href="#reach" class="drawer-link" onclick="toggleMobileDrawer(false)">Охваты</a>
-        <a href="#tariffs" class="drawer-link" onclick="toggleMobileDrawer(false)">Тарифы</a>
+        <a href="#{% if has_story_access %}purchased{% else %}tariffs{% endif %}" class="drawer-link" onclick="toggleMobileDrawer(false)">{% if has_story_access %}Доступ{% else %}Тарифы{% endif %}</a>
         <a href="#program" class="drawer-link" onclick="toggleMobileDrawer(false)">Программа</a>
         <a href="#faq" class="drawer-link" onclick="toggleMobileDrawer(false)">FAQ</a>
     </nav>
@@ -1013,6 +1013,27 @@
         </div>
     </div>
 </section>
+
+{% if has_story_access %}
+<section id="purchased" class="py-10 sm:py-14 border-t section-rule">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6">
+        <article class="tariff-card rounded-3xl p-7 sm:p-8 text-center">
+            <p class="text-[var(--rose)] font-semibold text-sm tracking-widest uppercase mb-3">Доступ открыт</p>
+            <h2 class="font-display text-2xl sm:text-3xl text-[var(--pearl)] font-semibold leading-tight">
+                Вы успешно приобрели курс
+            </h2>
+            <p class="mt-3 text-[var(--mist)] text-base sm:text-lg">
+                Тариф <span class="text-[var(--pearl)] font-semibold uppercase">{{ story_tariff_slug or 'pro' }}</span>
+            </p>
+            <p class="mt-2 text-[var(--mist)] text-sm">Старт обучения 21.09.2026 в 14:00 МСК</p>
+            <a href="/cabinet"
+               class="btn-accent mt-6 font-semibold text-base px-8 py-3.5 rounded-3xl inline-flex items-center justify-center">
+                Перейти в кабинет
+            </a>
+        </article>
+    </div>
+</section>
+{% endif %}
 
 <!-- ОБ АВТОРЕ -->
 <section id="about" class="py-14 sm:py-16 border-t section-rule">
@@ -1200,18 +1221,23 @@
                 Это не случайное везение. Это моя реальная система, которая принесла такие результаты, за столь короткое время.
             </p>
             <p class="mt-3 text-[var(--mist)] text-sm sm:text-base leading-relaxed max-w-2xl mx-auto sm:mx-0">
+                {% if has_story_access %}
+                На курсе вы повторите тот же путь под себя: от идеи до роликов, которые набирают охваты.
+                {% else %}
                 На курсе вы повторите тот же путь под себя: от идеи до роликов, которые набирают охваты.
                 Выберите тариф и начните собирать свою историю уже сегодня.
+                {% endif %}
             </p>
-            <a href="#tariffs"
+            <a href="{% if has_story_access %}/cabinet{% else %}#tariffs{% endif %}"
                class="btn-accent mt-5 font-semibold text-sm sm:text-base px-6 py-3 rounded-3xl inline-flex items-center justify-center">
-                Хочу такой же рост
+                {% if has_story_access %}Перейти в кабинет{% else %}Хочу такой же рост{% endif %}
             </a>
         </div>
     </div>
 </section>
 
 <!-- ТАРИФЫ -->
+{% if not has_story_access %}
 <section id="tariffs" class="py-20 sm:py-24 border-t section-rule">
     <div class="max-w-5xl mx-auto px-4 sm:px-6">
         <div class="reveal text-center mb-14">
@@ -1224,15 +1250,6 @@
             <p class="mt-3 text-[var(--mist)] text-sm">Единоразовая оплата. Доступ к материалам без ограничения по времени.</p>
         </div>
 
-        {% if has_story_access %}
-        <div class="reveal reveal-delay-1 max-w-md mx-auto text-center">
-            <p class="text-[var(--mist)] mb-6">У вас уже есть доступ к курсу AI STORY.</p>
-            <a href="/cabinet"
-               class="btn-accent font-semibold text-base px-8 py-3.5 rounded-3xl inline-flex items-center justify-center">
-                Перейти в кабинет
-            </a>
-        </div>
-        {% else %}
         <div class="reveal reveal-delay-1 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {% for t in tariffs %}
             <article class="tariff-card rounded-3xl p-7 sm:p-8 flex flex-col {% if t.slug == 'vip' %}is-vip{% endif %}">
@@ -1276,7 +1293,6 @@
             <p class="text-[var(--mist)] text-sm md:col-span-2 text-center">Тарифы скоро появятся.</p>
             {% endfor %}
         </div>
-        {% endif %}
 
         <div class="reveal reveal-delay-2 mt-8 max-w-4xl mx-auto">
             <article class="tariff-card rounded-3xl p-7 sm:p-8 text-center">
@@ -1296,6 +1312,7 @@
         </div>
     </div>
 </section>
+{% endif %}
 
 <!-- ПРОГРАММА -->
 <section id="program" class="py-20 sm:py-24 border-t section-rule">
@@ -1462,7 +1479,7 @@
                     <li><a href="#viral" class="hover:text-[var(--pearl)] transition-colors">Результат</a></li>
                     <li><a href="#universe" class="hover:text-[var(--pearl)] transition-colors">Вселенная</a></li>
                     <li><a href="#reach" class="hover:text-[var(--pearl)] transition-colors">Охваты</a></li>
-                    <li><a href="#tariffs" class="hover:text-[var(--pearl)] transition-colors">Тарифы</a></li>
+                    <li><a href="{% if has_story_access %}#purchased{% else %}#tariffs{% endif %}" class="hover:text-[var(--pearl)] transition-colors">{% if has_story_access %}Доступ{% else %}Тарифы{% endif %}</a></li>
                     <li><a href="#program" class="hover:text-[var(--pearl)] transition-colors">Программа</a></li>
                     <li><a href="#faq" class="hover:text-[var(--pearl)] transition-colors">FAQ</a></li>
                 </ul>

@@ -62,17 +62,22 @@ async def root(
 ):
     user_json = "null"
     has_story_access = False
+    story_tariff_slug = ""
     if current_user:
         accesses = await list_user_accesses(db, current_user.id)
-        has_story_access = any(
-            a.course and a.course.slug == "ai-story" for a in accesses
+        story_access = next(
+            (a for a in accesses if a.course and a.course.slug == "ai-story"),
+            None,
         )
+        has_story_access = story_access is not None
+        story_tariff_slug = (story_access.tariff_slug if story_access else "") or ""
         user_json = json.dumps({
             "id": current_user.id,
             "email": current_user.email,
             "email_verified": current_user.email_verified,
             "has_access": current_user.has_access,
             "has_story_access": has_story_access,
+            "story_tariff_slug": story_tariff_slug,
             "accepted_offer": current_user.accepted_offer,
         })
 
@@ -103,6 +108,7 @@ async def root(
         "modules": modules,
         "tariffs": tariffs,
         "has_story_access": has_story_access,
+        "story_tariff_slug": story_tariff_slug,
     })
 
 @app.get("/robots.txt", include_in_schema=False)
