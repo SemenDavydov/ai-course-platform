@@ -12,9 +12,11 @@ from yookassa import Payment as YooPayment
 from app.database import get_db
 from app.models.user import User
 from app.models.payment import Payment
+from app.models.webhook_event import WebhookEvent
 from app.models.course import Course, Tariff
 from app.services.payment import PaymentService
 from app.services.access import grant_course_access, get_primary_course
+from app.services.proonline import verify_webhook_signature
 from app.bot.bot import bot
 from app.config import settings
 
@@ -314,6 +316,160 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
     except Exception as e:
         logger.error("Error processing webhook: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/proonline")
+async def proonline_webhook(request: Request, db: AsyncSession = Depends(get_db)):
+    """
+    Входящий webhook ProOnline: payment.status_changed.
+    Доступ выдаём на status=paid (идемпотентно по event_id).
+    transferred — только догоняем доступ, если paid пропустили.
+    """
+    raw = await request.body()
+    header_map = {k: v for k, v in request.headers.items()}
+    secret = (settings.PROONLINE_WEBHOOK_SECRET or "").strip()
+    if not secret:
+        logger.error("ProOnline webhook rejected: PROONLINE_WEBHOOK_SECRET empty")
+        raise HTTPException(status_code=503, detail="Webhook not configured")
+
+    if not verify_webhook_signature(body=raw, headers=header_map, secret=secret):
+        logger.warning("ProOnline webhook: invalid signature")
+        raise HTTPException(status_code=403, detail="Invalid signature")
+
+    try:
+        body = json.loads(raw.decode("utf-8"))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    event = body.get("event")
+    event_id = body.get("event_id")
+    status = body.get("status")
+    external_order_id = body.get("external_order_id")
+
+    logger.info(
+        "ProOnline webhook: event=%s status=%s order=%s event_id=%s",
+        event,
+        status,
+        external_order_id,
+        event_id,
+    )
+
+    if event != "payment.status_changed":
+        return {"status": "ok", "message": "Event ignored"}
+
+    if not event_id or not external_order_id:
+        raise HTTPException(status_code=400, detail="Missing event_id or external_order_id")
+
+    # Идемпотентность: одно event_id — один раз
+    existing_event = await db.execute(
+        select(WebhookEvent).where(
+            WebhookEvent.provider == "proonline",
+            WebhookEvent.event_id == event_id,
+        )
+    )
+    if existing_event.scalar_one_or_none():
+        logger.info("ProOnline event %s already processed", event_id)
+        return {"status": "ok", "message": "Already processed"}
+
+    db.add(
+        WebhookEvent(
+            provider="proonline",
+            event_id=event_id,
+            payload=raw.decode("utf-8", errors="replace")[:8000],
+        )
+    )
+
+    payment_result = await db.execute(
+        select(Payment).where(Payment.payment_id == external_order_id)
+    )
+    payment = payment_result.scalar_one_or_none()
+    if not payment:
+        logger.error("ProOnline order not found: %s", external_order_id)
+        await db.commit()
+        return {"status": "ok", "message": "Unknown order ignored"}
+
+    if status == "failed":
+        if payment.status == "pending":
+            payment.status = "cancelled"
+            await db.commit()
+        else:
+            await db.commit()
+        return {"status": "ok", "message": "Payment failed recorded"}
+
+    if status == "refunded":
+        # Не отзываем доступ автоматически — только фиксируем статус платежа.
+        if payment.status == "succeeded":
+            payment.status = "refunded"
+        await db.commit()
+        return {"status": "ok", "message": "Refund recorded"}
+
+    if status not in ("paid", "transferred"):
+        await db.commit()
+        return {"status": "ok", "message": "Status ignored"}
+
+    # transferred без предшествующего paid — тоже открываем доступ один раз
+    if payment.status == "succeeded":
+        await db.commit()
+        return {"status": "ok", "message": "Already succeeded"}
+
+    user_result = await db.execute(select(User).where(User.id == payment.user_id))
+    user = user_result.scalar_one_or_none()
+    if not user:
+        logger.error("ProOnline user missing for payment %s", payment.id)
+        await db.commit()
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Сверяем сумму, если CRM прислала amount
+    remote_amount = body.get("amount")
+    if remote_amount is not None:
+        try:
+            if abs(float(remote_amount) - float(payment.amount)) > AMOUNT_TOLERANCE:
+                logger.error(
+                    "ProOnline amount mismatch order=%s db=%s remote=%s",
+                    external_order_id,
+                    payment.amount,
+                    remote_amount,
+                )
+                await db.rollback()
+                raise HTTPException(status_code=400, detail="Amount mismatch")
+        except (TypeError, ValueError):
+            pass
+
+    payment.status = "succeeded"
+    payment.paid_at = datetime.utcnow()
+    payment.provider = payment.provider or "proonline"
+
+    course = None
+    if payment.course_id:
+        c_result = await db.execute(select(Course).where(Course.id == payment.course_id))
+        course = c_result.scalar_one_or_none()
+    if course is None:
+        course = await get_primary_course(db)
+        if course and not payment.course_id:
+            payment.course_id = course.id
+
+    tariff_slug = payment.tariff_slug or "pro"
+    if payment.course_id:
+        await grant_course_access(db, user, payment.course_id, tariff_slug)
+    else:
+        user.has_access = True
+        user.access_granted_at = datetime.utcnow()
+
+    await db.commit()
+    logger.info(
+        "ProOnline access granted user=%s order=%s tariff=%s status=%s",
+        user.id,
+        external_order_id,
+        tariff_slug,
+        status,
+    )
+
+    try:
+        await _notify_purchase(user, payment, course, tariff_slug, db)
+    except Exception as e:
+        logger.error("ProOnline notify failed: %s", e)
+
+    return {"status": "ok", "message": "Payment processed"}
 
 
 @router.post("/test-payment")

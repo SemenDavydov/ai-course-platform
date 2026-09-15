@@ -1317,14 +1317,21 @@
                     Рассрочка на любой тариф
                 </h3>
                 <p class="mt-3 text-[var(--mist)] text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
-                    Можно оформить любой тариф в рассрочку — без полной оплаты сразу.
+                    Оформите Pro или VIP в рассрочку через партнёра ProOnline — без полной оплаты сразу.
+                    После одобрения доступ откроется автоматически.
                 </p>
-                <a href="https://crm.procourse.online/l/aistory/34511"
-                   target="_blank"
-                   rel="noopener noreferrer"
-                   class="btn-accent mt-6 font-semibold text-base px-8 py-3.5 rounded-3xl inline-flex items-center justify-center">
-                    Перейти к оформлению
-                </a>
+                <div class="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+                    <button type="button"
+                            onclick="installmentOrAuth('pro')"
+                            class="btn-accent font-semibold text-base px-8 py-3.5 rounded-3xl inline-flex items-center justify-center">
+                        Рассрочка Pro
+                    </button>
+                    <button type="button"
+                            onclick="installmentOrAuth('vip')"
+                            class="btn-ghost font-semibold text-base px-8 py-3.5 rounded-3xl inline-flex items-center justify-center">
+                        Рассрочка VIP
+                    </button>
+                </div>
             </article>
         </div>
     </div>
@@ -1734,6 +1741,19 @@
         openPayModal();
     }
 
+    function installmentOrAuth(tariffSlug) {
+        selectedTariffSlug = (tariffSlug || 'pro').toLowerCase();
+        if (!CURRENT_USER) {
+            openAuthModal('register');
+            return;
+        }
+        if (CURRENT_USER.has_story_access || HAS_STORY_ACCESS) {
+            openAlreadyPaidModal();
+            return;
+        }
+        openPayModal();
+    }
+
     function updatePayModalContent() {
         const t = TARIFFS[selectedTariffSlug] || Object.values(TARIFFS)[0];
         if (!t) return;
@@ -1835,6 +1855,44 @@
         }
     }
 
+    async function startInstallment() {
+        const btn = document.getElementById('pay-modal-installment-btn');
+        const offerCheckbox = document.getElementById('pay-offer-checkbox');
+        const accepted_offer = Boolean(offerCheckbox && offerCheckbox.checked);
+        if (!accepted_offer) {
+            alert('Необходимо принять оферту перед оформлением рассрочки.');
+            return;
+        }
+        const tariff_slug = selectedTariffSlug || 'pro';
+        if (!TARIFFS[tariff_slug]) {
+            alert('Выберите тариф Pro или VIP.');
+            return;
+        }
+        if (btn) { btn.disabled = true; btn.textContent = 'Готовим анкету...'; }
+        try {
+            const res = await fetch('/api/v1/payments/installment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accepted_offer, tariff_slug }),
+                credentials: 'same-origin',
+            });
+            if (res.ok) {
+                const data = await res.json();
+                window.location.href = data.questionnaire_url;
+                return;
+            }
+            const err = await res.json().catch(() => ({}));
+            alert(err.detail || 'Ошибка создания анкеты рассрочки. Попробуйте снова.');
+        } catch {
+            alert('Ошибка сети. Попробуйте снова.');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Оформить в рассрочку';
+            }
+        }
+    }
+
     async function resendVerification() {
         try {
             const res = await fetch('/auth/resend-verification', {
@@ -1917,9 +1975,14 @@
                     <span>Перейти к оплате</span>
                 </button>
 
+                <button type="button" id="pay-modal-installment-btn" onclick="startInstallment()"
+                        class="btn-ghost w-full mt-2.5 font-semibold text-sm sm:text-base px-6 py-3 rounded-3xl flex items-center justify-center gap-2 text-gray-800 border border-gray-300">
+                    <span>Оформить в рассрочку</span>
+                </button>
+
                 <p class="text-center text-gray-400 text-[11px] mt-2.5 flex items-center justify-center gap-1.5">
                     <i class="fas fa-shield-alt"></i>
-                    Безопасная оплата через ЮKassa
+                    Карта — ЮKassa · Рассрочка — ProOnline
                 </p>
             </div>
         </div>

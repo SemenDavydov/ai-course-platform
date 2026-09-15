@@ -18,6 +18,8 @@ class Payment(Base):
     course_id = Column(Integer, ForeignKey("courses.id", ondelete="SET NULL"), nullable=True)
     tariff_id = Column(Integer, ForeignKey("tariffs.id", ondelete="SET NULL"), nullable=True)
     tariff_slug = Column(String, nullable=True)  # pro | vip | legacy
+    # yookassa | proonline
+    provider = Column(String, nullable=False, default="yookassa", server_default="yookassa")
 
     receipt_sent = Column(Boolean, default=False)
     receipt_data = Column(Text, nullable=True)

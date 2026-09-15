@@ -30,6 +30,14 @@ class Settings(BaseSettings):
     YOOKASSA_SHOP_ID: str
     YOOKASSA_SECRET_KEY: str
 
+    # ProOnline CRM — рассрочка / анкета оплаты
+    # API-ключ (Bearer) передаётся отдельно; webhook secret — whsec_…
+    PROONLINE_API_KEY: str = ""
+    PROONLINE_WEBHOOK_SECRET: str = ""
+    PROONLINE_API_BASE: str = "https://crm.procourse.online/api/v1"
+    PROONLINE_SCHOOL_ID: int = 34511
+    PROONLINE_FORM_ID: int = 197
+
     # Kinescope
     KINESCOPE_API_KEY: str = ""
     KINESCOPE_PROJECT_ID: str = ""

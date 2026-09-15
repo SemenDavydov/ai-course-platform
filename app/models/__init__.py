@@ -1,6 +1,7 @@
 from .user import User
 from .course import Course, Lesson, Module, Tariff, UserCourseAccess
 from .payment import Payment
+from .webhook_event import WebhookEvent
 from .material import Material
 from .admin_session import AdminSession
 from .user_session import UserSession
@@ -15,6 +16,7 @@ __all__ = [
     "Tariff",
     "UserCourseAccess",
     "Payment",
+    "WebhookEvent",
     "Material",
     "AdminSession",
     "UserSession",
