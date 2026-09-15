@@ -3,30 +3,130 @@
 {% block title %}Дашборд{% endblock %}
 
 {% block content %}
+{# --- Переключатель курса --- #}
+<div class="admin-card mb-6">
+    <div class="p-4 sm:p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+                <h2 class="text-lg font-bold text-gray-800">Статистика по курсам</h2>
+                <p class="text-sm text-gray-500 mt-0.5">
+                    {% if selected_course %}
+                    Сейчас: <span class="font-medium text-gray-700">{{ selected_course.title }}</span>
+                    {% else %}
+                    Сейчас: <span class="font-medium text-gray-700">Все курсы</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="/admin/dashboard"
+                   class="admin-btn admin-btn-sm {% if selected_course_id is none %}admin-btn-primary{% else %}admin-btn-secondary{% endif %}">
+                    Все
+                </a>
+                {% for c in courses %}
+                <a href="/admin/dashboard?course_id={{ c.id }}"
+                   class="admin-btn admin-btn-sm {% if selected_course_id == c.id %}admin-btn-primary{% else %}admin-btn-secondary{% endif %}">
+                    {{ c.title }}
+                    {% if c.is_legacy %}<span class="opacity-70 text-xs ml-1">старый</span>{% endif %}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
     <div class="admin-stat" style="border-left-color:#3b82f6">
         <h3 class="text-gray-500 text-sm font-medium">Всего пользователей</h3>
         <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.users }}</p>
     </div>
     <div class="admin-stat" style="border-left-color:#22c55e">
-        <h3 class="text-gray-500 text-sm font-medium">Оплативших</h3>
+        <h3 class="text-gray-500 text-sm font-medium">
+            {% if selected_course %}С доступом к курсу{% else %}Оплативших{% endif %}
+        </h3>
         <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.paid_users }}</p>
     </div>
     <div class="admin-stat" style="border-left-color:#a855f7">
-        <h3 class="text-gray-500 text-sm font-medium">Выручка (всего)</h3>
+        <h3 class="text-gray-500 text-sm font-medium">
+            Выручка{% if selected_course %} (курс){% else %} (всего){% endif %}
+        </h3>
         <p class="text-3xl font-bold text-gray-800 mt-1">{{ '{:,.0f}'.format(stats.revenue)|replace(',', ' ') }} ₽</p>
     </div>
     <div class="admin-stat" style="border-left-color:#eab308">
-        <h3 class="text-gray-500 text-sm font-medium">Уроков в курсе</h3>
+        <h3 class="text-gray-500 text-sm font-medium">
+            {% if selected_course %}Уроков в курсе{% else %}Уроков всего{% endif %}
+        </h3>
         <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.lessons }}</p>
     </div>
 </div>
+
+{# --- Карта / рассрочка --- #}
+{% if provider_stats %}
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+    {% for ps in provider_stats %}
+    <div class="admin-stat" style="border-left-color:{% if ps.key == 'proonline' %}#f59e0b{% else %}#10b981{% endif %}">
+        <h3 class="text-gray-500 text-sm font-medium">{{ ps.label }}</h3>
+        <p class="text-3xl font-bold text-gray-800 mt-1">{{ '{:,.0f}'.format(ps.revenue)|replace(',', ' ') }} ₽</p>
+        <p class="text-sm text-gray-400 mt-1">{{ ps.count }} плат.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{# --- Сводка по курсам (всегда видна) --- #}
+{% if course_stats %}
+<div class="admin-card mb-8">
+    <div class="admin-card-header">
+        <h2 class="text-xl font-bold text-gray-800">Выручка по курсам</h2>
+        <span class="text-sm text-gray-500">Карта vs рассрочка</span>
+    </div>
+    <div class="p-4 sm:p-6 overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-gray-50">
+                    <th class="px-4 py-2 text-left text-gray-500 font-medium">Курс</th>
+                    <th class="px-4 py-2 text-right text-gray-500 font-medium">Платежей</th>
+                    <th class="px-4 py-2 text-right text-gray-500 font-medium">Картой</th>
+                    <th class="px-4 py-2 text-right text-gray-500 font-medium">Рассрочка</th>
+                    <th class="px-4 py-2 text-right text-gray-500 font-medium">Итого</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cs in course_stats %}
+                <tr class="border-t hover:bg-gray-50 {% if selected_course_id == cs.course_id %}bg-blue-50{% endif %}">
+                    <td class="px-4 py-2">
+                        {% if cs.course_id %}
+                        <a href="/admin/dashboard?course_id={{ cs.course_id }}" class="font-medium text-blue-600 hover:underline">
+                            {{ cs.title }}
+                        </a>
+                        {% else %}
+                        <span class="font-medium text-gray-600">{{ cs.title }}</span>
+                        {% endif %}
+                        {% if cs.badge == 'legacy' %}
+                        <span class="ml-1 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">старый</span>
+                        {% elif cs.badge == 'story' %}
+                        <span class="ml-1 text-xs bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded">новый</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-2 text-right text-gray-600 tabular-nums">{{ cs.count }}</td>
+                    <td class="px-4 py-2 text-right text-emerald-700 tabular-nums">{{ '{:,.0f}'.format(cs.yookassa)|replace(',', ' ') }} ₽</td>
+                    <td class="px-4 py-2 text-right text-amber-700 tabular-nums">{{ '{:,.0f}'.format(cs.proonline)|replace(',', ' ') }} ₽</td>
+                    <td class="px-4 py-2 text-right font-semibold text-gray-800 tabular-nums">{{ '{:,.0f}'.format(cs.revenue)|replace(',', ' ') }} ₽</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
 
 {% if monthly_revenue %}
 <div class="admin-card mb-8">
     <div class="admin-card-header">
         <h2 class="text-xl font-bold text-gray-800">Выручка по месяцам</h2>
-        <span class="text-sm text-gray-500">Последние {{ monthly_revenue|length }} мес.</span>
+        <span class="text-sm text-gray-500">
+            {% if selected_course %}{{ selected_course.title }} · {% endif %}
+            Последние {{ monthly_revenue|length }} мес.
+        </span>
     </div>
     <div class="p-6">
         <div class="space-y-3">
@@ -35,7 +135,7 @@
                 <div class="w-24 shrink-0 text-sm font-medium text-gray-600">{{ m.label }}</div>
                 <div class="flex-1 h-8 bg-gray-100 rounded-lg overflow-hidden relative">
                     {% set pct = (m.revenue / max_monthly_revenue * 100) if max_monthly_revenue > 0 else 0 %}
-                    <div class="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg transition-all"
+                    <div class="h-full bg-gradient-to-r from-emerald-500 to-amber-400 rounded-lg transition-all"
                          style="width: {{ '%.1f'|format(pct) }}%; min-width: {% if m.revenue > 0 %}2rem{% else %}0{% endif %};"></div>
                 </div>
                 <div class="w-32 shrink-0 text-right">
@@ -51,7 +151,9 @@
                     <tr class="bg-gray-50">
                         <th class="px-4 py-2 text-left text-gray-500 font-medium">Месяц</th>
                         <th class="px-4 py-2 text-right text-gray-500 font-medium">Платежей</th>
-                        <th class="px-4 py-2 text-right text-gray-500 font-medium">Выручка</th>
+                        <th class="px-4 py-2 text-right text-gray-500 font-medium">Картой</th>
+                        <th class="px-4 py-2 text-right text-gray-500 font-medium">Рассрочка</th>
+                        <th class="px-4 py-2 text-right text-gray-500 font-medium">Итого</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -59,6 +161,8 @@
                     <tr class="border-t hover:bg-gray-50">
                         <td class="px-4 py-2 font-medium text-gray-700">{{ m.label }}</td>
                         <td class="px-4 py-2 text-right text-gray-600 tabular-nums">{{ m.payments_count }}</td>
+                        <td class="px-4 py-2 text-right text-emerald-700 tabular-nums">{{ '{:,.0f}'.format(m.yookassa)|replace(',', ' ') }} ₽</td>
+                        <td class="px-4 py-2 text-right text-amber-700 tabular-nums">{{ '{:,.0f}'.format(m.proonline)|replace(',', ' ') }} ₽</td>
                         <td class="px-4 py-2 text-right font-semibold text-green-700 tabular-nums">
                             {{ '{:,.0f}'.format(m.revenue)|replace(',', ' ') }} ₽
                         </td>
@@ -75,7 +179,8 @@
     <div class="admin-card">
         <div class="admin-card-header">
             <h2 class="text-xl font-bold text-gray-800">Последние платежи</h2>
-            <a href="/admin/payments" class="admin-btn admin-btn-secondary admin-btn-sm">Все платежи</a>
+            <a href="/admin/payments{% if selected_course_id %}?course_id={{ selected_course_id }}{% endif %}"
+               class="admin-btn admin-btn-secondary admin-btn-sm">Все платежи</a>
         </div>
         <div class="p-6">
             {% if recent_payments %}
@@ -85,6 +190,7 @@
                         <tr class="bg-gray-50">
                             <th class="px-3 py-2 text-left text-gray-500 font-medium">Пользователь</th>
                             <th class="px-3 py-2 text-left text-gray-500 font-medium">Сумма</th>
+                            <th class="px-3 py-2 text-left text-gray-500 font-medium">Тип</th>
                             <th class="px-3 py-2 text-left text-gray-500 font-medium">Дата</th>
                         </tr>
                     </thead>
@@ -99,8 +205,18 @@
                                 {% else %}
                                 {{ p.user_id }}
                                 {% endif %}
+                                {% if p.course_obj and not selected_course_id %}
+                                <div class="text-xs text-gray-400 truncate max-w-[10rem]">{{ p.course_obj.title }}</div>
+                                {% endif %}
                             </td>
                             <td class="px-3 py-2 font-medium text-green-700 tabular-nums">{{ p.amount }} ₽</td>
+                            <td class="px-3 py-2">
+                                {% if (p.provider or 'yookassa') == 'proonline' %}
+                                <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">рассрочка</span>
+                                {% else %}
+                                <span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">карта</span>
+                                {% endif %}
+                            </td>
                             <td class="px-3 py-2 text-gray-500">{{ p.created_at.strftime('%d.%m %H:%M') }}</td>
                         </tr>
                         {% endfor %}

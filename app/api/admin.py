@@ -1,7 +1,7 @@
 import os
 import shutil
 from fastapi import File, UploadFile
-from fastapi import APIRouter, Depends, HTTPException, Request, Form, Cookie
+from fastapi import APIRouter, Depends, HTTPException, Request, Form, Cookie, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, update, func
@@ -207,63 +207,169 @@ async def admin_logout(
 async def admin_dashboard(
         request: Request,
         db: AsyncSession = Depends(get_db),
-        admin: User = Depends(get_current_admin)
+        admin: User = Depends(get_current_admin),
+        course_id: Optional[str] = Query(None),
 ):
-    # Собираем статистику
-    users_count = await db.scalar(select(func.count()).select_from(User))
-    paid_users = await db.scalar(
-        select(func.count()).select_from(User).where(User.has_access == True)
+    courses = list(
+        (
+            await db.execute(
+                select(Course).order_by(Course.sort_order.asc(), Course.id.asc())
+            )
+        ).scalars().all()
     )
+    selected_course = None
+    course_id_int: Optional[int] = None
+    if course_id and str(course_id).isdigit():
+        course_id_int = int(course_id)
+        selected_course = next((c for c in courses if c.id == course_id_int), None)
+        if selected_course is None:
+            course_id_int = None
+    course_id = course_id_int
+
+    pay_q = select(Payment).where(Payment.status == "succeeded")
+    if course_id is not None:
+        pay_q = pay_q.where(Payment.course_id == course_id)
+
+    users_count = await db.scalar(select(func.count()).select_from(User)) or 0
     blocked_users = await db.scalar(
         select(func.count()).select_from(User).where(User.is_blocked == True)
-    )
+    ) or 0
 
-    payments_sum = await db.scalar(
-        select(func.sum(Payment.amount)).where(Payment.status == "succeeded")
-    )
+    if course_id is not None:
+        paid_users = await db.scalar(
+            select(func.count(func.distinct(UserCourseAccess.user_id))).where(
+                UserCourseAccess.course_id == course_id
+            )
+        ) or 0
+        lessons_count = await db.scalar(
+            select(func.count()).select_from(Lesson).where(Lesson.course_id == course_id)
+        ) or 0
+    else:
+        paid_users = await db.scalar(
+            select(func.count()).select_from(User).where(User.has_access == True)
+        ) or 0
+        lessons_count = await db.scalar(select(func.count()).select_from(Lesson)) or 0
 
-    payments_today = await db.scalar(
-        select(func.count()).select_from(Payment).where(
-            Payment.status == "succeeded",
-            Payment.paid_at >= datetime.utcnow().date()
+    succeeded = list((await db.execute(pay_q)).scalars().all())
+
+    def _provider_key(p: Payment) -> str:
+        return (p.provider or "yookassa").strip().lower() or "yookassa"
+
+    revenue_total = sum(float(p.amount or 0) for p in succeeded)
+    today = datetime.now(timezone.utc).date()
+    payments_today = 0
+    for p in succeeded:
+        dt = p.paid_at or p.created_at
+        if dt is None:
+            continue
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        if dt.astimezone(timezone.utc).date() == today:
+            payments_today += 1
+
+    by_provider: dict[str, dict[str, float | int]] = {
+        "yookassa": {"revenue": 0.0, "count": 0, "label": "Картой (ЮKassa)"},
+        "proonline": {"revenue": 0.0, "count": 0, "label": "Рассрочка (ProOnline)"},
+    }
+    for p in succeeded:
+        key = _provider_key(p)
+        bucket = by_provider.setdefault(
+            key, {"revenue": 0.0, "count": 0, "label": key}
         )
-    )
+        bucket["revenue"] = float(bucket["revenue"]) + float(p.amount or 0)
+        bucket["count"] = int(bucket["count"]) + 1
 
-    courses_count = await db.scalar(select(func.count()).select_from(Course))
-    lessons_count = await db.scalar(select(func.count()).select_from(Lesson))
+    provider_stats = [
+        {
+            "key": key,
+            "label": data["label"],
+            "revenue": float(data["revenue"]),
+            "count": int(data["count"]),
+        }
+        for key, data in by_provider.items()
+        if key in ("yookassa", "proonline") or float(data["revenue"]) > 0
+    ]
+    # stable order: yookassa, proonline, then others
+    order = {"yookassa": 0, "proonline": 1}
+    provider_stats.sort(key=lambda x: (order.get(x["key"], 99), x["key"]))
 
-    # Последние 5 платежей
-    recent_payments_result = await db.execute(
-        select(Payment)
-        .where(Payment.status == "succeeded")
-        .order_by(Payment.created_at.desc())
-        .limit(5)
+    # Per-course totals (always across all succeeded, for overview cards)
+    course_revenue: dict[int | None, dict] = {}
+    for c in courses:
+        course_revenue[c.id] = {
+            "course": c,
+            "revenue": 0.0,
+            "count": 0,
+            "yookassa": 0.0,
+            "proonline": 0.0,
+        }
+    course_revenue[None] = {
+        "course": None,
+        "revenue": 0.0,
+        "count": 0,
+        "yookassa": 0.0,
+        "proonline": 0.0,
+    }
+    all_succeeded = list(
+        (
+            await db.execute(select(Payment).where(Payment.status == "succeeded"))
+        ).scalars().all()
     )
-    recent_payments = recent_payments_result.scalars().all()
-    for p in recent_payments:
-        p.user = await db.get(User, p.user_id)
+    for p in all_succeeded:
+        cid = p.course_id if p.course_id in course_revenue else None
+        if p.course_id is not None and p.course_id not in course_revenue:
+            cid = None
+        bucket = course_revenue[cid]
+        amt = float(p.amount or 0)
+        bucket["revenue"] += amt
+        bucket["count"] += 1
+        pk = _provider_key(p)
+        if pk == "proonline":
+            bucket["proonline"] += amt
+        else:
+            bucket["yookassa"] += amt
 
-    # Последние 5 зарегистрированных пользователей
-    recent_users_result = await db.execute(
-        select(User).order_by(User.created_at.desc()).limit(5)
-    )
-    recent_users = recent_users_result.scalars().all()
+    course_stats = []
+    for cid, data in course_revenue.items():
+        if cid is None and data["count"] == 0:
+            continue
+        c = data["course"]
+        if c is None:
+            title = "Без курса / старые платежи"
+            badge = "archive"
+        else:
+            title = c.title
+            badge = "legacy" if c.is_legacy else "story"
+        course_stats.append(
+            {
+                "course_id": cid,
+                "title": title,
+                "badge": badge,
+                "revenue": data["revenue"],
+                "count": data["count"],
+                "yookassa": data["yookassa"],
+                "proonline": data["proonline"],
+            }
+        )
 
-    revenue_rows = await db.execute(
-        select(Payment.amount, Payment.paid_at, Payment.created_at)
-        .where(Payment.status == "succeeded")
-    )
     month_buckets: dict[tuple[int, int], dict[str, float | int]] = {}
-    for amount, paid_at, created_at in revenue_rows.all():
-        dt = paid_at or created_at
+    for p in succeeded:
+        dt = p.paid_at or p.created_at
         if dt is None:
             continue
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
         key = (dt.year, dt.month)
-        bucket = month_buckets.setdefault(key, {"revenue": 0.0, "payments_count": 0})
-        bucket["revenue"] += float(amount or 0)
-        bucket["payments_count"] += 1
+        bucket = month_buckets.setdefault(
+            key, {"revenue": 0.0, "payments_count": 0, "yookassa": 0.0, "proonline": 0.0}
+        )
+        amt = float(p.amount or 0)
+        bucket["revenue"] = float(bucket["revenue"]) + amt
+        bucket["payments_count"] = int(bucket["payments_count"]) + 1
+        if _provider_key(p) == "proonline":
+            bucket["proonline"] = float(bucket["proonline"]) + amt
+        else:
+            bucket["yookassa"] = float(bucket["yookassa"]) + amt
 
     month_names = (
         "Янв", "Фев", "Мар", "Апр", "Май", "Июн",
@@ -278,27 +384,54 @@ async def admin_dashboard(
             "label": f"{month_names[month - 1]} {year}",
             "revenue": revenue,
             "payments_count": int(data["payments_count"]),
+            "yookassa": float(data["yookassa"]),
+            "proonline": float(data["proonline"]),
         })
+
+    recent_q = (
+        select(Payment)
+        .where(Payment.status == "succeeded")
+        .order_by(Payment.created_at.desc())
+        .limit(8)
+    )
+    if course_id is not None:
+        recent_q = recent_q.where(Payment.course_id == course_id)
+    recent_payments = list((await db.execute(recent_q)).scalars().all())
+    course_by_id = {c.id: c for c in courses}
+    for p in recent_payments:
+        p.user = await db.get(User, p.user_id)
+        p.course_obj = course_by_id.get(p.course_id) if p.course_id else None
+
+    recent_users = list(
+        (
+            await db.execute(select(User).order_by(User.created_at.desc()).limit(5))
+        ).scalars().all()
+    )
 
     return templates.TemplateResponse(
         "admin/dashboard.html",
         {
             "request": request,
             "admin": admin,
+            "courses": courses,
+            "selected_course_id": course_id,
+            "selected_course": selected_course,
             "stats": {
-                "users": users_count or 0,
-                "paid_users": paid_users or 0,
-                "blocked_users": blocked_users or 0,
-                "revenue": int(payments_sum or 0),
-                "payments_today": payments_today or 0,
-                "courses": courses_count or 0,
-                "lessons": lessons_count or 0
+                "users": users_count,
+                "paid_users": paid_users,
+                "blocked_users": blocked_users,
+                "revenue": int(revenue_total),
+                "payments_today": payments_today,
+                "courses": len(courses),
+                "lessons": lessons_count,
             },
+            "provider_stats": provider_stats,
+            "course_stats": course_stats,
             "recent_payments": recent_payments,
             "recent_users": recent_users,
             "monthly_revenue": monthly_revenue,
             "max_monthly_revenue": max_monthly_revenue,
-        }
+        },
     )
 
 
@@ -819,23 +952,62 @@ async def admin_payments(
         db: AsyncSession = Depends(get_db),
         admin: User = Depends(get_current_admin),
         page: int = 1,
+        course_id: Optional[str] = Query(None),
+        provider: Optional[str] = Query(None),
+        status: Optional[str] = Query(None),
 ):
     per_page = 20
     offset = (page - 1) * per_page
 
-    payments = await db.execute(
-        select(Payment)
-        .order_by(Payment.created_at.desc())
-        .offset(offset)
-        .limit(per_page)
+    courses = list(
+        (
+            await db.execute(
+                select(Course).order_by(Course.sort_order.asc(), Course.id.asc())
+            )
+        ).scalars().all()
     )
-    payments = payments.scalars().all()
+    course_by_id = {c.id: c for c in courses}
+
+    provider_filter = (provider or "").strip().lower() or None
+    if provider_filter and provider_filter not in ("yookassa", "proonline"):
+        provider_filter = None
+    status_filter = (status or "").strip().lower() or None
+    if status_filter and status_filter not in ("succeeded", "pending", "canceled", "failed"):
+        status_filter = None
+
+    selected_course_id: Optional[int] = None
+    filters = []
+    if course_id is not None and str(course_id).strip() != "":
+        if str(course_id).strip() == "0":
+            filters.append(Payment.course_id.is_(None))
+            selected_course_id = 0  # sentinel: unassigned
+        elif str(course_id).isdigit() and int(course_id) in course_by_id:
+            selected_course_id = int(course_id)
+            filters.append(Payment.course_id == selected_course_id)
+    if provider_filter:
+        filters.append(Payment.provider == provider_filter)
+    if status_filter:
+        filters.append(Payment.status == status_filter)
+
+    base_q = select(Payment)
+    count_q = select(func.count()).select_from(Payment)
+    if filters:
+        base_q = base_q.where(*filters)
+        count_q = count_q.where(*filters)
+
+    payments = list(
+        (
+            await db.execute(
+                base_q.order_by(Payment.created_at.desc()).offset(offset).limit(per_page)
+            )
+        ).scalars().all()
+    )
 
     for payment in payments:
-        user = await db.get(User, payment.user_id)
-        payment.user = user
+        payment.user = await db.get(User, payment.user_id)
+        payment.course_obj = course_by_id.get(payment.course_id) if payment.course_id else None
 
-    total = await db.scalar(select(func.count()).select_from(Payment)) or 0
+    total = await db.scalar(count_q) or 0
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=STALE_PENDING_DAYS)
     stale_count = await db.scalar(
@@ -847,18 +1019,33 @@ async def admin_payments(
 
     deleted = request.query_params.get("deleted")
 
+    def _filter_qs(page_num: int) -> str:
+        parts = [f"page={page_num}"]
+        if selected_course_id is not None:
+            parts.append(f"course_id={selected_course_id}")
+        if provider_filter:
+            parts.append(f"provider={provider_filter}")
+        if status_filter:
+            parts.append(f"status={status_filter}")
+        return "&".join(parts)
+
     return templates.TemplateResponse(
         "admin/payments.html",
         {
             "request": request,
             "admin": admin,
             "payments": payments,
+            "courses": courses,
             "page": page,
             "total": total,
             "total_pages": max(1, (total + per_page - 1) // per_page),
             "stale_count": stale_count,
             "deleted": deleted,
             "payment_is_deletable": _payment_is_deletable,
+            "selected_course_id": selected_course_id,
+            "selected_provider": provider_filter,
+            "selected_status": status_filter,
+            "filter_qs": _filter_qs,
         },
     )
 
