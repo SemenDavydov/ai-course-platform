@@ -27,6 +27,7 @@ from app.models.course import Course, Lesson, Module, Tariff
 from app.models.payment import Payment
 from app.services.auth import create_login_token
 from app.services.payment import PaymentService
+from app.services.proonline import ProOnlineClient, ProOnlineError
 from app.services.access import (
     TRAINING_START_LABEL,
     course_lessons_locked,
@@ -376,7 +377,28 @@ async def process_accept_offer(callback: CallbackQuery, state: FSMContext, db: A
 @dp.callback_query(lambda c: c.data and c.data.startswith("tariff_"))
 async def process_tariff(callback: CallbackQuery, state: FSMContext, db: AsyncSession):
     tariff_slug = callback.data.split("_", 1)[1]
+    if tariff_slug not in ("pro", "vip"):
+        await _safe_edit(callback, "Неизвестный тариф.")
+        return
     await state.update_data(tariff_slug=tariff_slug)
+    await _safe_edit(
+        callback,
+        f"Тариф <b>{tariff_slug.upper()}</b>. Как хотите оплатить?",
+        InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="💳 Картой (ЮKassa)", callback_data="pay_card")],
+                [InlineKeyboardButton(text="📋 В рассрочку", callback_data="pay_installment")],
+                [InlineKeyboardButton(text="◀️ Назад", callback_data="buy")],
+            ]
+        ),
+    )
+
+
+@dp.callback_query(lambda c: c.data == "pay_card")
+async def process_pay_card(callback: CallbackQuery, state: FSMContext, db: AsyncSession):
+    data = await state.get_data()
+    tariff_slug = data.get("tariff_slug", "pro")
+    await state.update_data(pay_mode="card")
     user = await get_or_create_user(callback.from_user.id, db)
 
     if not user.email:
@@ -398,6 +420,16 @@ async def process_tariff(callback: CallbackQuery, state: FSMContext, db: AsyncSe
         await callback.answer()
     except Exception:
         pass
+
+
+@dp.callback_query(lambda c: c.data == "pay_installment")
+async def process_pay_installment(callback: CallbackQuery, state: FSMContext, db: AsyncSession):
+    data = await state.get_data()
+    tariff_slug = data.get("tariff_slug", "pro")
+    await state.update_data(pay_mode="installment")
+    user = await get_or_create_user(callback.from_user.id, db)
+    course = await get_primary_course(db)
+    await create_installment_and_send(callback, user, course, tariff_slug, db)
 
 
 @dp.message(Form.waiting_for_email)
@@ -470,6 +502,7 @@ async def create_payment_and_send(
         course_id=course.id,
         tariff_id=tariff.id,
         tariff_slug=tariff.slug,
+        provider="yookassa",
     )
     db.add(payment)
     await db.commit()
@@ -490,6 +523,121 @@ async def create_payment_and_send(
         await message.answer(payment_text, reply_markup=keyboard)
     except Exception:
         await bot.send_message(user.telegram_id, payment_text, reply_markup=keyboard)
+
+
+async def create_installment_and_send(
+    callback: CallbackQuery,
+    user: User,
+    course: Course | None,
+    tariff_slug: str,
+    db: AsyncSession,
+):
+    import json
+    import uuid
+
+    if not course:
+        await _safe_edit(
+            callback,
+            "Курс временно недоступен.",
+            InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")]
+                ]
+            ),
+        )
+        return
+
+    client = ProOnlineClient()
+    if not client.configured:
+        await _safe_edit(
+            callback,
+            "Рассрочка временно недоступна. Оплатите картой или напишите нам.",
+            InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="💳 Картой", callback_data="pay_card")],
+                    [InlineKeyboardButton(text="◀️ Назад", callback_data="buy")],
+                ]
+            ),
+        )
+        return
+
+    t_result = await db.execute(
+        select(Tariff).where(
+            Tariff.course_id == course.id,
+            Tariff.slug == tariff_slug,
+            Tariff.is_active == True,
+        )
+    )
+    tariff = t_result.scalar_one_or_none()
+    if not tariff:
+        await _safe_edit(callback, "Тариф не найден.")
+        return
+
+    if not user.accepted_offer:
+        user.accepted_offer = True
+
+    external_order_id = f"po_{user.id}_{tariff.slug}_{uuid.uuid4().hex[:12]}"
+    title = f"{course.title} — {tariff.name}"
+    description = f"Рассрочка ProOnline «{course.title}» — тариф {tariff.name}"
+
+    try:
+        session = await client.create_payment_form_session(
+            external_order_id=external_order_id,
+            title=title,
+            amount=float(tariff.price),
+        )
+    except ProOnlineError as exc:
+        logger.error("Bot ProOnline session failed: %s", exc)
+        await _safe_edit(
+            callback,
+            "Не удалось создать анкету рассрочки. Попробуйте позже или оплатите картой.",
+            InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="💳 Картой", callback_data="pay_card")],
+                    [InlineKeyboardButton(text="◀️ Назад", callback_data="buy")],
+                ]
+            ),
+        )
+        return
+
+    questionnaire_url = session["questionnaire_url"]
+    payment = Payment(
+        user_id=user.id,
+        amount=tariff.price,
+        payment_id=external_order_id,
+        status="pending",
+        description=description,
+        course_id=course.id,
+        tariff_id=tariff.id,
+        tariff_slug=tariff.slug,
+        provider="proonline",
+        receipt_data=json.dumps(
+            {
+                "questionnaire_url": questionnaire_url,
+                "session_status": session.get("session_status"),
+                "expires_at": session.get("expires_at"),
+                "source": "telegram_bot",
+            },
+            ensure_ascii=False,
+        ),
+    )
+    db.add(payment)
+    await db.commit()
+
+    text = (
+        f"📋 <b>Рассрочка — {_html(tariff.name)}</b>\n\n"
+        f"Сумма: {int(tariff.price)}₽\n\n"
+        "Заполните анкету партнёра ProOnline. После одобрения и оплаты "
+        "доступ откроется автоматически.\n"
+        f"Старт обучения {TRAINING_START_LABEL}."
+    )
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📋 Перейти к анкете", url=questionnaire_url)],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")],
+        ]
+    )
+    await _safe_edit(callback, text, keyboard)
 
 
 async def _show_story_modules(callback: CallbackQuery, db: AsyncSession):
