@@ -142,6 +142,13 @@
         <i class="fa-solid fa-lock text-xs opacity-80 mr-1"></i>
         Перейти к оплате
       </button>
+      <button type="button" id="paywall-installment-btn" onclick="startCabinetInstallment()"
+              class="w-full mt-2.5 py-3 rounded-2xl font-semibold text-sm text-[var(--pearl)] border border-[var(--glass-border)] hover:border-[var(--cyan)] transition disabled:opacity-50 disabled:cursor-not-allowed">
+        Оформить в рассрочку
+      </button>
+      <p class="mt-2.5 text-center text-[11px] text-[var(--mist)]">
+        Карта — ЮKassa · Рассрочка — ProOnline
+      </p>
     </div>
     {% endif %}
   </div>
@@ -221,6 +228,44 @@ async function startCabinetPayment() {
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = '<i class="fa-solid fa-lock text-xs opacity-80 mr-1"></i> Перейти к оплате';
+    }
+  }
+}
+
+async function startCabinetInstallment() {
+  const btn = document.getElementById('paywall-installment-btn');
+  const offerCheckbox = document.getElementById('paywall-offer-checkbox');
+  const accepted_offer = Boolean(offerCheckbox && offerCheckbox.checked);
+  if (!accepted_offer) {
+    alert('Необходимо принять оферту перед оформлением рассрочки.');
+    return;
+  }
+  const tariff_slug = selectedPaywallTariff || 'pro';
+  if (!PAYWALL_TARIFFS[tariff_slug]) {
+    alert('Выберите тариф Pro или VIP.');
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = 'Готовим анкету...'; }
+  try {
+    const res = await fetch('/api/v1/payments/installment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accepted_offer, tariff_slug }),
+      credentials: 'same-origin',
+    });
+    if (res.ok) {
+      const data = await res.json();
+      window.location.href = data.questionnaire_url;
+      return;
+    }
+    const err = await res.json().catch(() => ({}));
+    alert(err.detail || 'Ошибка создания анкеты рассрочки. Попробуйте снова.');
+  } catch {
+    alert('Ошибка сети. Попробуйте снова.');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Оформить в рассрочку';
     }
   }
 }
