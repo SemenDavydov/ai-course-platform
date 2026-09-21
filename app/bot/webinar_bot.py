@@ -238,7 +238,7 @@ async def cmd_stats(message: Message) -> None:
 
 @dp.message(Command("send_now"))
 async def cmd_send_now(message: Message, command: CommandObject) -> None:
-    """Админ: /send_now announce|remind|last_push — принудительная рассылка."""
+    """Админ: /send_now announce|remind|last_push|open_set — принудительная рассылка."""
     if not message.from_user:
         return
     if not _is_admin(message.from_user.id):
@@ -255,7 +255,8 @@ async def cmd_send_now(message: Message, command: CommandObject) -> None:
             "Использование:\n"
             "<code>/send_now announce</code>\n"
             "<code>/send_now remind</code>\n"
-            "<code>/send_now last_push</code>"
+            "<code>/send_now last_push</code>\n"
+            "<code>/send_now open_set</code>"
         )
         return
     await message.answer(f"Запускаю рассылку <b>{key}</b>…")
@@ -294,6 +295,8 @@ def _campaign_text(key: str) -> str:
         return msg.remind_message(chat or webinar)
     if key == "last_push":
         return msg.last_push_message(webinar)
+    if key == "open_set":
+        return msg.open_set_message()
     raise KeyError(key)
 
 
@@ -370,10 +373,11 @@ async def run_broadcast(campaign_key: str, *, force: bool = False) -> tuple[int,
 
 
 CAMPAIGNS: dict[str, str] = {
-    # key -> settings field name with schedule
+    # key -> settings field name with schedule (пустое = только /send_now)
     "announce": "WEBINAR_ANNOUNCE_AT",
     "remind": "WEBINAR_REMIND_AT",
     "last_push": "WEBINAR_LAST_PUSH_AT",
+    "open_set": "WEBINAR_OPEN_SET_AT",
 }
 
 

@@ -61,7 +61,7 @@ async def download_material(
     if lesson:
         course = await db.get(Course, lesson.course_id)
         if course_lessons_locked(course):
-            raise HTTPException(status_code=403, detail="Lessons open on 21.09.2026 at 14:00 MSK")
+            raise HTTPException(status_code=403, detail="Lessons are temporarily locked")
 
     file_path = os.path.join("uploads", "materials", material.file_name)
     if not os.path.exists(file_path):

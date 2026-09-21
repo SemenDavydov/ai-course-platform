@@ -10,20 +10,16 @@ from sqlalchemy.orm import selectinload
 from app.models.course import Course, UserCourseAccess
 from app.models.user import User
 
-# Moscow is UTC+3 year-round. Unlock at 14:00 MSK on the training start day.
+# Moscow is UTC+3 year-round (kept for any date helpers).
 MSK = timezone(timedelta(hours=3))
+# Историческая дата старта потока; уроки уже открыты для всех с доступом.
 TRAINING_START = datetime(2026, 9, 21, 14, 0, tzinfo=MSK)
 TRAINING_START_LABEL = "21.09.2026 в 14:00 МСК"
 
 
 def course_lessons_locked(course: Course | None, *, now: datetime | None = None) -> bool:
-    """Новый курс закрыт до старта обучения. Старый (legacy) курс не трогаем."""
-    if course is None or course.is_legacy:
-        return False
-    current = now or datetime.now(MSK)
-    if current.tzinfo is None:
-        current = current.replace(tzinfo=MSK)
-    return current.astimezone(MSK) < TRAINING_START
+    """Уроки открыты: прелок до старта потока снят."""
+    return False
 
 
 async def get_access(

@@ -29,8 +29,6 @@ from app.services.auth import create_login_token
 from app.services.payment import PaymentService
 from app.services.proonline import ProOnlineClient, ProOnlineError
 from app.services.access import (
-    TRAINING_START_LABEL,
-    course_lessons_locked,
     get_primary_course,
     list_accessible_courses,
     user_has_course,
@@ -260,7 +258,7 @@ async def process_about(callback: CallbackQuery, db: AsyncSession):
         lines = [f"<b>{_html(course.title)}</b>\n", _html(course.description), ""]
         if existing:
             lines.append(f"Ваш тариф: <b>{_html(existing.tariff_slug).upper()}</b>")
-            lines.append(f"Старт обучения {TRAINING_START_LABEL}.")
+            lines.append("Уроки уже доступны — можно начинать обучение.")
             rows.append([InlineKeyboardButton(text="📖 К курсу", callback_data="course_story")])
         else:
             t_result = await db.execute(
@@ -271,7 +269,7 @@ async def process_about(callback: CallbackQuery, db: AsyncSession):
             for t in t_result.scalars().all():
                 old = f" <s>{int(t.old_price)}₽</s>" if t.old_price else ""
                 lines.append(f"• <b>{_html(t.name)}</b> — {int(t.price)}₽{old}")
-            lines.append("\nСтарт обучения " + TRAINING_START_LABEL + ".")
+            lines.append("\nПосле оплаты доступ к урокам открывается сразу.")
             rows.append([InlineKeyboardButton(text="💰 Выбрать тариф", callback_data="buy")])
         about_text = "\n".join(lines)[:4000]
     else:
@@ -302,8 +300,7 @@ async def process_buy(callback: CallbackQuery, state: FSMContext, db: AsyncSessi
         await _safe_edit(
             callback,
             f"✅ Курс уже куплен, тариф <b>{_html(existing.tariff_slug).upper()}</b>.\n\n"
-            f"Старт обучения {TRAINING_START_LABEL}.\n"
-            "Повторно покупать не нужно — уроки откроются в это время.",
+            "Уроки уже доступны — можно начинать обучение.",
             InlineKeyboardMarkup(
                 inline_keyboard=[
                     [InlineKeyboardButton(text="📖 К курсу", callback_data="course_story")],
@@ -511,7 +508,7 @@ async def create_payment_and_send(
         f"💳 <b>Оплата {_html(tariff.name)}</b>\n\n"
         f"Сумма: {int(tariff.price)}₽\n\n"
         f"После оплаты доступ откроется автоматически.\n"
-        f"Старт обучения {TRAINING_START_LABEL}."
+        f"Уроки доступны сразу после оплаты."
     )
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -629,7 +626,7 @@ async def create_installment_and_send(
         f"Сумма: {int(tariff.price)}₽\n\n"
         "Заполните анкету партнёра ProOnline. После одобрения и оплаты "
         "доступ откроется автоматически.\n"
-        f"Старт обучения {TRAINING_START_LABEL}."
+        "Уроки доступны сразу после оплаты."
     )
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -660,10 +657,7 @@ async def _show_story_modules(callback: CallbackQuery, db: AsyncSession):
         select(Module).where(Module.course_id == course.id).order_by(Module.order)
     )
     modules = list(m_result.scalars().all())
-    text = f"<b>{_html(course.title)}</b>\n\n"
-    if course_lessons_locked(course):
-        text += f"Старт обучения {TRAINING_START_LABEL}.\nМодули уже видны, уроки откроются в это время.\n\n"
-    text += "Выберите модуль:"
+    text = f"<b>{_html(course.title)}</b>\n\nВыберите модуль:"
     rows = [
         [
             InlineKeyboardButton(
@@ -750,17 +744,13 @@ async def process_module(callback: CallbackQuery, db: AsyncSession):
         select(Lesson).where(Lesson.module_id == module.id).order_by(Lesson.order)
     )
     lessons = list(lessons_result.scalars().all())
-    locked = course_lessons_locked(course)
     text = f"<b>Модуль {module.order}. {_html(module.title)}</b>\n\n"
-    if locked:
-        text += f"Уроки откроются {TRAINING_START_LABEL}.\n\n"
     for i, lesson in enumerate(lessons, start=1):
-        prefix = "🔒 " if locked else ""
-        text += f"{prefix}Урок {i}. {_html(lesson.title)}\n"
+        text += f"Урок {i}. {_html(lesson.title)}\n"
     rows = [
         [
             InlineKeyboardButton(
-                text=(f"🔒 Урок {i}" if locked else f"Урок {i}"),
+                text=f"Урок {i}",
                 callback_data=f"lesson_{lesson.id}",
             )
         ]
@@ -788,15 +778,6 @@ async def process_lesson(callback: CallbackQuery, db: AsyncSession):
         f"module_{lesson.module_id}" if lesson.module_id else "course_story"
     )
     keyboard_rows = [[InlineKeyboardButton(text="◀️ Назад", callback_data=back_cb)]]
-
-    if course_lessons_locked(course):
-        await _safe_edit(
-            callback,
-            f"🔒 <b>{_html(lesson.title)}</b>\n\n"
-            f"Урок откроется {TRAINING_START_LABEL}.",
-            InlineKeyboardMarkup(inline_keyboard=keyboard_rows),
-        )
-        return
 
     if course and course.is_legacy and lesson_id in LESSON_DATA:
         emoji, _, full_title = LESSON_DATA[lesson_id]
