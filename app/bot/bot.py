@@ -1,7 +1,9 @@
 import asyncio
 import logging
+from datetime import datetime, timedelta
 from html import escape
 
+import jwt
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest
@@ -24,6 +26,7 @@ from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.user import User
 from app.models.course import Course, Lesson, Module, Tariff
+from app.models.material import Material
 from app.models.payment import Payment
 from app.services.auth import create_login_token
 from app.services.payment import PaymentService
@@ -109,6 +112,23 @@ async def get_or_create_user(telegram_id: int, db: AsyncSession, **kwargs) -> Us
 
 def _html(value) -> str:
     return escape(str(value or ""), quote=False)
+
+
+def _material_download_url(user: User, material: Material) -> str:
+    """Временная JWT-ссылка на скачивание материала с сайта."""
+    token = jwt.encode(
+        {
+            "user_id": user.id,
+            "material_id": material.id,
+            "exp": datetime.utcnow() + timedelta(seconds=settings.VIDEO_LINK_LIFETIME),
+        },
+        settings.SECRET_KEY,
+        algorithm="HS256",
+    )
+    if isinstance(token, bytes):
+        token = token.decode("utf-8")
+    base = (settings.SITE_URL or "").rstrip("/")
+    return f"{base}/api/v1/materials/{material.id}/download?token={token}"
 
 
 async def _safe_edit(callback: CallbackQuery, text: str, reply_markup=None, **kwargs) -> None:
@@ -796,6 +816,33 @@ async def process_lesson(callback: CallbackQuery, db: AsyncSession):
         )
     else:
         text += "\n\n<i>Видео скоро появится.</i>"
+
+    materials = list(
+        (
+            await db.execute(
+                select(Material)
+                .where(Material.lesson_id == lesson.id)
+                .order_by(Material.id.asc())
+            )
+        ).scalars().all()
+    )
+    if materials:
+        text += "\n\n📎 <b>Дополнительные материалы:</b>"
+        material_buttons = []
+        for i, material in enumerate(materials, start=1):
+            label = (material.title or material.original_name or f"Файл {i}").strip()
+            text += f"\n{i}. {_html(label)}"
+            download_url = _material_download_url(user, material)
+            btn_label = f"📥 {label}"
+            if len(btn_label) > 64:
+                btn_label = btn_label[:61] + "…"
+            material_buttons.append(
+                [InlineKeyboardButton(text=btn_label, url=download_url)]
+            )
+        # Кнопки материалов — сразу под видео, перед «Назад»
+        insert_at = 1 if (vid and vid != "pending") else 0
+        for offset, row in enumerate(material_buttons):
+            keyboard_rows.insert(insert_at + offset, row)
 
     await _safe_edit(
         callback,

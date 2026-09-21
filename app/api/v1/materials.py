@@ -33,8 +33,10 @@ async def _resolve_material_user(
         except jwt.InvalidTokenError:
             raise HTTPException(status_code=403, detail="Invalid token")
         user = await db.get(User, payload.get("user_id"))
+        request.state.material_token_payload = payload
     else:
         user = await get_optional_user(request, db)
+        request.state.material_token_payload = None
 
     if not user or not user.has_access:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -54,6 +56,11 @@ async def download_material(
     material = await db.get(Material, material_id)
     if not material:
         raise HTTPException(status_code=404, detail="Material not found")
+
+    payload = getattr(request.state, "material_token_payload", None) or {}
+    token_material_id = payload.get("material_id")
+    if token_material_id is not None and int(token_material_id) != material_id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     lesson = await db.get(Lesson, material.lesson_id)
     if lesson and not await user_has_course(db, user, lesson.course_id):
