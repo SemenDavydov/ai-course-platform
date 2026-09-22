@@ -7,6 +7,7 @@ from .admin_session import AdminSession
 from .user_session import UserSession
 from .lesson_progress import LessonProgress
 from .webinar import WebinarSubscriber, WebinarBroadcastLog
+from .site import SiteSetting, WaitlistApplication
 
 __all__ = [
     "User",
@@ -23,4 +24,6 @@ __all__ = [
     "LessonProgress",
     "WebinarSubscriber",
     "WebinarBroadcastLog",
+    "SiteSetting",
+    "WaitlistApplication",
 ]

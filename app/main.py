@@ -6,7 +6,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import HTMLResponse, FileResponse, Response
 from sqlalchemy import select
 
-from app.api import webhooks, admin, auth, cabinet, webinar_track
+from app.api import webhooks, admin, auth, cabinet, webinar_track, waitlist
 from app.api.v1 import bot_api, materials, payments, progress
 from app.config import settings
 from app.database import get_db
@@ -14,6 +14,7 @@ from app.models.payment import Payment
 from app.models.course import Course, Module, Tariff
 from app.services.auth import get_optional_user
 from app.services.access import get_primary_course, list_user_accesses
+from app.services.site_settings import community_invite_url, get_landing_mode
 from app.templating import templates
 from sqlalchemy.orm import selectinload
 import logging
@@ -53,6 +54,7 @@ app.include_router(materials.router)
 app.include_router(payments.router)
 app.include_router(progress.router)
 app.include_router(webinar_track.router)
+app.include_router(waitlist.router)
 
 @app.get("/", response_class=HTMLResponse)
 async def root(
@@ -99,6 +101,9 @@ async def root(
         )
         tariffs = list(t_result.scalars().all())
 
+    landing_mode = await get_landing_mode(db)
+    waitlist_status = request.query_params.get("waitlist")
+
     return templates.TemplateResponse("landing.html", {
         "request": request,
         "app_name": settings.APP_NAME,
@@ -109,6 +114,9 @@ async def root(
         "tariffs": tariffs,
         "has_story_access": has_story_access,
         "story_tariff_slug": story_tariff_slug,
+        "landing_mode": landing_mode,
+        "community_invite_url": community_invite_url(),
+        "waitlist_status": waitlist_status,
     })
 
 @app.get("/robots.txt", include_in_schema=False)

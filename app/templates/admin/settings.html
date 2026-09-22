@@ -1,0 +1,59 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Настройки{% endblock %}
+
+{% block content %}
+{% if saved %}
+<div class="admin-alert admin-alert-success">Режим лендинга сохранён.</div>
+{% endif %}
+
+<div class="admin-card mb-6">
+    <div class="admin-card-header">
+        <div>
+            <h2 class="text-xl font-bold text-gray-800">Режим лендинга</h2>
+            <p class="text-sm text-gray-500 mt-0.5">
+                Переключает блок тарифов и форму предзаписи на главной странице
+            </p>
+        </div>
+    </div>
+    <div class="p-4 sm:p-6">
+        <p class="text-sm text-gray-600 mb-4">
+            Сейчас:
+            {% if landing_mode == 'enrollment' %}
+            <span class="font-semibold text-amber-700">Набор на курс</span>
+            — показывается форма предзаписи
+            {% else %}
+            <span class="font-semibold text-emerald-700">Продажа</span>
+            — показываются тарифы и рассрочка
+            {% endif %}
+        </p>
+        <div class="flex flex-wrap gap-3">
+            <form method="post" action="/admin/settings/landing-mode">
+                <input type="hidden" name="mode" value="enrollment">
+                <button type="submit"
+                        class="admin-btn {% if landing_mode == 'enrollment' %}admin-btn-primary{% else %}admin-btn-secondary{% endif %}">
+                    Набор на курс
+                </button>
+            </form>
+            <form method="post" action="/admin/settings/landing-mode">
+                <input type="hidden" name="mode" value="sales">
+                <button type="submit"
+                        class="admin-btn {% if landing_mode == 'sales' %}admin-btn-primary{% else %}admin-btn-secondary{% endif %}">
+                    Продажа
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="admin-card">
+    <div class="p-4 sm:p-6 text-sm text-gray-600 space-y-2">
+        <p><strong>Набор на курс</strong> — мягкий вход: анкета предзаписи и кнопка в сообщество после заявки.</p>
+        <p><strong>Продажа</strong> — привычный блок тарифов Pro/VIP и рассрочки.</p>
+        <p class="text-gray-400 pt-2">
+            Заявки смотрите в разделе
+            <a href="/admin/waitlist" class="text-blue-600 hover:underline">Предзапись</a>.
+        </p>
+    </div>
+</div>
+{% endblock %}

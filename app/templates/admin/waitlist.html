@@ -1,0 +1,71 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Предзапись{% endblock %}
+
+{% block content %}
+<div class="admin-card">
+    <div class="admin-card-header">
+        <div>
+            <h2 class="text-xl font-bold text-gray-800">Заявки на предзапись</h2>
+            <p class="text-sm text-gray-500 mt-0.5">Всего: {{ total }}</p>
+        </div>
+        <a href="/admin/settings" class="admin-btn admin-btn-secondary admin-btn-sm">Режим лендинга</a>
+    </div>
+
+    <div class="p-4 sm:p-6 overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-gray-50">
+                    <th class="px-4 py-2 text-left text-gray-500 font-medium">Дата</th>
+                    <th class="px-4 py-2 text-left text-gray-500 font-medium">Имя</th>
+                    <th class="px-4 py-2 text-left text-gray-500 font-medium">Телефон</th>
+                    <th class="px-4 py-2 text-left text-gray-500 font-medium">Email</th>
+                    <th class="px-4 py-2 text-left text-gray-500 font-medium">Соцсети</th>
+                    <th class="px-4 py-2 text-left text-gray-500 font-medium">ПД</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in applications %}
+                <tr class="border-t hover:bg-gray-50">
+                    <td class="px-4 py-2 text-gray-500 whitespace-nowrap">
+                        {% if a.created_at %}{{ a.created_at.strftime('%d.%m.%Y %H:%M') }}{% else %}—{% endif %}
+                    </td>
+                    <td class="px-4 py-2 font-medium text-gray-800">{{ a.name }}</td>
+                    <td class="px-4 py-2 text-gray-700 tabular-nums">
+                        <a href="tel:{{ a.phone }}" class="text-blue-600 hover:underline">{{ a.phone }}</a>
+                    </td>
+                    <td class="px-4 py-2 text-gray-700">
+                        <a href="mailto:{{ a.email }}" class="text-blue-600 hover:underline">{{ a.email }}</a>
+                    </td>
+                    <td class="px-4 py-2 text-gray-600">{{ a.social or '—' }}</td>
+                    <td class="px-4 py-2">
+                        {% if a.accepted_privacy %}
+                        <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">да</span>
+                        {% else %}
+                        <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">нет</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="px-4 py-8 text-center text-gray-400">Заявок пока нет</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if total_pages > 1 %}
+    <div class="px-6 py-4 border-t">
+        <div class="flex justify-center flex-wrap gap-2">
+            {% for p in range(1, total_pages + 1) %}
+            <a href="/admin/waitlist?page={{ p }}"
+               class="admin-btn {% if p == page %}admin-btn-primary{% else %}admin-btn-secondary{% endif %} admin-btn-sm">
+                {{ p }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -18,6 +18,8 @@ from app.models.admin_session import AdminSession
 from app.models.user_session import UserSession
 from app.models.lesson_progress import LessonProgress
 from app.models.webinar import WebinarSubscriber, WebinarBroadcastLog
+from app.models.site import SiteSetting, WaitlistApplication
+from app.models.webhook_event import WebhookEvent
 
 config = context.config
 

@@ -15,7 +15,12 @@ from app.models.course import Course, Lesson, Module, Tariff, UserCourseAccess
 from app.models.payment import Payment
 from app.models.admin_session import AdminSession
 from app.models.lesson_progress import LessonProgress
+from app.models.site import WaitlistApplication
 from app.services.access import grant_course_access, revoke_course_access, list_user_accesses
+from app.services.site_settings import (
+    get_landing_mode,
+    set_landing_mode,
+)
 from app.config import settings
 from app.templating import templates
 from app.schemas.admin import *
@@ -1084,3 +1089,67 @@ async def delete_payment(
     await db.delete(payment)
     await db.commit()
     return RedirectResponse(url="/admin/payments?deleted=1", status_code=303)
+
+
+@router.get("/settings", response_class=HTMLResponse)
+async def admin_settings(
+        request: Request,
+        db: AsyncSession = Depends(get_db),
+        admin: User = Depends(get_current_admin),
+):
+    mode = await get_landing_mode(db)
+    return templates.TemplateResponse(
+        "admin/settings.html",
+        {
+            "request": request,
+            "admin": admin,
+            "landing_mode": mode,
+            "saved": request.query_params.get("saved"),
+        },
+    )
+
+
+@router.post("/settings/landing-mode")
+async def admin_set_landing_mode(
+        db: AsyncSession = Depends(get_db),
+        admin: User = Depends(get_current_admin),
+        mode: str = Form(...),
+):
+    try:
+        await set_landing_mode(db, mode)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Некорректный режим")
+    return RedirectResponse(url="/admin/settings?saved=1", status_code=303)
+
+
+@router.get("/waitlist", response_class=HTMLResponse)
+async def admin_waitlist(
+        request: Request,
+        db: AsyncSession = Depends(get_db),
+        admin: User = Depends(get_current_admin),
+        page: int = 1,
+):
+    per_page = 30
+    offset = max(0, (page - 1) * per_page)
+    total = await db.scalar(select(func.count()).select_from(WaitlistApplication)) or 0
+    rows = list(
+        (
+            await db.execute(
+                select(WaitlistApplication)
+                .order_by(WaitlistApplication.created_at.desc())
+                .offset(offset)
+                .limit(per_page)
+            )
+        ).scalars().all()
+    )
+    return templates.TemplateResponse(
+        "admin/waitlist.html",
+        {
+            "request": request,
+            "admin": admin,
+            "applications": rows,
+            "page": page,
+            "total": total,
+            "total_pages": max(1, (total + per_page - 1) // per_page),
+        },
+    )
