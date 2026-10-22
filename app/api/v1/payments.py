@@ -18,6 +18,7 @@ from app.services.auth import get_current_user
 from app.services.payment import PaymentService
 from app.services.access import get_access, get_primary_course
 from app.services.proonline import ProOnlineClient, ProOnlineError
+from app.services import ratelimit
 from app.config import settings
 
 router = APIRouter(prefix="/api/v1/payments", tags=["payments"])
@@ -124,6 +125,8 @@ async def create_payment(
     )
     existing = await get_access(db, current_user.id, course.id)
     _ensure_can_purchase(existing, tariff_slug)
+    # Лимит — после валидаций: каждая попытка здесь = запрос в ЮKassa + строка в БД.
+    await ratelimit.enforce(ratelimit.PAYMENT_USER, current_user.id)
 
     return_url = f"{settings.SITE_URL}/payment/success"
     description = f"Оплата курса «{course.title}» — тариф {tariff.name}"
@@ -191,6 +194,7 @@ async def create_installment(
     )
     existing = await get_access(db, current_user.id, course.id)
     _ensure_can_purchase(existing, tariff_slug)
+    await ratelimit.enforce(ratelimit.PAYMENT_USER, current_user.id)
 
     external_order_id = f"po_{current_user.id}_{tariff.slug}_{uuid.uuid4().hex[:12]}"
     title = f"{course.title} — {tariff.name}"

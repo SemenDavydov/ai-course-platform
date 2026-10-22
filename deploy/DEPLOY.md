@@ -204,7 +204,6 @@ nginx -t && systemctl reload nginx
 APP_NAME=...
 DEBUG=False
 SECRET_KEY=ваш_секретный_ключ_минимум_32_символа
-ADMIN_SECRET_CODE=...
 DATABASE_URL=postgresql+asyncpg://postgres:ПАРОЛЬ@localhost:5432/aicourse
 BOT_TOKEN=токен_бота
 BOT_USERNAME=DavydovaAIBot

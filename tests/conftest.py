@@ -45,6 +45,18 @@ app.dependency_overrides[get_db] = override_get_db
 app.dependency_overrides[verify_yookassa_source] = lambda: None
 
 
+@pytest.fixture(autouse=True)
+def rate_limit_memory():
+    """Лимиты в памяти и с чистого листа в каждом тесте (без локального Redis)."""
+    from app.services import ratelimit
+
+    original = ratelimit.backend
+    mem = ratelimit.MemoryBackend()
+    ratelimit.backend = mem
+    yield mem
+    ratelimit.backend = original
+
+
 @pytest.fixture
 def yookassa_api():
     """

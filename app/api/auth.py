@@ -15,6 +15,8 @@ from app.models.lesson_progress import LessonProgress
 from app.models.payment import Payment
 from app.models.user_session import UserSession
 from app.services import auth as auth_service
+from app.services import ratelimit
+from app.services.ratelimit import client_ip
 from app.tasks import enqueue_email
 from app.templating import templates
 
@@ -84,9 +86,11 @@ def _set_session_cookie(response: Response, token: str) -> None:
 @router.post("/register", status_code=201)
 async def register(
     body: RegisterRequest,
+    request: Request,
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
+    await ratelimit.enforce(ratelimit.REGISTER_IP, client_ip(request))
     if not body.accepted_offer:
         raise HTTPException(status_code=422, detail="Необходимо принять оферту")
 
@@ -124,9 +128,12 @@ async def register(
 @router.post("/login")
 async def login(
     body: LoginRequest,
+    request: Request,
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
+    await ratelimit.enforce(ratelimit.LOGIN_IP, client_ip(request))
+    await ratelimit.enforce(ratelimit.LOGIN_EMAIL, body.email)
     try:
         user = await auth_service.login(db, body.email, body.password)
     except ValueError as e:
@@ -222,12 +229,17 @@ async def verify_email(
 @router.get("/telegram-login")
 async def telegram_login(
     token: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """
     Вход по одноразовой ссылке из бота — для покупателей, у которых нет email.
     Токен сгорает при первом переходе, дальше работает обычная cookie-сессия.
     """
+    try:
+        await ratelimit.check(ratelimit.LOGIN_TOKEN_IP, client_ip(request))
+    except ratelimit.RateLimitExceeded:
+        return RedirectResponse("/?auth_error=too_many_attempts", status_code=303)
     user = await auth_service.consume_login_token(db, token)
     if not user:
         return RedirectResponse("/?auth_error=login_link_expired", status_code=303)
@@ -255,9 +267,14 @@ async def open_lessons_page(request: Request, token: str = "", error: str = ""):
 
 @router.post("/open-lessons")
 async def open_lessons(
+    request: Request,
     token: str = Form(""),
     db: AsyncSession = Depends(get_db),
 ):
+    try:
+        await ratelimit.check(ratelimit.LOGIN_TOKEN_IP, client_ip(request))
+    except ratelimit.RateLimitExceeded:
+        return RedirectResponse("/auth/open-lessons?error=too_many_attempts", status_code=303)
     user = await auth_service.consume_login_token(
         db,
         (token or "").strip(),
@@ -284,6 +301,7 @@ async def resend_verification(
     user = await auth_service.get_current_user(request, db)
     if user.email_verified:
         raise HTTPException(status_code=400, detail="Email уже подтверждён")
+    await ratelimit.enforce(ratelimit.RESEND_VERIFICATION_USER, user.id)
     payload = await auth_service.resend_verification(db, user)
     email_sent = False
     if payload:
@@ -301,8 +319,11 @@ async def resend_verification(
 @router.post("/password-reset/request")
 async def password_reset_request(
     body: EmailRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
+    await ratelimit.enforce(ratelimit.PASSWORD_IP, client_ip(request))
+    await ratelimit.enforce(ratelimit.PASSWORD_EMAIL, body.email)
     payload = await auth_service.prepare_password_reset_email(db, body.email)
     if payload:
         to, subject, html = payload
@@ -333,8 +354,11 @@ async def password_reset_confirm(
 @router.post("/password-setup/request")
 async def password_setup_request(
     body: EmailRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
+    await ratelimit.enforce(ratelimit.PASSWORD_IP, client_ip(request))
+    await ratelimit.enforce(ratelimit.PASSWORD_EMAIL, body.email)
     payload = await auth_service.prepare_password_setup_email(db, body.email)
     if payload:
         to, subject, html = payload

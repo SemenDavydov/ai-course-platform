@@ -1,3 +1,5 @@
+import asyncio
+
 from yookassa import Configuration, Payment as YooPayment
 import uuid
 from typing import Optional, Dict
@@ -59,7 +61,9 @@ class PaymentService:
             metadata["tariff_id"] = tariff_id
 
         try:
-            payment = YooPayment.create(
+            # SDK ЮKassa синхронный (requests): в потоке, чтобы не блокировать event loop.
+            payment = await asyncio.to_thread(
+                YooPayment.create,
                 {
                     "amount": {"value": f"{amount:.2f}", "currency": "RUB"},
                     "confirmation": {"type": "redirect", "return_url": return_url},

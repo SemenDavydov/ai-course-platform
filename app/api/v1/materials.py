@@ -87,9 +87,23 @@ async def download_material(
 @router.get("/lesson/{lesson_id}")
 async def get_lesson_materials(
         lesson_id: int,
+        request: Request,
         db: AsyncSession = Depends(get_db)
 ):
-    """Получить все материалы урока"""
+    """Получить все материалы урока (админка или ученик с доступом к курсу)."""
+    is_admin = False
+    try:
+        await get_current_admin(request, db)
+        is_admin = True
+    except HTTPException:
+        pass
+
+    if not is_admin:
+        user = await get_optional_user(request, db)
+        lesson = await db.get(Lesson, lesson_id)
+        if not user or not lesson or not await user_has_course(db, user, lesson.course_id):
+            raise HTTPException(status_code=403, detail="Access denied")
+
     result = await db.execute(
         select(Material).where(Material.lesson_id == lesson_id)
     )

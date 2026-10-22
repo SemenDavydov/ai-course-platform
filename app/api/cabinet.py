@@ -329,9 +329,9 @@ async def change_password(
         return RedirectResponse("/cabinet/profile?error=password_mismatch", status_code=303)
     if len(new_password) < 8:
         return RedirectResponse("/cabinet/profile?error=password_too_short", status_code=303)
-    if not user.check_password(current_password):
+    if not await user.acheck_password(current_password):
         return RedirectResponse("/cabinet/profile?error=wrong_password", status_code=303)
 
-    user.set_password(new_password)
+    await user.aset_password(new_password)
     await db.commit()
     return RedirectResponse("/cabinet/profile?saved=password", status_code=303)

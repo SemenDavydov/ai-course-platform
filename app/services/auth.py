@@ -68,7 +68,7 @@ async def register_user(
         registration_source="web",
         accepted_offer=accepted_offer,
     )
-    user.set_password(password)
+    await user.aset_password(password)
     db.add(user)
     await db.commit()
     await db.refresh(user)
@@ -154,7 +154,7 @@ async def login(db: AsyncSession, email: str, password: str) -> Optional[User]:
     if not user.password_hash:
         raise ValueError("password_not_set")
 
-    if not user.check_password(password):
+    if not await user.acheck_password(password):
         return None
 
     return user
@@ -260,7 +260,7 @@ async def reset_password(db: AsyncSession, token: str, new_password: str) -> boo
         if datetime.now(timezone.utc) > expires:
             return False
 
-    user.set_password(new_password)
+    await user.aset_password(new_password)
     user.password_reset_token = None
     user.password_reset_sent_at = None
     await db.commit()
@@ -315,7 +315,7 @@ async def confirm_password_setup(db: AsyncSession, token: str, new_password: str
         if datetime.now(timezone.utc) > expires:
             return False
 
-    user.set_password(new_password)
+    await user.aset_password(new_password)
     user.email_verified = True  # считаем email подтверждённым после установки пароля
     user.password_reset_token = None
     user.password_reset_sent_at = None

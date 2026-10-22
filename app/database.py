@@ -14,6 +14,8 @@ engine = create_async_engine(
     pool_recycle=1800,
     pool_size=5,
     max_overflow=10,
+    # При исчерпании пула (наплыв запросов) — быстрая ошибка вместо 30 с ожидания.
+    pool_timeout=10,
 )
 
 # Фабрика сессий

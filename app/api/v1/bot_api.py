@@ -1,4 +1,5 @@
 import jwt
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Request
@@ -19,24 +20,18 @@ from app.services.access import get_primary_course, user_has_course
 
 router = APIRouter(prefix="/api/v1/bot", tags=["bot-api"])
 
-# Pydantic модели для ответов
-class UserResponse(BaseModel):
-    id: int
-    telegram_id: int
-    username: Optional[str]
-    has_access: bool
-    email: Optional[str]
-
-    class Config:
-        from_attributes = True
+# Эндпоинты /user/{telegram_id}, /user/{telegram_id}/email и
+# /lesson/{id}/video?telegram_id= удалены: они работали без авторизации
+# (утечка email, смена чужого email -> угон аккаунта, бесплатные видео).
+# Бот ходит в БД напрямую и их не использовал.
 
 
 class LessonResponse(BaseModel):
+    # video_id намеренно не отдаём: это ID видео в Kinescope.
     id: int
     title: str
     description: Optional[str]
     order: int
-    video_id: str
 
     class Config:
         from_attributes = True
@@ -51,22 +46,6 @@ class CourseResponse(BaseModel):
 
     class Config:
         from_attributes = True
-
-
-@router.get("/user/{telegram_id}", response_model=UserResponse)
-async def get_user(telegram_id: int, db: AsyncSession = Depends(get_db)):
-    """
-    Получает информацию о пользователе по telegram_id
-    Используется ботом для проверки статуса
-    """
-    query = select(User).where(User.telegram_id == telegram_id)
-    result = await db.execute(query)
-    user = result.scalar_one_or_none()
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    return user
 
 
 @router.get("/course", response_model=CourseResponse)
@@ -95,83 +74,13 @@ async def get_course(db: AsyncSession = Depends(get_db), slug: Optional[str] = N
     return course
 
 
-@router.get("/lesson/{lesson_id}/video")
-async def get_lesson_video(
-        lesson_id: int,
-        telegram_id: int,
-        db: AsyncSession = Depends(get_db)
-):
-    """
-    Генерирует временную ссылку на видео с водяным знаком
-    Используется ботом, когда пользователь выбирает урок
-    """
-    # Проверяем существование урока
-    lesson_query = select(Lesson).where(Lesson.id == lesson_id)
-    lesson_result = await db.execute(lesson_query)
-    lesson = lesson_result.scalar_one_or_none()
-
-    if not lesson:
-        raise HTTPException(status_code=404, detail="Lesson not found")
-
-    # Проверяем пользователя и его доступ
-    user_query = select(User).where(User.telegram_id == telegram_id)
-    user_result = await db.execute(user_query)
-    user = user_result.scalar_one_or_none()
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    if not await user_has_course(db, user, lesson.course_id):
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    # Генерируем ссылку на видео
-    video_service = VideoService()
-    video_link = await video_service.generate_watermarked_link(user, lesson.video_id)
-
-    if not video_link:
-        # Fallback на JWT-метод
-        video_link = await video_service.generate_jwt_link(user, lesson.video_id)
-        # В продакшене здесь должен быть полный URL
-        video_link = f"https://your-domain.com{video_link}"
-
-    return {
-        "lesson_id": lesson.id,
-        "lesson_title": lesson.title,
-        "video_url": video_link,
-        "expires_in": 7200,  # 2 часа в секундах
-        "watermark": f"{user.email or user.telegram_id}"
-    }
-
-
-@router.post("/user/{telegram_id}/email")
-async def update_user_email(
-        telegram_id: int,
-        email: str,
-        db: AsyncSession = Depends(get_db)
-):
-    """
-    Обновляет email пользователя (для чеков)
-    """
-    query = select(User).where(User.telegram_id == telegram_id)
-    result = await db.execute(query)
-    user = result.scalar_one_or_none()
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    user.email = email
-    await db.commit()
-
-    return {"status": "ok", "message": "Email updated"}
-
-
 @router.get("/health")
 async def health_check():
     """Проверка работоспособности API"""
     return {
         "status": "healthy",
         "service": "bot-api",
-        "timestamp": "2024-01-01T00:00:00Z"  # В реальном коде используй datetime.now()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -209,9 +118,19 @@ async def watch_video(
                 }
             )
 
-        # Проверяем, что пользователь существует и имеет доступ
-        user = await db.get(User, user_id)
-        if not user or not user.has_access:
+        user = await db.get(User, user_id) if user_id else None
+
+        lesson_query = select(Lesson).where(Lesson.video_id == video_id).limit(1)
+        lesson_result = await db.execute(lesson_query)
+        lesson = lesson_result.scalar_one_or_none()
+
+        # Доступ проверяем к курсу конкретного урока, а не по глобальному
+        # user.has_access: иначе покупатель одного курса видит видео другого.
+        if (
+            not user
+            or not lesson
+            or not await user_has_course(db, user, lesson.course_id)
+        ):
             return templates.TemplateResponse(
                 "video/player.html",
                 {
@@ -221,11 +140,6 @@ async def watch_video(
                     "bot_url": f"https://t.me/{settings.BOT_USERNAME}",
                 }
             )
-
-        # Получаем информацию об уроке
-        lesson_query = select(Lesson).where(Lesson.video_id == video_id).limit(1)
-        lesson_result = await db.execute(lesson_query)
-        lesson = lesson_result.scalar_one_or_none()
 
         if lesson:
             # Загружаем материалы для этого урока

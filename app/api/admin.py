@@ -17,6 +17,7 @@ from app.models.admin_session import AdminSession
 from app.models.lesson_progress import LessonProgress
 from app.models.site import WaitlistApplication
 from app.services.access import grant_course_access, revoke_course_access, list_user_accesses
+from app.services import ratelimit
 from app.services.site_settings import (
     get_landing_mode,
     set_landing_mode,
@@ -29,9 +30,6 @@ from typing import Optional
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 STALE_PENDING_DAYS = 2
-
-# Секретный код для регистрации админов (храни в .env)
-ADMIN_SECRET_CODE = settings.ADMIN_SECRET_CODE or "admin123"
 
 
 def _payment_is_deletable(payment: Payment) -> bool:
@@ -73,53 +71,9 @@ async def get_current_admin(
     return user
 
 
-# Страница регистрации
-@router.get("/register", response_class=HTMLResponse)
-async def admin_register_page(request: Request):
-    return templates.TemplateResponse(
-        "admin/register.html",
-        {"request": request}
-    )
-
-
-@router.post("/register")
-async def admin_register(
-        request: Request,
-        username: str = Form(...),
-        email: str = Form(...),
-        password: str = Form(...),
-        admin_code: str = Form(...),
-        db: AsyncSession = Depends(get_db)
-):
-    # Проверяем секретный код
-    if admin_code != ADMIN_SECRET_CODE:
-        return templates.TemplateResponse(
-            "admin/register.html",
-            {"request": request, "error": "Неверный код регистрации"}
-        )
-
-    # Проверяем, не занят ли username
-    user_query = select(User).where(User.username == username)
-    user_result = await db.execute(user_query)
-    if user_result.scalar_one_or_none():
-        return templates.TemplateResponse(
-            "admin/register.html",
-            {"request": request, "error": "Имя пользователя уже занято"}
-        )
-
-    # Создаём нового админа
-    new_admin = User(
-        username=username,
-        email=email,
-        role="admin",
-        is_admin=True
-    )
-    new_admin.set_password(password)
-
-    db.add(new_admin)
-    await db.commit()
-
-    return RedirectResponse(url="/admin/login", status_code=303)
+# /admin/register удалён: регистрация админа по общему коду перебиралась
+# без ограничений (а при пустом ADMIN_SECRET_CODE код был "admin").
+# Новых админов назначает superadmin: POST /admin/users/{id}/set-role.
 
 
 # Обновлённый логин
@@ -139,12 +93,21 @@ async def admin_login_post(
         password: str = Form(...),
         db: AsyncSession = Depends(get_db)
 ):
+    try:
+        await ratelimit.check(ratelimit.ADMIN_LOGIN_IP, ratelimit.client_ip(request))
+    except ratelimit.RateLimitExceeded:
+        return templates.TemplateResponse(
+            "admin/login.html",
+            {"request": request, "error": "Слишком много попыток. Попробуйте через 15 минут."},
+            status_code=429,
+        )
+
     # Ищем пользователя
     user_query = select(User).where(User.username == username)
     user_result = await db.execute(user_query)
     user = user_result.scalar_one_or_none()
 
-    if not user or not user.check_password(password):
+    if not user or not await user.acheck_password(password):
         return templates.TemplateResponse(
             "admin/login.html",
             {"request": request, "error": "Неверные учетные данные"}

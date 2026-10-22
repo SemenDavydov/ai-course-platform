@@ -22,13 +22,20 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title=settings.APP_NAME)
+# Swagger/OpenAPI только в DEBUG: на проде /docs раскрывал всем карту API.
+app = FastAPI(
+    title=settings.APP_NAME,
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
+    openapi_url="/openapi.json" if settings.DEBUG else None,
+)
 
 # Добавь middleware для сессий (ВАЖНО: добавить до роутеров)
+# Имя cookie НЕ должно совпадать с admin_session — это сессия админки из БД.
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.SECRET_KEY,
-    session_cookie="admin_session",
+    session_cookie="app_session",
     max_age=86400,
     same_site="lax",
     https_only=settings.cookie_secure,
@@ -43,6 +50,21 @@ async def block_legacy_course_videos(request: Request, call_next):
     if request.url.path.startswith("/static/videos/"):
         return Response(status_code=404)
     return await call_next(request)
+
+
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+}
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    return response
 
 # Подключаем роутеры
 app.include_router(webhooks.router)

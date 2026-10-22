@@ -208,8 +208,11 @@ async def _notify_purchase(
 async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     try:
         body = await request.json()
+        # Тело целиком не логируем: там email покупателя и метаданные.
         logger.info(
-            "Received webhook: %s", json.dumps(body, indent=2, ensure_ascii=False)
+            "Received YooKassa webhook: event=%s payment_id=%s",
+            body.get("event"),
+            (body.get("object") or {}).get("id"),
         )
 
         if body.get("event") != "payment.succeeded":
@@ -315,7 +318,7 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
         raise
     except Exception as e:
         logger.error("Error processing webhook: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Webhook processing error")
 
 
 @router.post("/proonline")

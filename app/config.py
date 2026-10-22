@@ -9,7 +9,6 @@ class Settings(BaseSettings):
     APP_NAME: str = "AI STORY: воплоти свою историю"
     DEBUG: bool = False
     SECRET_KEY: str
-    ADMIN_SECRET_CODE: str = "admin"
     CLC_API_KEY: str = ""  # API ключ для clc.li
 
     # Соцсети (лендинг)
@@ -47,6 +46,9 @@ class Settings(BaseSettings):
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
+
+    # Лимиты на логин/регистрацию/платежи (app/services/ratelimit.py)
+    RATE_LIMIT_ENABLED: bool = True
 
     # Video link lifetime (seconds)
     VIDEO_LINK_LIFETIME: int = 7200  # 2 часа

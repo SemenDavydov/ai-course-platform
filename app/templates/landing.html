@@ -2049,10 +2049,15 @@
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 5000);
         }
-        if (err === 'invalid_token') {
+        const errorTexts = {
+            invalid_token: '✗ Ссылка недействительна или истекла.',
+            login_link_expired: '✗ Ссылка для входа уже использована или истекла.',
+            too_many_attempts: '✗ Слишком много попыток. Попробуйте через несколько минут.',
+        };
+        if (err && errorTexts[err]) {
             const toast = document.createElement('div');
             toast.className = 'fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-[#7a2e2e] text-white px-6 py-3 rounded-lg text-sm font-medium';
-            toast.textContent = '✗ Ссылка недействительна или истекла.';
+            toast.textContent = errorTexts[err];
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 5000);
         }

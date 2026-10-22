@@ -1,7 +1,22 @@
+import asyncio
+
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, BigInteger
 from sqlalchemy.sql import func
 from app.database import Base
 import bcrypt
+
+
+def _hash_password(password: str) -> str:
+    password_bytes = password.encode('utf-8')[:72]
+    return bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
+
+
+def _verify_password(password: str, password_hash: str | None) -> bool:
+    if not password_hash:
+        return False
+    password_bytes = password.encode('utf-8')[:72]
+    return bcrypt.checkpw(password_bytes, password_hash.encode('utf-8'))
+
 
 class User(Base):
     __tablename__ = "users"
@@ -42,16 +57,19 @@ class User(Base):
     
     def set_password(self, password: str):
         """Устанавливает пароль (хэширует) с помощью bcrypt"""
-        password_bytes = password.encode('utf-8')[:72]
-        salt = bcrypt.gensalt()
-        self.password_hash = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
-    
+        self.password_hash = _hash_password(password)
+
     def check_password(self, password: str) -> bool:
         """Проверяет пароль с помощью bcrypt"""
-        if not self.password_hash:
-            return False
-        password_bytes = password.encode('utf-8')[:72]
-        return bcrypt.checkpw(password_bytes, self.password_hash.encode('utf-8'))
-    
+        return _verify_password(password, self.password_hash)
+
+    # bcrypt занимает ~0.1–0.3 с CPU. В async-коде вызываем только эти версии:
+    # синхронный вызов блокирует event loop, и поток логинов кладёт весь воркер.
+    async def aset_password(self, password: str) -> None:
+        self.password_hash = await asyncio.to_thread(_hash_password, password)
+
+    async def acheck_password(self, password: str) -> bool:
+        return await asyncio.to_thread(_verify_password, password, self.password_hash)
+
     def __repr__(self):
         return f"<User {self.telegram_id} {self.username}>"

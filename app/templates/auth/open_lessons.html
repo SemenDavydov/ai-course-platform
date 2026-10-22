@@ -22,6 +22,8 @@
     <h1>Уроки</h1>
     {% if error == 'expired' %}
     <p class="err">Ссылка из письма уже использована или истекла. Войдите по email и паролю.</p>
+    {% elif error == 'too_many_attempts' %}
+    <p class="err">Слишком много попыток. Попробуйте через несколько минут.</p>
     {% elif token %}
     <p>Оплата прошла. Нажмите кнопку, чтобы открыть уроки на этом устройстве.</p>
     <form method="post" action="/auth/open-lessons">

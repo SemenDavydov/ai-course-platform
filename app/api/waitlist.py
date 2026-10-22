@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.site import WaitlistApplication
+from app.services import ratelimit
 from app.services.site_settings import (
     LANDING_MODE_ENROLLMENT,
     get_landing_mode,
@@ -30,6 +31,11 @@ async def submit_waitlist(
     mode = await get_landing_mode(db)
     if mode != LANDING_MODE_ENROLLMENT:
         return RedirectResponse(url="/#tariffs", status_code=303)
+
+    try:
+        await ratelimit.check(ratelimit.WAITLIST_IP, ratelimit.client_ip(request))
+    except ratelimit.RateLimitExceeded:
+        return RedirectResponse(url="/?waitlist=error#tariffs", status_code=303)
 
     name = (name or "").strip()
     phone = (phone or "").strip()
