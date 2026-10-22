@@ -95,3 +95,11 @@ async def test_lesson_materials_list_requires_access(
     r = await client.get(url)
     assert r.status_code == 200
     assert r.json()[0]["original_name"] == "Секрет.pdf"
+
+
+def test_httpx_does_not_log_bot_token_urls():
+    """httpx на INFO логирует URL с BOT_TOKEN — должен быть приглушён."""
+    import logging
+    import app.bot.bot  # noqa: F401  (настраивает логирование при импорте)
+
+    assert logging.getLogger("httpx").getEffectiveLevel() >= logging.WARNING

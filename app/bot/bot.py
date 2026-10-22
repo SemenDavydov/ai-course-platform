@@ -56,6 +56,8 @@ LESSON_DATA = {
 }
 
 logging.basicConfig(level=logging.INFO)
+# httpx на INFO пишет полный URL запроса к Telegram API — а в нём BOT_TOKEN.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 telegram_api = (

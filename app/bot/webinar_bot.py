@@ -37,6 +37,8 @@ from app.services.webinar_funnel import (
 )
 
 logging.basicConfig(level=logging.INFO)
+# httpx на INFO пишет полный URL запроса к Telegram API — а в нём токен бота.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger("webinar_bot")
 
 MSK = ZoneInfo("Europe/Moscow")
