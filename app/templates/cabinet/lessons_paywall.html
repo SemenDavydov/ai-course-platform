@@ -89,8 +89,13 @@
     </div>
 
     <div class="p-4 sm:p-6">
+      {% if self_expired %}
+      <p class="mb-4 text-sm text-[var(--mist)] text-center">
+        Срок тарифа «Самостоятельный» закончился — продолжите обучение на тарифе Pro или VIP.
+      </p>
+      {% endif %}
       {% if tariffs %}
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 {% if tariffs|length >= 3 %}lg:grid-cols-3{% endif %} gap-4">
         {% for t in tariffs %}
         <article class="paywall-tariff {% if t.slug == 'vip' %}is-vip{% endif %}"
                  data-slug="{{ t.slug }}"
@@ -146,7 +151,7 @@
               class="w-full mt-2.5 py-3 rounded-2xl font-semibold text-sm text-[var(--pearl)] border border-[var(--glass-border)] hover:border-[var(--cyan)] transition disabled:opacity-50 disabled:cursor-not-allowed">
         Оформить в рассрочку
       </button>
-      <p class="mt-2.5 text-center text-[11px] text-[var(--mist)]">
+      <p id="paywall-providers" class="mt-2.5 text-center text-[11px] text-[var(--mist)]">
         Карта — ЮKassa · Рассрочка — ProOnline
       </p>
     </div>
@@ -162,6 +167,8 @@ const PAYWALL_TARIFFS = {
   "{{ t.slug }}": { slug: "{{ t.slug }}", name: {{ t.name | tojson }}, price: {{ t.price }} }{% if not loop.last %},{% endif %}
   {% endfor %}
 };
+// Рассрочка только для Pro/VIP; «Самостоятельный» — оплата сразу картой.
+const PAYWALL_INSTALLMENT_SLUGS = {{ (installment_slugs or ['pro', 'vip']) | list | tojson }};
 let selectedPaywallTariff = '{{ tariffs[0].slug if tariffs else "pro" }}';
 
 function selectPaywallTariff(slug) {
@@ -169,6 +176,15 @@ function selectPaywallTariff(slug) {
   document.querySelectorAll('.paywall-tariff').forEach(el => {
     el.classList.toggle('is-selected', el.dataset.slug === slug);
   });
+  const installmentAllowed = PAYWALL_INSTALLMENT_SLUGS.includes(slug);
+  const instBtn = document.getElementById('paywall-installment-btn');
+  if (instBtn) instBtn.style.display = installmentAllowed ? '' : 'none';
+  const providersEl = document.getElementById('paywall-providers');
+  if (providersEl) {
+    providersEl.textContent = installmentAllowed
+      ? 'Карта — ЮKassa · Рассрочка — ProOnline'
+      : 'Оплата картой — ЮKassa';
+  }
 }
 
 function openPaywallModal() {
@@ -204,7 +220,7 @@ async function startCabinetPayment() {
   }
   const tariff_slug = selectedPaywallTariff || 'pro';
   if (!PAYWALL_TARIFFS[tariff_slug]) {
-    alert('Выберите тариф Pro или VIP.');
+    alert('Выберите тариф.');
     return;
   }
   if (btn) { btn.disabled = true; btn.textContent = 'Переход к оплате...'; }
@@ -242,7 +258,11 @@ async function startCabinetInstallment() {
   }
   const tariff_slug = selectedPaywallTariff || 'pro';
   if (!PAYWALL_TARIFFS[tariff_slug]) {
-    alert('Выберите тариф Pro или VIP.');
+    alert('Выберите тариф.');
+    return;
+  }
+  if (!PAYWALL_INSTALLMENT_SLUGS.includes(tariff_slug)) {
+    alert('Этот тариф оплачивается только картой — рассрочка доступна для Pro и VIP.');
     return;
   }
   if (btn) { btn.disabled = true; btn.textContent = 'Готовим анкету...'; }

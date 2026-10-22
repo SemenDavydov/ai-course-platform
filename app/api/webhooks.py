@@ -15,7 +15,8 @@ from app.models.payment import Payment
 from app.models.webhook_event import WebhookEvent
 from app.models.course import Course, Tariff
 from app.services.payment import PaymentService
-from app.services.access import grant_course_access, get_primary_course
+from app.services.access import get_access, grant_course_access, get_primary_course
+from app.services.tariffs import tariff_label
 from app.services.proonline import verify_webhook_signature
 from app.bot.bot import bot
 from app.config import settings
@@ -86,15 +87,27 @@ async def _notify_purchase(
 ):
     from app.tasks import enqueue_email
 
+    from app.templating import chat_invite_label_for, chat_invite_url_for
+
     course_title = course.title if course else "курс"
-    tariff_name = (tariff_slug or "pro").upper()
+    tariff_name = tariff_label(tariff_slug or "pro")
     paid_at_str = (payment.paid_at or datetime.utcnow()).strftime("%d.%m.%Y %H:%M")
-    if tariff_slug == "pro":
-        chat_invite_url = settings.PRO_CHAT_INVITE_URL or None
-    elif tariff_slug == "vip":
-        chat_invite_url = settings.VIP_CHAT_INVITE_URL or None
+    chat_invite_url = chat_invite_url_for(tariff_slug) or None
+    chat_label = chat_invite_label_for(tariff_slug)
+
+    # Срочный доступ (self): показываем дату окончания.
+    access_until = None
+    if payment.course_id:
+        access = await get_access(db, user.id, payment.course_id)
+        if access and access.expires_at:
+            access_until = access.expires_at.strftime("%d.%m.%Y")
+
+    if tariff_slug == "self":
+        access_text = f" на 2 месяца — до {access_until}.\n\n" if access_until else " на 2 месяца.\n\n"
+    elif tariff_slug == "pro":
+        access_text = " на 3 месяца после окончания обучения.\n\n"
     else:
-        chat_invite_url = None
+        access_text = " бессрочно.\n\n"
     from app.services.auth import create_login_token
 
     login_token = await create_login_token(db, user)
@@ -110,18 +123,17 @@ async def _notify_purchase(
         welcome_text = (
             f"🎉 <b>Поздравляю с покупкой!</b>\n\n"
             f"✅ Доступ к курсу «{course_title}» ({tariff_name}) открыт"
-            + (
-                " на 3 месяца после окончания обучения.\n\n"
-                if tariff_slug == "pro"
-                else " бессрочно.\n\n"
-            )
+            + access_text
             + "📅 Уроки уже доступны — можно начинать обучение.\n\n"
             f"🔐 Видео защищены персональными водяными знаками.\n\n"
             f"📚 Нажмите «Перейти к курсу», чтобы начать обучение."
         )
         if chat_invite_url:
-            chat_label = "VIP-канал" if tariff_slug == "vip" else "чат с куратором"
-            welcome_text += f"\n\n💬 Закрытый {chat_label}:\n{chat_invite_url}"
+            if tariff_slug == "self":
+                welcome_text += f"\n\n💬 Общий чат учеников:\n{chat_invite_url}"
+            else:
+                closed = "VIP-канал" if tariff_slug == "vip" else "чат с куратором"
+                welcome_text += f"\n\n💬 Закрытый {closed}:\n{chat_invite_url}"
         elif tariff_slug == "vip":
             welcome_text += (
                 "\n\n⭐ VIP: куратор свяжется с вами для личного чата и Zoom-разборов."
@@ -140,7 +152,10 @@ async def _notify_purchase(
             ]
         )
         if chat_invite_url:
-            btn_label = "💬 VIP-канал" if tariff_slug == "vip" else "💬 Чат с куратором"
+            btn_label = {
+                "vip": "💬 VIP-канал",
+                "self": "💬 Общий чат учеников",
+            }.get(tariff_slug, "💬 Чат с куратором")
             keyboard.inline_keyboard.append(
                 [InlineKeyboardButton(text=btn_label, url=chat_invite_url)]
             )
@@ -161,6 +176,8 @@ async def _notify_purchase(
             tariff_name=tariff_name,
             tariff_slug=tariff_slug,
             chat_invite_url=chat_invite_url,
+            chat_label=chat_label,
+            access_until=access_until,
         )
         enqueue_email(
             user.email,

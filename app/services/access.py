@@ -3,12 +3,13 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.course import Course, UserCourseAccess
 from app.models.user import User
+from app.services.tariffs import PRO, SELF, VIP, access_expiry_for, tariff_rank
 
 # Moscow is UTC+3 year-round (kept for any date helpers).
 MSK = timezone(timedelta(hours=3))
@@ -22,9 +23,67 @@ def course_lessons_locked(course: Course | None, *, now: datetime | None = None)
     return False
 
 
+def _as_utc(dt: datetime) -> datetime:
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def access_is_active(
+    access: UserCourseAccess | None, *, now: datetime | None = None
+) -> bool:
+    """Доступ действует: есть запись и срок не истёк (expires_at NULL = бессрочно)."""
+    if access is None:
+        return False
+    if access.expires_at is None:
+        return True
+    return _as_utc(access.expires_at) > (now or datetime.now(timezone.utc))
+
+
+def _active_clause(now: datetime):
+    return or_(UserCourseAccess.expires_at.is_(None), UserCourseAccess.expires_at > now)
+
+
+def purchase_block_reason(
+    existing: UserCourseAccess | None, tariff_slug: str
+) -> str | None:
+    """Почему нельзя купить tariff_slug поверх текущего доступа (None — можно).
+
+    Общие правила для сайта (API платежей) и Telegram-бота.
+    existing может быть истёкшим — истекает только self.
+    """
+    if not existing:
+        return None
+
+    if not access_is_active(existing):
+        if tariff_slug == SELF:
+            return (
+                "Срок тарифа «Самостоятельный» закончился. Повторно его купить "
+                "нельзя — доступны тарифы Pro и VIP."
+            )
+        return None
+
+    if existing.tariff_slug == VIP:
+        return "У вас уже есть VIP-доступ к этому курсу"
+    if existing.tariff_slug == SELF and tariff_slug == SELF:
+        until = existing.expires_at.strftime("%d.%m.%Y") if existing.expires_at else ""
+        return (
+            f"Доступ по тарифу «Самостоятельный» уже действует до {until}. "
+            "Доступен апгрейд до Pro или VIP"
+        )
+    if existing.tariff_slug == tariff_slug:
+        return "У вас уже есть доступ по этому тарифу"
+    if existing.tariff_slug == PRO and tariff_slug != VIP:
+        return "У вас уже есть Pro-доступ. Доступен апгрейд до VIP"
+    if tariff_slug == SELF and existing.expires_at is None:
+        # Бессрочный доступ (напр. legacy) срочным self не заменяется — деньги ушли бы впустую.
+        return "У вас уже есть бессрочный доступ к этому курсу"
+    return None
+
+
 async def get_access(
     db: AsyncSession, user_id: int, course_id: int
 ) -> UserCourseAccess | None:
+    """Запись доступа к курсу, В ТОМ ЧИСЛЕ истёкшая (для правил покупки/апгрейда).
+    Проверять право смотреть курс — через user_has_course / access_is_active."""
     result = await db.execute(
         select(UserCourseAccess).where(
             UserCourseAccess.user_id == user_id,
@@ -34,21 +93,31 @@ async def get_access(
     return result.scalar_one_or_none()
 
 
+async def get_active_access(
+    db: AsyncSession, user_id: int, course_id: int
+) -> UserCourseAccess | None:
+    access = await get_access(db, user_id, course_id)
+    return access if access_is_active(access) else None
+
+
 async def user_has_course(db: AsyncSession, user: User, course_id: int) -> bool:
     access = await get_access(db, user.id, course_id)
-    return access is not None
+    return access_is_active(access)
 
 
 async def list_user_accesses(
-    db: AsyncSession, user_id: int
+    db: AsyncSession, user_id: int, *, include_expired: bool = False
 ) -> list[UserCourseAccess]:
-    result = await db.execute(
+    query = (
         select(UserCourseAccess)
         .where(UserCourseAccess.user_id == user_id)
         .options(selectinload(UserCourseAccess.course))
         .join(Course, Course.id == UserCourseAccess.course_id)
         .order_by(Course.sort_order.asc(), Course.id.asc())
     )
+    if not include_expired:
+        query = query.where(_active_clause(datetime.now(timezone.utc)))
+    result = await db.execute(query)
     return list(result.scalars().all())
 
 
@@ -56,7 +125,10 @@ async def list_accessible_courses(db: AsyncSession, user_id: int) -> list[Course
     result = await db.execute(
         select(Course)
         .join(UserCourseAccess, UserCourseAccess.course_id == Course.id)
-        .where(UserCourseAccess.user_id == user_id)
+        .where(
+            UserCourseAccess.user_id == user_id,
+            _active_clause(datetime.now(timezone.utc)),
+        )
         .order_by(Course.sort_order.asc(), Course.id.asc())
     )
     return list(result.scalars().unique().all())
@@ -70,20 +142,42 @@ async def grant_course_access(
     *,
     commit: bool = False,
 ) -> UserCourseAccess:
-    """Create or upgrade entitlement. VIP upgrades over Pro/legacy."""
+    """Создаёт или апгрейдит доступ.
+
+    - self: срок SELF_ACCESS_DAYS с момента выдачи; pro/vip/legacy — бессрочно.
+    - Апгрейд по рангу legacy < self < pro < vip; апгрейд до pro/vip снимает срок.
+    - Действующий бессрочный доступ никогда не заменяется срочным (self поверх
+      активного pro/vip/legacy ничего не меняет).
+    - Истёкший доступ заменяется любым новым грантом.
+    """
+    now = datetime.now(timezone.utc)
     access = await get_access(db, user.id, course_id)
-    rank = {"legacy": 0, "pro": 1, "vip": 2}
+    new_expires_at = access_expiry_for(tariff_slug, now)
     if access is None:
         access = UserCourseAccess(
             user_id=user.id,
             course_id=course_id,
             tariff_slug=tariff_slug,
-            granted_at=datetime.now(timezone.utc),
+            granted_at=now,
+            expires_at=new_expires_at,
         )
         db.add(access)
     else:
-        if rank.get(tariff_slug, 0) >= rank.get(access.tariff_slug, 0):
+        active = access_is_active(access, now=now)
+        downgrade_to_expiring = (
+            active and access.expires_at is None and new_expires_at is not None
+        )
+        if not active:
             access.tariff_slug = tariff_slug
+            access.granted_at = now
+            access.expires_at = new_expires_at
+            access.expiry_reminder_sent_at = None
+        elif not downgrade_to_expiring and tariff_rank(tariff_slug) >= tariff_rank(
+            access.tariff_slug
+        ):
+            access.tariff_slug = tariff_slug
+            access.expires_at = new_expires_at
+            access.expiry_reminder_sent_at = None
 
     user.has_access = True
     if user.access_granted_at is None:
@@ -110,6 +204,27 @@ async def revoke_course_access(
 
     if commit:
         await db.commit()
+
+
+async def refresh_user_has_access(
+    db: AsyncSession, user: User, *, now: datetime | None = None
+) -> bool:
+    """Пересчитывает user.has_access после истечения срока.
+
+    Снимает флаг только если у пользователя есть записи доступа и ни одна не
+    действует: у старых бот-покупателей без записей (has_access из платежа без
+    course_id) флаг не трогаем.
+    """
+    now = now or datetime.now(timezone.utc)
+    result = await db.execute(
+        select(UserCourseAccess).where(UserCourseAccess.user_id == user.id)
+    )
+    accesses = list(result.scalars().all())
+    if accesses and not any(access_is_active(a, now=now) for a in accesses):
+        user.has_access = False
+    elif any(access_is_active(a, now=now) for a in accesses):
+        user.has_access = True
+    return bool(user.has_access)
 
 
 async def get_primary_course(db: AsyncSession) -> Course | None:

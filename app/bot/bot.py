@@ -32,11 +32,15 @@ from app.services.auth import create_login_token
 from app.services.payment import PaymentService
 from app.services.proonline import ProOnlineClient, ProOnlineError
 from app.services.access import (
+    access_is_active,
     get_primary_course,
     list_accessible_courses,
+    purchase_block_reason,
     user_has_course,
     get_access,
 )
+from app.services import tariffs
+from app.services.tariffs import tariff_label
 
 _warmup_shown: set[int] = set()
 
@@ -226,7 +230,8 @@ async def cmd_start(message: Message, db: AsyncSession):
         await message.answer(
             "Внутри — 7 модулей: профессия, сценарии, герой, генерация, монтаж, "
             "коммерция и монетизация.\n\n"
-            "Два тарифа: <b>Pro</b> и <b>VIP</b> — доступ к материалам бессрочный."
+            "Три тарифа: <b>Самостоятельный</b> — доступ ко всем материалам на 2 месяца, "
+            "<b>Pro</b> и <b>VIP</b> — с поддержкой куратора."
         )
         await asyncio.sleep(1.0)
 
@@ -270,6 +275,34 @@ async def cmd_site(message: Message, db: AsyncSession):
     await _send_site_login_link(message, message.from_user.id, db)
 
 
+async def _purchasable_tariffs(db: AsyncSession, course: Course, existing) -> list[Tariff]:
+    """Активные тарифы курса, которые можно купить поверх текущего доступа."""
+    t_result = await db.execute(
+        select(Tariff)
+        .where(Tariff.course_id == course.id, Tariff.is_active == True)
+        .order_by(Tariff.sort_order)
+    )
+    return [
+        t for t in t_result.scalars().all()
+        if purchase_block_reason(existing, t.slug) is None
+    ]
+
+
+def _access_status_lines(existing) -> list[str]:
+    """Строки «Ваш тариф…» для действующего/истёкшего доступа."""
+    label = _html(tariff_label(existing.tariff_slug))
+    if not access_is_active(existing):
+        return [
+            f"Срок тарифа <b>{label}</b> закончился.",
+            "Продолжить обучение можно на тарифе Pro или VIP.",
+        ]
+    lines = [f"Ваш тариф: <b>{label}</b>"]
+    if existing.expires_at:
+        lines.append(f"Доступ к материалам до <b>{existing.expires_at.strftime('%d.%m.%Y')}</b>.")
+    lines.append("Уроки уже доступны — можно начинать обучение.")
+    return lines
+
+
 @dp.callback_query(lambda c: c.data == "about")
 async def process_about(callback: CallbackQuery, db: AsyncSession):
     user = await get_or_create_user(callback.from_user.id, db)
@@ -279,20 +312,19 @@ async def process_about(callback: CallbackQuery, db: AsyncSession):
     if course:
         lines = [f"<b>{_html(course.title)}</b>\n", _html(course.description), ""]
         if existing:
-            lines.append(f"Ваш тариф: <b>{_html(existing.tariff_slug).upper()}</b>")
-            lines.append("Уроки уже доступны — можно начинать обучение.")
-            rows.append([InlineKeyboardButton(text="📖 К курсу", callback_data="course_story")])
-        else:
-            t_result = await db.execute(
-                select(Tariff)
-                .where(Tariff.course_id == course.id, Tariff.is_active == True)
-                .order_by(Tariff.sort_order)
-            )
-            for t in t_result.scalars().all():
+            lines.extend(_access_status_lines(existing))
+            if access_is_active(existing):
+                rows.append([InlineKeyboardButton(text="📖 К курсу", callback_data="course_story")])
+        available = await _purchasable_tariffs(db, course, existing)
+        if available and (not existing or not access_is_active(existing)):
+            for t in available:
                 old = f" <s>{int(t.old_price)}₽</s>" if t.old_price else ""
                 lines.append(f"• <b>{_html(t.name)}</b> — {int(t.price)}₽{old}")
             lines.append("\nПосле оплаты доступ к урокам открывается сразу.")
             rows.append([InlineKeyboardButton(text="💰 Выбрать тариф", callback_data="buy")])
+        elif available:
+            # Действующий доступ, но есть апгрейд (self → Pro/VIP, Pro → VIP).
+            rows.append([InlineKeyboardButton(text="⬆️ Улучшить тариф", callback_data="buy")])
         about_text = "\n".join(lines)[:4000]
     else:
         about_text = "Информация о курсе скоро появится!"
@@ -318,10 +350,11 @@ async def process_buy(callback: CallbackQuery, state: FSMContext, db: AsyncSessi
         return
 
     existing = await get_access(db, user.id, course.id)
-    if existing:
+    available = await _purchasable_tariffs(db, course, existing)
+    if existing and not available:
         await _safe_edit(
             callback,
-            f"✅ Курс уже куплен, тариф <b>{_html(existing.tariff_slug).upper()}</b>.\n\n"
+            f"✅ Курс уже куплен, тариф <b>{_html(tariff_label(existing.tariff_slug))}</b>.\n\n"
             "Уроки уже доступны — можно начинать обучение.",
             InlineKeyboardMarkup(
                 inline_keyboard=[
@@ -350,16 +383,8 @@ async def process_buy(callback: CallbackQuery, state: FSMContext, db: AsyncSessi
         )
         return
 
-    t_result = await db.execute(
-        select(Tariff)
-        .where(Tariff.course_id == course.id, Tariff.is_active == True)
-        .order_by(Tariff.sort_order)
-    )
-    tariffs = list(t_result.scalars().all())
     rows = []
-    for t in tariffs:
-        if existing and existing.tariff_slug == "pro" and t.slug == "pro":
-            continue
+    for t in available:
         label = f"{t.name} — {int(t.price)}₽"
         if t.old_price:
             label += f" (было {int(t.old_price)}₽)"
@@ -378,11 +403,10 @@ async def process_buy(callback: CallbackQuery, state: FSMContext, db: AsyncSessi
             ),
         )
         return
-    await _safe_edit(
-        callback,
-        "Выберите тариф AI STORY:",
-        InlineKeyboardMarkup(inline_keyboard=rows),
-    )
+    header = "Выберите тариф AI STORY:"
+    if existing:
+        header = "\n".join(_access_status_lines(existing)) + "\n\n" + header
+    await _safe_edit(callback, header, InlineKeyboardMarkup(inline_keyboard=rows))
 
 
 @dp.callback_query(lambda c: c.data == "accept_offer")
@@ -396,13 +420,17 @@ async def process_accept_offer(callback: CallbackQuery, state: FSMContext, db: A
 @dp.callback_query(lambda c: c.data and c.data.startswith("tariff_"))
 async def process_tariff(callback: CallbackQuery, state: FSMContext, db: AsyncSession):
     tariff_slug = callback.data.split("_", 1)[1]
-    if tariff_slug not in ("pro", "vip"):
+    if tariff_slug not in tariffs.PURCHASABLE_SLUGS:
         await _safe_edit(callback, "Неизвестный тариф.")
         return
     await state.update_data(tariff_slug=tariff_slug)
+    if tariff_slug not in tariffs.INSTALLMENT_SLUGS:
+        # «Самостоятельный» — только оплата сразу картой, без выбора способа.
+        await process_pay_card(callback, state, db)
+        return
     await _safe_edit(
         callback,
-        f"Тариф <b>{tariff_slug.upper()}</b>. Как хотите оплатить?",
+        f"Тариф <b>{_html(tariff_label(tariff_slug))}</b>. Как хотите оплатить?",
         InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="💳 Картой (ЮKassa)", callback_data="pay_card")],
@@ -445,6 +473,19 @@ async def process_pay_card(callback: CallbackQuery, state: FSMContext, db: Async
 async def process_pay_installment(callback: CallbackQuery, state: FSMContext, db: AsyncSession):
     data = await state.get_data()
     tariff_slug = data.get("tariff_slug", "pro")
+    if tariff_slug not in tariffs.INSTALLMENT_SLUGS:
+        await _safe_edit(
+            callback,
+            f"Тариф <b>{_html(tariff_label(tariff_slug))}</b> оплачивается только картой — "
+            "рассрочка доступна для Pro и VIP.",
+            InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="💳 Картой", callback_data="pay_card")],
+                    [InlineKeyboardButton(text="◀️ Назад", callback_data="buy")],
+                ]
+            ),
+        )
+        return
     await state.update_data(pay_mode="installment")
     user = await get_or_create_user(callback.from_user.id, db)
     course = await get_primary_course(db)
@@ -495,6 +536,17 @@ async def create_payment_and_send(
     tariff = t_result.scalar_one_or_none()
     if not tariff:
         await message.answer("Тариф не найден.")
+        return
+
+    # Те же правила, что на сайте: нельзя купить тариф поверх VIP, self поверх Pro и т.п.
+    reason = purchase_block_reason(await get_access(db, user.id, course.id), tariff.slug)
+    if reason:
+        await message.answer(
+            _html(reason),
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")]]
+            ),
+        )
         return
 
     payment_service = PaymentService()
@@ -590,6 +642,20 @@ async def create_installment_and_send(
     tariff = t_result.scalar_one_or_none()
     if not tariff:
         await _safe_edit(callback, "Тариф не найден.")
+        return
+    if tariff.slug not in tariffs.INSTALLMENT_SLUGS:
+        await _safe_edit(callback, "Этот тариф оплачивается только картой.")
+        return
+
+    reason = purchase_block_reason(await get_access(db, user.id, course.id), tariff.slug)
+    if reason:
+        await _safe_edit(
+            callback,
+            _html(reason),
+            InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")]]
+            ),
+        )
         return
 
     if not user.accepted_offer:

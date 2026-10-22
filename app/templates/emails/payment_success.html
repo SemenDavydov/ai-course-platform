@@ -29,12 +29,17 @@
       <p>Ваш платёж за курс <strong>«{{ course_title }}»</strong>
         {% if tariff_name %}(тариф <strong>{{ tariff_name }}</strong>){% endif %}
         успешно обработан.
-        {% if tariff_slug == 'pro' %}
+        {% if tariff_slug == 'self' %}
+        Доступ ко всем материалам открыт на 2 месяца{% if access_until %} — до <strong>{{ access_until }}</strong>{% endif %}.
+        {% elif tariff_slug == 'pro' %}
         Доступ к материалам открыт на 3 месяца после окончания обучения.
         {% else %}
         Доступ к урокам уже открыт и действует бессрочно.
         {% endif %}
       </p>
+      {% if tariff_slug == 'self' %}
+      <p>Обучение самостоятельное: смотрите уроки курса в своём темпе. Вопросы можно обсуждать с другими учениками в общем чате.</p>
+      {% endif %}
       <p><strong>Доступ к урокам уже открыт</strong> — можно начинать обучение в личном кабинете.</p>
       <div class="summary">
         <p><strong>Сумма:</strong> {{ amount }}₽</p>
@@ -46,12 +51,15 @@
         {% if tariff_slug == 'vip' %}
         <p style="margin:0 0 10px;"><strong>Закрытый VIP-канал</strong></p>
         <p style="margin:0 0 12px; font-size:13px;">Присоединяйтесь к закрытому каналу для VIP-участников:</p>
+        {% elif tariff_slug == 'self' %}
+        <p style="margin:0 0 10px;"><strong>Общий чат учеников</strong></p>
+        <p style="margin:0 0 12px; font-size:13px;">Новости курса и общение с другими учениками:</p>
         {% else %}
         <p style="margin:0 0 10px;"><strong>Закрытый чат с куратором</strong></p>
         <p style="margin:0 0 12px; font-size:13px;">Поддержка куратора — 6 месяцев. Присоединяйтесь:</p>
         {% endif %}
         <p style="text-align:center; margin:0;">
-          <a class="btn btn-secondary" href="{{ chat_invite_url }}">{% if tariff_slug == 'vip' %}Войти в VIP-канал{% else %}Войти в чат{% endif %}</a>
+          <a class="btn btn-secondary" href="{{ chat_invite_url }}">{{ chat_label or 'Войти в чат' }}</a>
         </p>
       </div>
       {% elif tariff_slug == 'vip' %}
@@ -60,7 +68,7 @@
       </div>
       {% endif %}
       <p style="text-align:center;">
-        <a class="btn" href="{{ cabinet_url }}">В личный кабинет</a>
+        <a class="btn" href="{{ cabinet_url }}">{% if tariff_slug == 'self' %}Перейти к урокам{% else %}В личный кабинет{% endif %}</a>
       </p>
     </div>
     <div class="footer">

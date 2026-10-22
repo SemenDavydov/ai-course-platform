@@ -7,6 +7,9 @@ from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
 from app.config import settings
+from app.services.access import access_is_active
+from app.services.site_settings import community_invite_url
+from app.services.tariffs import tariff_label
 
 
 def _telegram_username() -> str:
@@ -14,12 +17,14 @@ def _telegram_username() -> str:
 
 
 def chat_invite_url_for(tariff_slug: str | None) -> str:
-    """Invite-ссылка в закрытый TG-чат/канал по тарифу Pro/VIP."""
+    """Invite-ссылка в TG-чат/канал по тарифу: Pro/VIP — закрытые, self — общий."""
     slug = (tariff_slug or "").strip().lower()
     if slug == "vip":
         return (settings.VIP_CHAT_INVITE_URL or "").strip()
     if slug == "pro":
         return (settings.PRO_CHAT_INVITE_URL or "").strip()
+    if slug == "self":
+        return community_invite_url()
     return ""
 
 
@@ -29,6 +34,8 @@ def chat_invite_label_for(tariff_slug: str | None) -> str:
         return "Войти в VIP-канал"
     if slug == "pro":
         return "Войти в чат с куратором"
+    if slug == "self":
+        return "Войти в общий чат учеников"
     return "Войти в Telegram"
 
 
@@ -89,3 +96,5 @@ templates.env.globals["instagram_url"] = (settings.INSTAGRAM_URL or "").strip()
 templates.env.globals["tiktok_url"] = (settings.TIKTOK_URL or "").strip()
 templates.env.globals["chat_invite_url_for"] = chat_invite_url_for
 templates.env.globals["chat_invite_label_for"] = chat_invite_label_for
+templates.env.globals["tariff_label"] = tariff_label
+templates.env.globals["access_is_active"] = access_is_active

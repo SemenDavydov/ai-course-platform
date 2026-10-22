@@ -112,7 +112,7 @@
                         <span class="inline-block px-2 py-0.5 rounded text-xs bg-emerald-100 text-emerald-700">Карта</span>
                         {% endif %}
                     </td>
-                    <td class="px-4 py-2 text-gray-600 uppercase text-xs">{{ payment.tariff_slug or '—' }}</td>
+                    <td class="px-4 py-2 text-gray-600 text-xs">{{ tariff_label(payment.tariff_slug) if payment.tariff_slug else '—' }}</td>
                     <td class="px-4 py-2">
                         {% if payment.status == 'succeeded' %}
                         <span class="inline-block px-2 py-0.5 rounded text-xs bg-green-100 text-green-700">Успешно</span>

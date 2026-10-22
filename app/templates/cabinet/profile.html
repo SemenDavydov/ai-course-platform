@@ -154,7 +154,7 @@
       <ul class="mt-2 space-y-1 pl-5 list-disc text-[var(--mist)]">
         {% for a in accesses %}
         <li>{{ a.course.title if a.course else ('Курс #' ~ a.course_id) }} —
-          <span class="uppercase font-medium text-[var(--rose)]">{{ a.tariff_slug }}</span>
+          <span class="font-medium text-[var(--rose)]">{{ tariff_label(a.tariff_slug) }}</span>
         </li>
         {% endfor %}
       </ul>

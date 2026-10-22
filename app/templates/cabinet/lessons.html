@@ -41,7 +41,7 @@
   {% if access_map.get(course.id) %}
   <p class="text-sm text-[var(--mist)] mt-1">
     Тариф:
-    <span class="font-medium uppercase text-[var(--rose)]">{{ access_map[course.id].tariff_slug }}</span>
+    <span class="font-medium text-[var(--rose)]">{{ tariff_label(access_map[course.id].tariff_slug) }}</span>
   </p>
   {% set invite_url = chat_invite_url_for(access_map[course.id].tariff_slug) %}
   {% if invite_url and not course.is_legacy %}

@@ -1,0 +1,16 @@
+# Раз в сутки в 10:00 МСК (сервер в UTC). Persistent — догоняет пропуск после простоя.
+# Установка:
+#   cp deploy/access-expiry.{service,timer} /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now access-expiry.timer
+# Логи: journalctl -u access-expiry.service
+
+[Unit]
+Description=Daily access expiry reminders (tariff self)
+
+[Timer]
+OnCalendar=*-*-* 07:00:00 UTC
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target

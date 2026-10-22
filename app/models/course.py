@@ -75,7 +75,7 @@ class Tariff(Base):
 
     id = Column(Integer, primary_key=True)
     course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
-    slug = Column(String, nullable=False)  # pro | vip
+    slug = Column(String, nullable=False)  # self | pro | vip
     name = Column(String, nullable=False)
     price = Column(Float, nullable=False)
     old_price = Column(Float, nullable=True)
@@ -95,8 +95,11 @@ class UserCourseAccess(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False, index=True)
-    tariff_slug = Column(String, nullable=False, default="legacy")  # legacy | pro | vip
+    tariff_slug = Column(String, nullable=False, default="legacy")  # legacy | self | pro | vip
     granted_at = Column(DateTime(timezone=True), server_default=func.now())
+    # NULL = бессрочно. Тариф self — доступ на ограниченный срок.
+    expires_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    expiry_reminder_sent_at = Column(DateTime(timezone=True), nullable=True)
 
     user = relationship("User", backref="course_accesses")
     course = relationship("Course")

@@ -16,7 +16,12 @@ from app.models.payment import Payment
 from app.models.admin_session import AdminSession
 from app.models.lesson_progress import LessonProgress
 from app.models.site import WaitlistApplication
-from app.services.access import grant_course_access, revoke_course_access, list_user_accesses
+from app.services.access import (
+    access_is_active,
+    grant_course_access,
+    list_user_accesses,
+    revoke_course_access,
+)
 from app.services import ratelimit
 from app.services.site_settings import (
     get_landing_mode,
@@ -496,7 +501,8 @@ async def toggle_user_access(
         )
     )
     access = existing.scalar_one_or_none()
-    if access:
+    # Истёкший доступ (self) считаем отсутствующим: кнопка должна выдать, а не отозвать.
+    if access_is_active(access):
         await revoke_course_access(db, user, course.id, commit=True)
         return {"status": "ok", "has_access": user.has_access}
     await grant_course_access(db, user, course.id, "pro", commit=True)
@@ -517,7 +523,7 @@ async def grant_user_course(
     course = await db.get(Course, course_id)
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
-    slug = tariff_slug if tariff_slug in ("legacy", "pro", "vip") else "pro"
+    slug = tariff_slug if tariff_slug in ("legacy", "self", "pro", "vip") else "pro"
     await grant_course_access(db, user, course.id, slug, commit=True)
     return RedirectResponse(url=f"/admin/users/{user_id}?granted=1#access", status_code=303)
 
@@ -890,11 +896,12 @@ async def admin_user_detail(
     )
     payments = payments_result.scalars().all()
 
-    accesses = await list_user_accesses(db, user_id)
+    accesses = await list_user_accesses(db, user_id, include_expired=True)
     all_courses = (
         await db.execute(select(Course).order_by(Course.sort_order, Course.id))
     ).scalars().all()
-    granted_ids = {a.course_id for a in accesses}
+    # Курс с истёкшим доступом снова доступен для выдачи.
+    granted_ids = {a.course_id for a in accesses if access_is_active(a)}
     available_courses = [c for c in all_courses if c.id not in granted_ids]
 
     return templates.TemplateResponse(

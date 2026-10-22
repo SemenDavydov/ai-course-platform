@@ -16,7 +16,8 @@ from app.models.course import Course, Tariff
 from app.models.payment import Payment
 from app.services.auth import get_current_user
 from app.services.payment import PaymentService
-from app.services.access import get_access, get_primary_course
+from app.services.access import get_access, get_primary_course, purchase_block_reason
+from app.services import tariffs
 from app.services.proonline import ProOnlineClient, ProOnlineError
 from app.services import ratelimit
 from app.config import settings
@@ -32,7 +33,7 @@ class CreatePaymentResponse(BaseModel):
 
 class CreatePaymentRequest(BaseModel):
     accepted_offer: bool = False
-    tariff_slug: str = Field(..., description="pro or vip")
+    tariff_slug: str = Field(..., description="self, pro or vip")
     course_slug: str | None = None
 
 
@@ -85,17 +86,10 @@ async def _resolve_course_and_tariff(
 
 
 def _ensure_can_purchase(existing, tariff_slug: str) -> None:
-    if not existing:
-        return
-    if existing.tariff_slug == "vip":
-        raise HTTPException(status_code=400, detail="У вас уже есть VIP-доступ к этому курсу")
-    if existing.tariff_slug == tariff_slug:
-        raise HTTPException(status_code=400, detail="У вас уже есть доступ по этому тарифу")
-    if existing.tariff_slug == "pro" and tariff_slug != "vip":
-        raise HTTPException(
-            status_code=400,
-            detail="У вас уже есть Pro-доступ. Доступен апгрейд до VIP",
-        )
+    """Правила покупки (общие с ботом) — см. access.purchase_block_reason."""
+    reason = purchase_block_reason(existing, tariff_slug)
+    if reason:
+        raise HTTPException(status_code=400, detail=reason)
 
 
 @router.post("/create", response_model=CreatePaymentResponse)
@@ -106,12 +100,12 @@ async def create_payment(
 ):
     """
     Создаёт платёж в YooKassa.
-    Требования: accepted_offer, тариф pro|vip.
-    Повторная покупка того же тарифа запрещена; Pro→VIP разрешён.
+    Требования: accepted_offer, тариф self|pro|vip.
+    Повторная покупка того же тарифа запрещена; апгрейды self→Pro/VIP, Pro→VIP разрешены.
     """
     tariff_slug = (body.tariff_slug or "").strip().lower()
-    if tariff_slug not in ("pro", "vip"):
-        raise HTTPException(status_code=400, detail="Укажите тариф: pro или vip")
+    if tariff_slug not in tariffs.PURCHASABLE_SLUGS:
+        raise HTTPException(status_code=400, detail="Укажите тариф: self, pro или vip")
 
     if not current_user.accepted_offer:
         if not body.accepted_offer:
@@ -170,9 +164,15 @@ async def create_installment(
 ):
     """
     Создаёт персональную анкету ProOnline (рассрочка) и возвращает questionnaire_url.
+    Только Pro/VIP: «Самостоятельный» оплачивается сразу картой.
     """
     tariff_slug = (body.tariff_slug or "").strip().lower()
-    if tariff_slug not in ("pro", "vip"):
+    if tariff_slug == tariffs.SELF:
+        raise HTTPException(
+            status_code=400,
+            detail="Тариф «Самостоятельный» оплачивается только картой — рассрочка недоступна",
+        )
+    if tariff_slug not in tariffs.INSTALLMENT_SLUGS:
         raise HTTPException(status_code=400, detail="Укажите тариф: pro или vip")
 
     client = ProOnlineClient()

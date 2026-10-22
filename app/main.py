@@ -13,8 +13,18 @@ from app.database import get_db
 from app.models.payment import Payment
 from app.models.course import Course, Module, Tariff
 from app.services.auth import get_optional_user
-from app.services.access import get_primary_course, list_user_accesses
-from app.services.site_settings import community_invite_url, get_landing_mode
+from app.services.access import (
+    access_is_active,
+    get_primary_course,
+    list_user_accesses,
+    purchase_block_reason,
+)
+from app.services import tariffs as tariffs_mod
+from app.services.site_settings import (
+    LANDING_MODE_SALES,
+    community_invite_url,
+    get_landing_mode,
+)
 from app.templating import templates
 from sqlalchemy.orm import selectinload
 import logging
@@ -87,14 +97,25 @@ async def root(
     user_json = "null"
     has_story_access = False
     story_tariff_slug = ""
+    story_access = None
+    story_access_until = ""
+    self_expired = False
     if current_user:
-        accesses = await list_user_accesses(db, current_user.id)
+        accesses = await list_user_accesses(db, current_user.id, include_expired=True)
         story_access = next(
             (a for a in accesses if a.course and a.course.slug == "ai-story"),
             None,
         )
-        has_story_access = story_access is not None
-        story_tariff_slug = (story_access.tariff_slug if story_access else "") or ""
+        has_story_access = access_is_active(story_access)
+        # Срок «Самостоятельного» вышел: повторно его не продаём, только Pro/VIP.
+        self_expired = (
+            story_access is not None
+            and not has_story_access
+            and story_access.tariff_slug == tariffs_mod.SELF
+        )
+        story_tariff_slug = (story_access.tariff_slug if has_story_access else "") or ""
+        if has_story_access and story_access.expires_at:
+            story_access_until = story_access.expires_at.strftime("%d.%m.%Y")
         user_json = json.dumps({
             "id": current_user.id,
             "email": current_user.email,
@@ -122,9 +143,21 @@ async def root(
             .order_by(Tariff.sort_order, Tariff.price)
         )
         tariffs = list(t_result.scalars().all())
+        if story_access is not None:
+            # Истёкший self → только Pro/VIP; действующий self → апгрейд до Pro/VIP.
+            tariffs = [
+                t for t in tariffs if purchase_block_reason(story_access, t.slug) is None
+            ]
 
     landing_mode = await get_landing_mode(db)
     waitlist_status = request.query_params.get("waitlist")
+    # Ученик на «Самостоятельном» видит и «Доступ открыт», и тарифы для апгрейда.
+    can_upgrade = (
+        has_story_access
+        and story_tariff_slug == tariffs_mod.SELF
+        and bool(tariffs)
+        and landing_mode == LANDING_MODE_SALES
+    )
 
     return templates.TemplateResponse("landing.html", {
         "request": request,
@@ -136,6 +169,10 @@ async def root(
         "tariffs": tariffs,
         "has_story_access": has_story_access,
         "story_tariff_slug": story_tariff_slug,
+        "self_expired": self_expired,
+        "can_upgrade": can_upgrade,
+        "story_access_until": story_access_until,
+        "installment_slugs": tariffs_mod.INSTALLMENT_SLUGS,
         "landing_mode": landing_mode,
         "community_invite_url": community_invite_url(),
         "waitlist_status": waitlist_status,

@@ -18,9 +18,12 @@ from app.models.course import Course, Lesson, Module, Tariff
 from app.models.lesson_progress import LessonProgress
 from app.models.material import Material
 from app.services.auth import get_current_user
+from app.services import tariffs as tariffs_mod
 from app.services.access import (
     TRAINING_START_LABEL,
+    access_is_active,
     course_lessons_locked,
+    get_access,
     list_accessible_courses,
     list_user_accesses,
     user_has_course,
@@ -57,12 +60,28 @@ async def _user_needs_paywall(db: AsyncSession, user) -> bool:
     return not accessible
 
 
-def _render_lessons_paywall(request: Request, user, course: Course | None, tariffs: list[Tariff]):
+async def _render_lessons_paywall(
+    request: Request, db: AsyncSession, user, course: Course | None, tariffs: list[Tariff]
+):
+    # Истёкший «Самостоятельный» повторно не продаём — только Pro/VIP.
+    self_expired = False
+    if course:
+        access = await get_access(db, user.id, course.id)
+        self_expired = (
+            access is not None
+            and access.tariff_slug == tariffs_mod.SELF
+            and not access_is_active(access)
+        )
+    if self_expired:
+        tariffs = [t for t in tariffs if t.slug != tariffs_mod.SELF]
+
     return templates.TemplateResponse("cabinet/lessons_paywall.html", {
         "request": request,
         "user": user,
         "course": course,
         "tariffs": tariffs,
+        "self_expired": self_expired,
+        "installment_slugs": tariffs_mod.INSTALLMENT_SLUGS,
     })
 
 
@@ -84,7 +103,7 @@ async def lessons_list(
 
     if await _user_needs_paywall(db, user):
         course, tariffs = await _load_primary_tariffs(db)
-        return _render_lessons_paywall(request, user, course, tariffs)
+        return await _render_lessons_paywall(request, db, user, course, tariffs)
 
     accessible = await list_accessible_courses(db, user.id)
 
@@ -164,7 +183,7 @@ async def lesson_player(
 
     if await _user_needs_paywall(db, user):
         course, tariffs = await _load_primary_tariffs(db)
-        return _render_lessons_paywall(request, user, course, tariffs)
+        return await _render_lessons_paywall(request, db, user, course, tariffs)
 
     lesson_result = await db.execute(
         select(Lesson)
@@ -177,7 +196,7 @@ async def lesson_player(
 
     if not await user_has_course(db, user, lesson.course_id):
         course, tariffs = await _load_primary_tariffs(db)
-        return _render_lessons_paywall(request, user, course, tariffs)
+        return await _render_lessons_paywall(request, db, user, course, tariffs)
 
     course_result = await db.execute(select(Course).where(Course.id == lesson.course_id))
     course = course_result.scalar_one_or_none()
