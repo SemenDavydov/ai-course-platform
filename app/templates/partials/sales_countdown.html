@@ -1,0 +1,275 @@
+{# Отсчёт до старта / конца продаж. Контекст: countdown (см. app/main.py:_countdown_context). #}
+<div class="sales-countdown{% if countdown.phase == 'open' %} sales-countdown--open{% endif %}"
+     data-countdown-target="{{ countdown.target_iso }}"
+     data-server-now="{{ countdown.server_now_iso }}"
+     data-countdown-reload="1"
+     role="timer"
+     aria-live="off"
+     aria-label="{{ countdown.title }}: {{ countdown.when_text }}">
+    <p class="sales-countdown__kicker">{{ countdown.title }}</p>
+    <div class="sales-countdown__grid" data-countdown-grid>
+        <div class="sales-countdown__cell">
+            <span class="sales-countdown__value" data-countdown-days>--</span>
+            <span class="sales-countdown__label" data-countdown-days-label>дней</span>
+        </div>
+        <div class="sales-countdown__cell">
+            <span class="sales-countdown__value" data-countdown-hours>--</span>
+            <span class="sales-countdown__label" data-countdown-hours-label>часов</span>
+        </div>
+        <div class="sales-countdown__cell">
+            <span class="sales-countdown__value" data-countdown-minutes>--</span>
+            <span class="sales-countdown__label" data-countdown-minutes-label>минут</span>
+        </div>
+        <div class="sales-countdown__cell">
+            <span class="sales-countdown__value" data-countdown-seconds>--</span>
+            <span class="sales-countdown__label" data-countdown-seconds-label>секунд</span>
+        </div>
+    </div>
+    {% if countdown.phase == 'open' %}
+    <div class="sales-countdown__progress"
+         data-countdown-progress
+         data-progress-start="{{ countdown.start_iso }}"
+         data-progress-end="{{ countdown.end_iso }}"
+         aria-hidden="true">
+        <div class="sales-countdown__bar"><span data-countdown-bar style="width: {{ countdown.progress }}%"></span></div>
+        <div class="sales-countdown__dates">
+            <span>{{ countdown.start_short }}</span>
+            <span>{{ countdown.end_short }}</span>
+        </div>
+    </div>
+    {% endif %}
+    <p class="sales-countdown__when">{{ countdown.when_text }}</p>
+    <p class="sales-countdown__done" data-countdown-done hidden>Обновляем страницу…</p>
+</div>
+<style>
+    /* Шапка выше на строку отсчёта — якоря (#tariffs) не прячем под неё. */
+    html { scroll-padding-top: 6.25rem; }
+    .sales-countdown { max-width: 38rem; margin: 0 auto 2.5rem; text-align: center; }
+    .sales-countdown__kicker {
+        margin: 0 0 0.9rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--rose);
+    }
+    .sales-countdown__grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.45rem;
+    }
+    .sales-countdown__cell {
+        position: relative;
+        overflow: hidden;
+        padding: 0.85rem 0.2rem 0.7rem;
+        border-radius: 1.15rem;
+        background: var(--dusk);
+        border: 1px solid var(--glass-border);
+        backdrop-filter: blur(12px);
+    }
+    .sales-countdown__cell::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 18%;
+        right: 18%;
+        height: 2px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--rose), var(--cyan));
+    }
+    .sales-countdown__value {
+        display: block;
+        font-family: Manrope, system-ui, sans-serif;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        font-size: clamp(1.35rem, 5.6vw, 2.5rem);
+        line-height: 1;
+        color: var(--pearl);
+    }
+    .sales-countdown__label {
+        display: block;
+        margin-top: 0.4rem;
+        font-size: 0.62rem;
+        line-height: 1.2;
+        color: var(--mist);
+    }
+    .sales-countdown__progress { margin-top: 1rem; }
+    .sales-countdown__bar {
+        height: 6px;
+        border-radius: 999px;
+        background: var(--dusk);
+        border: 1px solid var(--glass-border);
+        overflow: hidden;
+    }
+    .sales-countdown__bar > span {
+        display: block;
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--rose), var(--cyan));
+        transition: width 1s linear;
+    }
+    .sales-countdown__dates {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 0.4rem;
+        font-size: 0.68rem;
+        color: var(--mist);
+        font-variant-numeric: tabular-nums;
+    }
+    .sales-countdown__when {
+        margin: 0.85rem 0 0;
+        font-size: 0.82rem;
+        color: var(--mist);
+    }
+    .sales-countdown__done {
+        margin: 0;
+        font-family: Manrope, system-ui, sans-serif;
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: var(--pearl);
+    }
+    .sales-countdown.is-done .sales-countdown__grid,
+    .sales-countdown.is-done .sales-countdown__progress,
+    .sales-countdown.is-done .sales-countdown__when { display: none; }
+    @media (min-width: 640px) {
+        .sales-countdown__grid { gap: 0.75rem; }
+        .sales-countdown__cell { padding: 1.05rem 0.4rem 0.9rem; border-radius: 1.35rem; }
+        .sales-countdown__label { font-size: 0.78rem; }
+        .sales-countdown__kicker { font-size: 0.78rem; margin-bottom: 1rem; }
+    }
+
+    /* Тонкая строка под навигацией */
+    .sales-strip {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        height: 2.25rem;
+        padding: 0 1rem;
+        font-size: 0.8rem;
+        color: var(--pearl);
+        border-top: 1px solid var(--glass-border);
+        background: var(--dusk); /* фолбэк для браузеров без color-mix() */
+        background: linear-gradient(90deg,
+            color-mix(in srgb, var(--rose) 16%, transparent),
+            color-mix(in srgb, var(--cyan) 16%, transparent));
+        white-space: nowrap;
+        overflow: hidden;
+    }
+    .sales-strip__label { color: var(--mist); }
+    .sales-strip__time {
+        font-family: Manrope, system-ui, sans-serif;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.02em;
+    }
+    .sales-strip__cta { color: var(--rose); font-weight: 600; }
+    .sales-strip:hover .sales-strip__cta { text-decoration: underline; }
+    @media (max-width: 400px) {
+        .sales-strip { font-size: 0.74rem; gap: 0.4rem; }
+        .sales-strip__icon { display: none; }
+    }
+</style>
+<script>
+(function () {
+    if (window.__salesCountdownInit) return;
+    window.__salesCountdownInit = true;
+
+    function plural(n, one, few, many) {
+        var n100 = Math.abs(n) % 100;
+        var n10 = n100 % 10;
+        if (n100 > 10 && n100 < 20) return many;
+        if (n10 > 1 && n10 < 5) return few;
+        if (n10 === 1) return one;
+        return many;
+    }
+
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    function split(left) {
+        var total = Math.max(0, Math.floor(left / 1000));
+        return {
+            days: Math.floor(total / 86400),
+            hours: Math.floor((total % 86400) / 3600),
+            minutes: Math.floor((total % 3600) / 60),
+            seconds: total % 60
+        };
+    }
+
+    function setText(root, sel, value) {
+        var el = root.querySelector(sel);
+        if (el) el.textContent = value;
+    }
+
+    // Поправка на неверные часы посетителя: считаем от серверного времени.
+    var skew = 0;
+    var withServerNow = document.querySelector('[data-server-now]');
+    if (withServerNow) {
+        var serverNow = Date.parse(withServerNow.getAttribute('data-server-now'));
+        if (Number.isFinite(serverNow)) skew = serverNow - Date.now();
+    }
+
+    function tick() {
+        var now = Date.now() + skew;
+        var reloadTarget = null;
+
+        document.querySelectorAll('[data-countdown-target]').forEach(function (root) {
+            var target = Date.parse(root.getAttribute('data-countdown-target'));
+            var left = target - now;
+            if (!Number.isFinite(target) || left <= 0) {
+                root.classList.add('is-done');
+                var done = root.querySelector('[data-countdown-done]');
+                if (done) done.hidden = false;
+                if (root.getAttribute('data-countdown-reload') === '1') reloadTarget = target;
+                return;
+            }
+            var t = split(left);
+            if (root.hasAttribute('data-countdown-compact')) {
+                setText(root, '[data-countdown-text]',
+                    (t.days ? t.days + 'д ' : '') + pad(t.hours) + ':' + pad(t.minutes) + ':' + pad(t.seconds));
+                return;
+            }
+            setText(root, '[data-countdown-days]', pad(t.days));
+            setText(root, '[data-countdown-hours]', pad(t.hours));
+            setText(root, '[data-countdown-minutes]', pad(t.minutes));
+            setText(root, '[data-countdown-seconds]', pad(t.seconds));
+            setText(root, '[data-countdown-days-label]', plural(t.days, 'день', 'дня', 'дней'));
+            setText(root, '[data-countdown-hours-label]', plural(t.hours, 'час', 'часа', 'часов'));
+            setText(root, '[data-countdown-minutes-label]', plural(t.minutes, 'минута', 'минуты', 'минут'));
+            setText(root, '[data-countdown-seconds-label]', plural(t.seconds, 'секунда', 'секунды', 'секунд'));
+
+            var progress = root.querySelector('[data-countdown-progress]');
+            if (progress) {
+                var start = Date.parse(progress.getAttribute('data-progress-start'));
+                var end = Date.parse(progress.getAttribute('data-progress-end'));
+                var pct = Math.min(100, Math.max(0, (now - start) / (end - start) * 100));
+                var bar = progress.querySelector('[data-countdown-bar]');
+                if (bar && Number.isFinite(pct)) bar.style.width = pct.toFixed(2) + '%';
+            }
+        });
+
+        // Отсчёт дошёл до нуля: один раз перезагружаем — сервер покажет новое
+        // состояние (тарифы открылись / закрылись). Ключ на цель — без циклов.
+        if (reloadTarget !== null) {
+            var key = 'sales-countdown-reloaded-' + reloadTarget;
+            try {
+                if (!sessionStorage.getItem(key)) {
+                    sessionStorage.setItem(key, '1');
+                    window.setTimeout(function () { window.location.reload(); }, 2000);
+                }
+            } catch (e) { /* sessionStorage недоступен — без автообновления */ }
+        }
+    }
+
+    function start() {
+        tick();
+        window.setInterval(tick, 1000);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', start);
+    } else {
+        start();
+    }
+})();
+</script>

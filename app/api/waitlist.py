@@ -12,7 +12,7 @@ from app.models.site import WaitlistApplication
 from app.services import ratelimit
 from app.services.site_settings import (
     LANDING_MODE_ENROLLMENT,
-    get_landing_mode,
+    effective_landing_mode,
 )
 
 router = APIRouter(tags=["waitlist"])
@@ -28,7 +28,7 @@ async def submit_waitlist(
     social: str = Form(""),
     accepted_privacy: Optional[str] = Form(None),
 ):
-    mode = await get_landing_mode(db)
+    mode = await effective_landing_mode(db)
     if mode != LANDING_MODE_ENROLLMENT:
         return RedirectResponse(url="/#tariffs", status_code=303)
 

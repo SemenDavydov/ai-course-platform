@@ -489,3 +489,13 @@ async def test_admin_toggle_on_expired_grants_instead_of_revoking(client, db_ses
     access = await get_access(db_session, user.id, story_course.id)
     await db_session.refresh(access)
     assert access is not None and access.tariff_slug == "pro" and access.expires_at is None
+
+
+@pytest.mark.asyncio
+async def test_offer_describes_self_tariff(client):
+    html = (await client.get("/offer")).text
+    assert "AI STORY: воплоти свою историю" in html
+    assert "2 (два) месяца (60 календарных дней) с момента оплаты" in html
+    assert "рассрочка для него не предоставляется" in html
+    assert "доплатив разницу" in html
+    assert "9 990 (девять" not in html  # устаревшие цены убраны

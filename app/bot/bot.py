@@ -35,12 +35,15 @@ from app.services.access import (
     access_is_active,
     get_primary_course,
     list_accessible_courses,
+    paid_credit,
     purchase_block_reason,
+    upgrade_price,
     user_has_course,
     get_access,
 )
 from app.services import tariffs
 from app.services.tariffs import tariff_label
+from app.services.site_settings import new_sales_closed_reason
 
 _warmup_shown: set[int] = set()
 
@@ -288,6 +291,12 @@ async def _purchasable_tariffs(db: AsyncSession, course: Course, existing) -> li
     ]
 
 
+async def _bot_quote(db: AsyncSession, user: User, course: Course, tariff: Tariff, existing):
+    """(сумма к оплате, зачтено): при апгрейде вычитаем уже оплаченное за курс."""
+    credit = await paid_credit(db, user.id, course.id, existing)
+    return upgrade_price(tariff.price, credit), credit
+
+
 def _access_status_lines(existing) -> list[str]:
     """Строки «Ваш тариф…» для действующего/истёкшего доступа."""
     label = _html(tariff_label(existing.tariff_slug))
@@ -350,6 +359,16 @@ async def process_buy(callback: CallbackQuery, state: FSMContext, db: AsyncSessi
         return
 
     existing = await get_access(db, user.id, course.id)
+    closed_reason = None if access_is_active(existing) else await new_sales_closed_reason(db)
+    if closed_reason:
+        await _safe_edit(
+            callback,
+            _html(closed_reason),
+            InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")]]
+            ),
+        )
+        return
     available = await _purchasable_tariffs(db, course, existing)
     if existing and not available:
         await _safe_edit(
@@ -385,9 +404,13 @@ async def process_buy(callback: CallbackQuery, state: FSMContext, db: AsyncSessi
 
     rows = []
     for t in available:
-        label = f"{t.name} — {int(t.price)}₽"
-        if t.old_price:
-            label += f" (было {int(t.old_price)}₽)"
+        amount, credit = await _bot_quote(db, user, course, t, existing)
+        if credit > 0:
+            label = f"{t.name} — {int(amount)}₽ (с учётом оплаченного)"
+        else:
+            label = f"{t.name} — {int(t.price)}₽"
+            if t.old_price:
+                label += f" (было {int(t.old_price)}₽)"
         rows.append(
             [InlineKeyboardButton(text=label, callback_data=f"tariff_{t.slug}")]
         )
@@ -539,7 +562,13 @@ async def create_payment_and_send(
         return
 
     # Те же правила, что на сайте: нельзя купить тариф поверх VIP, self поверх Pro и т.п.
-    reason = purchase_block_reason(await get_access(db, user.id, course.id), tariff.slug)
+    existing = await get_access(db, user.id, course.id)
+    reason = purchase_block_reason(existing, tariff.slug)
+    if not reason and not access_is_active(existing):
+        reason = await new_sales_closed_reason(db)
+    amount, credit = await _bot_quote(db, user, course, tariff, existing)
+    if not reason and amount <= 0:
+        reason = "Этот тариф уже оплачен"
     if reason:
         await message.answer(
             _html(reason),
@@ -551,9 +580,11 @@ async def create_payment_and_send(
 
     payment_service = PaymentService()
     description = f"Оплата «{course.title}» — {tariff.name}"
+    if credit > 0:
+        description = f"Оплата «{course.title}» — переход на {tariff.name} (зачтено {int(credit)} ₽)"
     payment_data = await payment_service.create_payment(
         user=user,
-        amount=tariff.price,
+        amount=amount,
         description=description,
         course_id=course.id,
         return_url=f"https://t.me/{settings.BOT_USERNAME}",
@@ -566,7 +597,7 @@ async def create_payment_and_send(
 
     payment = Payment(
         user_id=user.id,
-        amount=tariff.price,
+        amount=amount,
         payment_id=payment_data["payment_id"],
         status="pending",
         description=description,
@@ -578,9 +609,10 @@ async def create_payment_and_send(
     db.add(payment)
     await db.commit()
 
+    credit_line = f" (с учётом оплаченных {int(credit)}₽)" if credit > 0 else ""
     payment_text = (
         f"💳 <b>Оплата {_html(tariff.name)}</b>\n\n"
-        f"Сумма: {int(tariff.price)}₽\n\n"
+        f"Сумма: {int(amount)}₽{credit_line}\n\n"
         f"После оплаты доступ откроется автоматически.\n"
         f"Уроки доступны сразу после оплаты."
     )
@@ -647,7 +679,13 @@ async def create_installment_and_send(
         await _safe_edit(callback, "Этот тариф оплачивается только картой.")
         return
 
-    reason = purchase_block_reason(await get_access(db, user.id, course.id), tariff.slug)
+    existing = await get_access(db, user.id, course.id)
+    reason = purchase_block_reason(existing, tariff.slug)
+    if not reason and not access_is_active(existing):
+        reason = await new_sales_closed_reason(db)
+    amount, credit = await _bot_quote(db, user, course, tariff, existing)
+    if not reason and amount <= 0:
+        reason = "Этот тариф уже оплачен"
     if reason:
         await _safe_edit(
             callback,
@@ -664,12 +702,14 @@ async def create_installment_and_send(
     external_order_id = f"po_{user.id}_{tariff.slug}_{uuid.uuid4().hex[:12]}"
     title = f"{course.title} — {tariff.name}"
     description = f"Рассрочка ProOnline «{course.title}» — тариф {tariff.name}"
+    if credit > 0:
+        description += f" (зачтено {int(credit)} ₽)"
 
     try:
         session = await client.create_payment_form_session(
             external_order_id=external_order_id,
             title=title,
-            amount=float(tariff.price),
+            amount=float(amount),
         )
     except ProOnlineError as exc:
         logger.error("Bot ProOnline session failed: %s", exc)
@@ -688,7 +728,7 @@ async def create_installment_and_send(
     questionnaire_url = session["questionnaire_url"]
     payment = Payment(
         user_id=user.id,
-        amount=tariff.price,
+        amount=amount,
         payment_id=external_order_id,
         status="pending",
         description=description,
@@ -711,7 +751,7 @@ async def create_installment_and_send(
 
     text = (
         f"📋 <b>Рассрочка — {_html(tariff.name)}</b>\n\n"
-        f"Сумма: {int(tariff.price)}₽\n\n"
+        f"Сумма: {int(amount)}₽" + (f" (с учётом оплаченных {int(credit)}₽)" if credit > 0 else "") + "\n\n"
         "Заполните анкету партнёра ProOnline. После одобрения и оплаты "
         "доступ откроется автоматически.\n"
         "Уроки доступны сразу после оплаты."

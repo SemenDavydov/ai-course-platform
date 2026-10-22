@@ -19,6 +19,7 @@ from app.models.lesson_progress import LessonProgress
 from app.models.material import Material
 from app.services.auth import get_current_user
 from app.services import tariffs as tariffs_mod
+from app.services.site_settings import new_sales_closed_reason
 from app.services.access import (
     TRAINING_START_LABEL,
     access_is_active,
@@ -74,8 +75,11 @@ async def _render_lessons_paywall(
         )
     if self_expired:
         tariffs = [t for t in tariffs if t.slug != tariffs_mod.SELF]
+    # Paywall видят только без действующего доступа — это всегда «новая покупка».
+    sales_closed_reason = await new_sales_closed_reason(db)
 
     return templates.TemplateResponse("cabinet/lessons_paywall.html", {
+        "sales_closed_reason": sales_closed_reason,
         "request": request,
         "user": user,
         "course": course,

@@ -16,10 +16,18 @@ from app.models.course import Course, Tariff
 from app.models.payment import Payment
 from app.services.auth import get_current_user
 from app.services.payment import PaymentService
-from app.services.access import get_access, get_primary_course, purchase_block_reason
+from app.services.access import (
+    access_is_active,
+    get_access,
+    get_primary_course,
+    paid_credit,
+    purchase_block_reason,
+    upgrade_price,
+)
 from app.services import tariffs
 from app.services.proonline import ProOnlineClient, ProOnlineError
 from app.services import ratelimit
+from app.services.site_settings import new_sales_closed_reason
 from app.config import settings
 
 router = APIRouter(prefix="/api/v1/payments", tags=["payments"])
@@ -92,6 +100,30 @@ def _ensure_can_purchase(existing, tariff_slug: str) -> None:
         raise HTTPException(status_code=400, detail=reason)
 
 
+async def _ensure_sales_open(db: AsyncSession, existing) -> None:
+    """Вне окна продаж закрыты новые покупки; апгрейд действующего доступа — всегда."""
+    if access_is_active(existing):
+        return
+    reason = await new_sales_closed_reason(db)
+    if reason:
+        raise HTTPException(status_code=400, detail=reason)
+
+
+async def _quote(db: AsyncSession, user, course, tariff, existing) -> tuple[float, float]:
+    """(сумма к оплате, зачтено) — при апгрейде вычитаем уже оплаченное за курс."""
+    credit = await paid_credit(db, user.id, course.id, existing)
+    amount = upgrade_price(tariff.price, credit)
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Этот тариф уже оплачен")
+    return amount, credit
+
+
+def _describe(prefix: str, course, tariff, credit: float) -> str:
+    if credit > 0:
+        return f"{prefix} «{course.title}» — переход на тариф {tariff.name} (зачтено {int(credit)} ₽)"
+    return f"{prefix} «{course.title}» — тариф {tariff.name}"
+
+
 @router.post("/create", response_model=CreatePaymentResponse)
 async def create_payment(
     body: CreatePaymentRequest,
@@ -119,15 +151,17 @@ async def create_payment(
     )
     existing = await get_access(db, current_user.id, course.id)
     _ensure_can_purchase(existing, tariff_slug)
+    await _ensure_sales_open(db, existing)
+    amount, credit = await _quote(db, current_user, course, tariff, existing)
     # Лимит — после валидаций: каждая попытка здесь = запрос в ЮKassa + строка в БД.
     await ratelimit.enforce(ratelimit.PAYMENT_USER, current_user.id)
 
     return_url = f"{settings.SITE_URL}/payment/success"
-    description = f"Оплата курса «{course.title}» — тариф {tariff.name}"
+    description = _describe("Оплата курса", course, tariff, credit)
 
     payment_data = await _payment_service.create_payment(
         user=current_user,
-        amount=tariff.price,
+        amount=amount,
         description=description,
         course_id=course.id,
         return_url=return_url,
@@ -141,7 +175,7 @@ async def create_payment(
 
     pending = Payment(
         user_id=current_user.id,
-        amount=tariff.price,
+        amount=amount,
         payment_id=payment_data["payment_id"],
         status="pending",
         description=description,
@@ -194,17 +228,19 @@ async def create_installment(
     )
     existing = await get_access(db, current_user.id, course.id)
     _ensure_can_purchase(existing, tariff_slug)
+    await _ensure_sales_open(db, existing)
+    amount, credit = await _quote(db, current_user, course, tariff, existing)
     await ratelimit.enforce(ratelimit.PAYMENT_USER, current_user.id)
 
     external_order_id = f"po_{current_user.id}_{tariff.slug}_{uuid.uuid4().hex[:12]}"
     title = f"{course.title} — {tariff.name}"
-    description = f"Рассрочка ProOnline «{course.title}» — тариф {tariff.name}"
+    description = _describe("Рассрочка ProOnline", course, tariff, credit)
 
     try:
         session = await client.create_payment_form_session(
             external_order_id=external_order_id,
             title=title,
-            amount=float(tariff.price),
+            amount=float(amount),
         )
     except ProOnlineError as exc:
         raise HTTPException(
@@ -215,7 +251,7 @@ async def create_installment(
     questionnaire_url = session["questionnaire_url"]
     pending = Payment(
         user_id=current_user.id,
-        amount=tariff.price,
+        amount=amount,
         payment_id=external_order_id,
         status="pending",
         description=description,

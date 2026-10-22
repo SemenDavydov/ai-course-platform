@@ -1,4 +1,6 @@
 import json
+from datetime import datetime, timezone
+
 from fastapi import FastAPI, Depends
 from fastapi import Request
 from fastapi.staticfiles import StaticFiles
@@ -17,13 +19,19 @@ from app.services.access import (
     access_is_active,
     get_primary_course,
     list_user_accesses,
+    paid_credit,
     purchase_block_reason,
+    upgrade_price,
 )
 from app.services import tariffs as tariffs_mod
 from app.services.site_settings import (
     LANDING_MODE_SALES,
+    PHASE_OPEN,
+    SalesSchedule,
     community_invite_url,
-    get_landing_mode,
+    effective_landing_mode,
+    format_msk,
+    get_sales_schedule,
 )
 from app.templating import templates
 from sqlalchemy.orm import selectinload
@@ -88,6 +96,41 @@ app.include_router(progress.router)
 app.include_router(webinar_track.router)
 app.include_router(waitlist.router)
 
+def _countdown_context(schedule: SalesSchedule, now: datetime) -> dict | None:
+    """Данные блока отсчёта: до старта продаж или до их конца (None — не показываем)."""
+    phase = schedule.phase(now)
+    target = schedule.countdown_target(now)
+    if not target:
+        return None
+    total = (schedule.end - schedule.start).total_seconds()
+    progress = 0.0
+    if phase == PHASE_OPEN and total > 0:
+        progress = min(100.0, max(0.0, (now - schedule.start).total_seconds() / total * 100))
+    if phase == PHASE_OPEN:
+        title = "До конца продаж осталось"
+        when_text = f"Продажи до {format_msk(schedule.end, long=True)} МСК"
+        strip_label, strip_cta, strip_href = "До конца продаж", "Выбрать тариф", "#tariffs"
+    else:
+        title = "До старта продаж осталось"
+        when_text = f"Старт продаж {format_msk(schedule.start, long=True)} МСК"
+        strip_label, strip_cta, strip_href = "До старта продаж", "Записаться", "#tariffs"
+    return {
+        "phase": phase,
+        "target_iso": target.isoformat(),
+        "server_now_iso": now.isoformat(),
+        "start_iso": schedule.start.isoformat(),
+        "end_iso": schedule.end.isoformat(),
+        "start_short": format_msk(schedule.start)[:5],
+        "end_short": format_msk(schedule.end)[:5],
+        "progress": round(progress, 2),
+        "title": title,
+        "when_text": when_text,
+        "strip_label": strip_label,
+        "strip_cta": strip_cta,
+        "strip_href": strip_href,
+    }
+
+
 @app.get("/", response_class=HTMLResponse)
 async def root(
     request: Request,
@@ -149,7 +192,8 @@ async def root(
                 t for t in tariffs if purchase_block_reason(story_access, t.slug) is None
             ]
 
-    landing_mode = await get_landing_mode(db)
+    # Расписание продаж (если включено) важнее ручного переключателя режима.
+    landing_mode = await effective_landing_mode(db)
     waitlist_status = request.query_params.get("waitlist")
     # Ученик на «Самостоятельном» видит и «Доступ открыт», и тарифы для апгрейда.
     can_upgrade = (
@@ -158,6 +202,20 @@ async def root(
         and bool(tariffs)
         and landing_mode == LANDING_MODE_SALES
     )
+    # Отсчёт видят те, кому есть что купить: без доступа или с апгрейдом.
+    countdown = None
+    if not has_story_access or can_upgrade:
+        countdown = _countdown_context(await get_sales_schedule(db), datetime.now(timezone.utc))
+
+    # Цены апгрейда с зачётом оплаченного: {slug: сумма к оплате}.
+    upgrade_credit = 0.0
+    upgrade_prices: dict[str, float] = {}
+    if can_upgrade and course:
+        upgrade_credit = await paid_credit(db, current_user.id, course.id, story_access)
+        if upgrade_credit > 0:
+            upgrade_prices = {
+                t.slug: upgrade_price(t.price, upgrade_credit) for t in tariffs
+            }
 
     return templates.TemplateResponse("landing.html", {
         "request": request,
@@ -171,6 +229,9 @@ async def root(
         "story_tariff_slug": story_tariff_slug,
         "self_expired": self_expired,
         "can_upgrade": can_upgrade,
+        "countdown": countdown,
+        "upgrade_credit": upgrade_credit,
+        "upgrade_prices": upgrade_prices,
         "story_access_until": story_access_until,
         "installment_slugs": tariffs_mod.INSTALLMENT_SLUGS,
         "landing_mode": landing_mode,

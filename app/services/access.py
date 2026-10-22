@@ -3,11 +3,12 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.course import Course, UserCourseAccess
+from app.models.payment import Payment
 from app.models.user import User
 from app.services.tariffs import PRO, SELF, VIP, access_expiry_for, tariff_rank
 
@@ -77,6 +78,32 @@ def purchase_block_reason(
         # Бессрочный доступ (напр. legacy) срочным self не заменяется — деньги ушли бы впустую.
         return "У вас уже есть бессрочный доступ к этому курсу"
     return None
+
+
+async def paid_credit(
+    db: AsyncSession, user_id: int, course_id: int, existing: UserCourseAccess | None
+) -> float:
+    """Сколько уже оплачено за курс — зачитывается при переходе на тариф выше.
+
+    Только пока доступ действует: после истечения «Самостоятельного» зачёта нет.
+    Считаем успешные платежи (возвраты имеют статус refunded и не попадают).
+    Доступ, выданный админом без оплаты, даёт зачёт 0.
+    """
+    if not access_is_active(existing):
+        return 0.0
+    result = await db.execute(
+        select(func.coalesce(func.sum(Payment.amount), 0.0)).where(
+            Payment.user_id == user_id,
+            Payment.course_id == course_id,
+            Payment.status == "succeeded",
+        )
+    )
+    return float(result.scalar_one() or 0.0)
+
+
+def upgrade_price(tariff_price: float, credit: float) -> float:
+    """Цена к оплате с учётом зачёта (не ниже нуля)."""
+    return max(round(float(tariff_price) - float(credit or 0), 2), 0.0)
 
 
 async def get_access(

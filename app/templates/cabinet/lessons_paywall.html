@@ -132,7 +132,15 @@
       {% endif %}
     </div>
 
-    {% if tariffs %}
+    {% if tariffs and sales_closed_reason %}
+    <div class="paywall-footer">
+      <p class="text-center text-sm text-[var(--mist)]">{{ sales_closed_reason }}</p>
+      <a href="/#tariffs"
+         class="mt-3 block w-full py-3 rounded-2xl text-center font-semibold text-sm text-[var(--pearl)] border border-[var(--glass-border)] hover:border-[var(--cyan)] transition">
+        На главную
+      </a>
+    </div>
+    {% elif tariffs %}
     <div class="paywall-footer">
       <label class="flex items-start gap-2.5 text-xs sm:text-sm text-[var(--mist)] mb-4 cursor-pointer">
         <input type="checkbox" id="paywall-offer-checkbox" class="mt-0.5 rounded border-[var(--glass-border)]"

@@ -17,6 +17,13 @@
         </div>
     </div>
     <div class="p-4 sm:p-6">
+        {% if schedule.active %}
+        <div class="admin-alert mb-4 text-sm bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-3">
+            Сейчас режимом управляет <a href="#sales-schedule" class="underline">расписание продаж</a> —
+            на сайте: <strong>{{ 'Продажа' if effective_mode == 'sales' else 'Набор на курс' }}</strong>.
+            Кнопки ниже сработают после отключения расписания.
+        </div>
+        {% endif %}
         <p class="text-sm text-gray-600 mb-4">
             Сейчас:
             {% if landing_mode == 'enrollment' %}
@@ -46,10 +53,76 @@
     </div>
 </div>
 
+<div class="admin-card mb-6" id="sales-schedule">
+    <div class="admin-card-header">
+        <div>
+            <h2 class="text-xl font-bold text-gray-800">Расписание продаж</h2>
+            <p class="text-sm text-gray-500 mt-0.5">
+                Отсчёт на главной и автоматическое открытие/закрытие продаж. Время — московское.
+            </p>
+        </div>
+    </div>
+    <div class="p-4 sm:p-6">
+        {% if schedule_saved %}
+        <div class="admin-alert admin-alert-success mb-4">Расписание сохранено.</div>
+        {% endif %}
+        {% if schedule_error %}
+        <div class="admin-alert mb-4 text-sm bg-red-50 border border-red-200 text-red-700 rounded-lg p-3">{{ schedule_error }}</div>
+        {% endif %}
+
+        {% if schedule.start and schedule.end %}
+        <div class="mb-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <p class="text-sm text-gray-500">Период продаж</p>
+            <p class="text-lg font-semibold text-gray-800 mt-1">
+                с {{ start_human }} по {{ end_human }} <span class="text-gray-400 font-normal">(МСК)</span>
+            </p>
+            <p class="text-sm mt-2">
+                {% if not schedule.enabled %}
+                <span class="inline-block px-2 py-0.5 rounded bg-gray-200 text-gray-700">⏸ Расписание выключено</span>
+                {% elif schedule_phase == 'before' %}
+                <span class="inline-block px-2 py-0.5 rounded bg-amber-100 text-amber-800">🕒 Старт через {{ schedule_left }}</span>
+                {% elif schedule_phase == 'open' %}
+                <span class="inline-block px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">🟢 Продажи идут · до конца {{ schedule_left }}</span>
+                {% elif schedule_phase == 'closed' %}
+                <span class="inline-block px-2 py-0.5 rounded bg-gray-200 text-gray-700">⚪ Продажи завершены</span>
+                {% endif %}
+            </p>
+        </div>
+        {% endif %}
+
+        <form method="post" action="/admin/settings/sales-schedule" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <label class="block">
+                    <span class="block text-xs text-gray-500 mb-1">Начало продаж</span>
+                    <input type="datetime-local" name="sales_start" value="{{ start_input }}"
+                           class="shadow border border-gray-200 rounded-lg w-full py-2 px-3 text-sm">
+                </label>
+                <label class="block">
+                    <span class="block text-xs text-gray-500 mb-1">Конец продаж</span>
+                    <input type="datetime-local" name="sales_end" value="{{ end_input }}"
+                           class="shadow border border-gray-200 rounded-lg w-full py-2 px-3 text-sm">
+                </label>
+            </div>
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" name="enabled" value="1" {% if schedule.enabled %}checked{% endif %}
+                       class="w-4 h-4 rounded border-gray-300">
+                Включить расписание (управляет режимом сайта и отсчётом)
+            </label>
+            <button type="submit" class="admin-btn admin-btn-primary">Сохранить расписание</button>
+        </form>
+
+        <div class="mt-5 text-xs text-gray-500 space-y-1">
+            <p><strong>До начала</strong> — форма предзаписи и отсчёт «До старта продаж».</p>
+            <p><strong>Между датами</strong> — тарифы и отсчёт «До конца продаж».</p>
+            <p><strong>После конца</strong> — форма предзаписи; новые покупки закрыты на сайте, в кабинете и в боте. Переход на тариф выше для уже купивших работает всегда.</p>
+        </div>
+    </div>
+</div>
+
 <div class="admin-card">
     <div class="p-4 sm:p-6 text-sm text-gray-600 space-y-2">
         <p><strong>Набор на курс</strong> — мягкий вход: анкета предзаписи и кнопка в сообщество после заявки.</p>
-        <p><strong>Продажа</strong> — привычный блок тарифов Pro/VIP и рассрочки.</p>
+        <p><strong>Продажа</strong> — блок тарифов (Самостоятельный, Pro, VIP) и рассрочки.</p>
         <p class="text-gray-400 pt-2">
             Заявки смотрите в разделе
             <a href="/admin/waitlist" class="text-blue-600 hover:underline">Предзапись</a>.

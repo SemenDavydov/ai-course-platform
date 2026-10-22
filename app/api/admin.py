@@ -24,7 +24,12 @@ from app.services.access import (
 )
 from app.services import ratelimit
 from app.services.site_settings import (
+    MSK,
+    effective_landing_mode,
+    format_msk,
     get_landing_mode,
+    get_sales_schedule,
+    set_sales_schedule,
     set_landing_mode,
 )
 from app.config import settings
@@ -1068,15 +1073,77 @@ async def admin_settings(
         admin: User = Depends(get_current_admin),
 ):
     mode = await get_landing_mode(db)
+    schedule = await get_sales_schedule(db)
+    now = datetime.now(timezone.utc)
+    phase = schedule.phase(now)
+    target = schedule.countdown_target(now)
     return templates.TemplateResponse(
         "admin/settings.html",
         {
             "request": request,
             "admin": admin,
             "landing_mode": mode,
+            "effective_mode": await effective_landing_mode(db),
             "saved": request.query_params.get("saved"),
+            "schedule_saved": request.query_params.get("schedule_saved"),
+            "schedule_error": request.query_params.get("schedule_error"),
+            "schedule": schedule,
+            "schedule_phase": phase,
+            "schedule_left": _humanize_delta(target - now) if target else "",
+            # value для <input type="datetime-local"> — по Москве
+            "start_input": schedule.start.astimezone(MSK).strftime("%Y-%m-%dT%H:%M") if schedule.start else "",
+            "end_input": schedule.end.astimezone(MSK).strftime("%Y-%m-%dT%H:%M") if schedule.end else "",
+            "start_human": format_msk(schedule.start, long=True),
+            "end_human": format_msk(schedule.end, long=True),
         },
     )
+
+
+def _humanize_delta(delta: timedelta) -> str:
+    total = max(int(delta.total_seconds()), 0)
+    days, rem = divmod(total, 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes = rem // 60
+    if days:
+        return f"{days} дн {hours} ч"
+    if hours:
+        return f"{hours} ч {minutes} мин"
+    return f"{minutes} мин"
+
+
+def _parse_msk_input(value: str) -> datetime | None:
+    """'2026-11-01T12:00' из datetime-local (время МСК) -> aware datetime."""
+    value = (value or "").strip()
+    if not value:
+        return None
+    return datetime.strptime(value, "%Y-%m-%dT%H:%M").replace(tzinfo=MSK)
+
+
+@router.post("/settings/sales-schedule")
+async def admin_set_sales_schedule(
+        db: AsyncSession = Depends(get_db),
+        admin: User = Depends(get_current_admin),
+        enabled: Optional[str] = Form(None),
+        sales_start: str = Form(""),
+        sales_end: str = Form(""),
+):
+    from urllib.parse import quote
+
+    try:
+        await set_sales_schedule(
+            db,
+            enabled=enabled in ("1", "on", "true"),
+            start=_parse_msk_input(sales_start),
+            end=_parse_msk_input(sales_end),
+        )
+    except ValueError as e:
+        msg = str(e)
+        if "does not match format" in msg:
+            msg = "Некорректная дата"
+        return RedirectResponse(
+            url=f"/admin/settings?schedule_error={quote(msg)}#sales-schedule", status_code=303
+        )
+    return RedirectResponse(url="/admin/settings?schedule_saved=1#sales-schedule", status_code=303)
 
 
 @router.post("/settings/landing-mode")

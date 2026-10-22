@@ -987,6 +987,15 @@
             </button>
         </div>
     </div>
+    {% if countdown %}
+    <a href="{{ countdown.strip_href }}" class="sales-strip"
+       data-countdown-target="{{ countdown.target_iso }}" data-countdown-compact>
+        <span class="sales-strip__icon" aria-hidden="true">⏳</span>
+        <span class="sales-strip__label">{{ countdown.strip_label }}</span>
+        <span class="sales-strip__time" data-countdown-text>&nbsp;</span>
+        <span class="sales-strip__cta">{{ countdown.strip_cta }} →</span>
+    </a>
+    {% endif %}
 </nav>
 
 <div id="mobile-drawer-overlay" class="mobile-drawer-overlay lg:hidden" onclick="toggleMobileDrawer(false)" aria-hidden="true"></div>
@@ -1038,7 +1047,7 @@
 </aside>
 
 <!-- HERO -->
-<section class="hero-plane relative min-h-[100svh] flex items-end sm:items-center pt-16">
+<section class="hero-plane relative min-h-[100svh] flex items-end sm:items-center {% if countdown %}pt-[6.25rem]{% else %}pt-16{% endif %}">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24 w-full">
         <p class="hero-enter font-display text-2xl sm:text-3xl md:text-4xl text-white tracking-tight mb-4">
             Davydova&nbsp;AI
@@ -1311,6 +1320,11 @@
 {% if not has_story_access or can_upgrade %}
 <section id="tariffs" class="py-20 sm:py-24 border-t section-rule">
     <div class="max-w-5xl mx-auto px-4 sm:px-6">
+        {% if countdown %}
+        <div class="reveal">
+            {% include "partials/sales_countdown.html" %}
+        </div>
+        {% endif %}
         {% if landing_mode == 'enrollment' %}
         <div class="reveal text-center mb-2">
             <p class="waitlist-badge">Предзапись на следующий поток</p>
@@ -1415,16 +1429,26 @@
             <article class="tariff-card rounded-3xl p-7 sm:p-8 flex flex-col {% if t.slug == 'vip' %}is-vip{% endif %}">
                 <header class="mb-6">
                     <h3 class="font-display text-2xl text-[var(--pearl)] font-semibold">{{ t.name }}</h3>
+                    {% set pay_price = upgrade_prices.get(t.slug) if upgrade_prices else none %}
                     <div class="mt-4 flex items-baseline gap-3 flex-wrap">
                         <span class="font-display text-4xl sm:text-5xl text-[var(--pearl)] font-semibold tabular-nums">
-                            {{ '{:,.0f}'.format(t.price)|replace(',', ' ') }}&nbsp;<span class="text-xl text-[var(--mist)]">₽</span>
+                            {{ '{:,.0f}'.format(pay_price if pay_price is not none else t.price)|replace(',', ' ') }}&nbsp;<span class="text-xl text-[var(--mist)]">₽</span>
                         </span>
-                        {% if t.old_price %}
+                        {% if pay_price is not none %}
+                        <span class="text-lg text-[var(--mist)] line-through tabular-nums opacity-70">
+                            {{ '{:,.0f}'.format(t.price)|replace(',', ' ') }}&nbsp;₽
+                        </span>
+                        {% elif t.old_price %}
                         <span class="text-lg text-[var(--mist)] line-through tabular-nums opacity-70">
                             {{ '{:,.0f}'.format(t.old_price)|replace(',', ' ') }}&nbsp;₽
                         </span>
                         {% endif %}
                     </div>
+                    {% if pay_price is not none %}
+                    <p class="mt-2 text-sm text-[var(--rose)]">
+                        с учётом оплаченных {{ '{:,.0f}'.format(upgrade_credit)|replace(',', ' ') }}&nbsp;₽
+                    </p>
+                    {% endif %}
                 </header>
 
                 {% if t.features_markdown %}
@@ -1858,11 +1882,13 @@
 
     const TARIFFS = {
         {% for t in tariffs %}
+        {% set pay_price = upgrade_prices.get(t.slug) if upgrade_prices else none %}
         "{{ t.slug }}": {
             slug: "{{ t.slug }}",
             name: {{ t.name | tojson }},
-            price: {{ t.price }},
-            old_price: {{ t.old_price if t.old_price else 'null' }},
+            // При апгрейде — цена с зачётом, а полная показывается зачёркнутой.
+            price: {{ pay_price if pay_price is not none else t.price }},
+            old_price: {{ t.price if pay_price is not none else (t.old_price if t.old_price else 'null') }},
             features: {{ (t.features_markdown or '') | tojson }}
         }{% if not loop.last %},{% endif %}
         {% endfor %}
