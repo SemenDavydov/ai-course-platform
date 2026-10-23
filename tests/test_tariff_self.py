@@ -293,12 +293,12 @@ def _yk_body(payment_id: str) -> dict:
 
 
 @pytest.mark.asyncio
-async def test_webhook_self_email_has_expiry_and_common_chat(
+async def test_webhook_self_email_has_expiry_and_self_chat(
     client, db_session, story_course, user, yookassa_api, monkeypatch
 ):
     monkeypatch.setattr(settings, "PRO_CHAT_INVITE_URL", "https://t.me/+PRO_SECRET")
     monkeypatch.setattr(settings, "VIP_CHAT_INVITE_URL", "https://t.me/+VIP_SECRET")
-    monkeypatch.setattr(settings, "WEBINAR_CHAT_INVITE_URL", "https://t.me/ai_story_news")
+    monkeypatch.setattr(settings, "SELF_CHAT_INVITE_URL", "https://t.me/+T5nhnyDyzhhmZjUy")
     yookassa_api.set_payment(amount="8990.00")
     await _pending_self_payment(db_session, story_course, user, "yk_self_1")
 
@@ -319,8 +319,9 @@ async def test_webhook_self_email_has_expiry_and_common_chat(
     assert to == user.email
     assert "Самостоятельный" in html
     assert until in html
-    assert "https://t.me/ai_story_news" in html
-    assert "Войти в общий чат учеников" in html
+    assert "https://t.me/+T5nhnyDyzhhmZjUy" in html
+    assert "Войти в чат учеников" in html
+    assert "ai_story_news" not in html
     assert "PRO_SECRET" not in html and "VIP_SECRET" not in html
 
 
@@ -330,7 +331,7 @@ async def test_webhook_self_telegram_text(
 ):
     monkeypatch.setattr(settings, "BOT_ENABLED", True)
     monkeypatch.setattr(settings, "PRO_CHAT_INVITE_URL", "https://t.me/+PRO_SECRET")
-    monkeypatch.setattr(settings, "WEBINAR_CHAT_INVITE_URL", "https://t.me/ai_story_news")
+    monkeypatch.setattr(settings, "SELF_CHAT_INVITE_URL", "https://t.me/+T5nhnyDyzhhmZjUy")
     yookassa_api.set_payment(amount="8990.00")
     tg_user = User(telegram_id=777000, email="tg@example.com", registration_source="bot_migrated")
     db_session.add(tg_user)
@@ -344,9 +345,9 @@ async def test_webhook_self_telegram_text(
     assert r.status_code == 200
     text = mock_tg.call_args.kwargs["text"]
     assert "(Самостоятельный)" in text and "на 2 месяца — до" in text
-    assert "https://t.me/ai_story_news" in text and "PRO_SECRET" not in text
+    assert "https://t.me/+T5nhnyDyzhhmZjUy" in text and "PRO_SECRET" not in text
     buttons = [b.text for row in mock_tg.call_args.kwargs["reply_markup"].inline_keyboard for b in row]
-    assert "💬 Общий чат учеников" in buttons
+    assert "💬 Чат учеников" in buttons
 
 
 # ---------------------------------------------------------------------------
@@ -386,14 +387,15 @@ async def test_landing_hides_self_after_expiry(client, db_session, story_course,
 
 @pytest.mark.asyncio
 async def test_landing_purchased_block_shows_label(client, db_session, story_course, user, monkeypatch):
-    monkeypatch.setattr(settings, "WEBINAR_CHAT_INVITE_URL", "https://t.me/ai_story_news")
+    monkeypatch.setattr(settings, "SELF_CHAT_INVITE_URL", "https://t.me/+T5nhnyDyzhhmZjUy")
     await _sales_mode(db_session)
     await grant_course_access(db_session, user, story_course.id, "self", commit=True)
     await _login(client, db_session, user)
     html = (await client.get("/")).text
     assert "Доступ открыт" in html
     assert ">Самостоятельный</span>" in html
-    assert "Войти в общий чат учеников" in html
+    assert "Войти в чат учеников" in html
+    assert 'href="https://t.me/+T5nhnyDyzhhmZjUy"' in html
 
 
 @pytest.mark.asyncio
@@ -499,3 +501,22 @@ async def test_offer_describes_self_tariff(client):
     assert "рассрочка для него не предоставляется" in html
     assert "доплатив разницу" in html
     assert "9 990 (девять" not in html  # устаревшие цены убраны
+
+
+def test_self_chat_falls_back_to_public_channel(monkeypatch):
+    from app.templating import chat_invite_url_for
+    monkeypatch.setattr(settings, "SELF_CHAT_INVITE_URL", "")
+    monkeypatch.setattr(settings, "WEBINAR_CHAT_INVITE_URL", "https://t.me/ai_story_news")
+    assert chat_invite_url_for("self") == "https://t.me/ai_story_news"
+    monkeypatch.setattr(settings, "SELF_CHAT_INVITE_URL", "https://t.me/+T5nhnyDyzhhmZjUy")
+    assert chat_invite_url_for("self") == "https://t.me/+T5nhnyDyzhhmZjUy"
+
+
+@pytest.mark.asyncio
+async def test_cabinet_shows_self_chat_button(client, db_session, story_course, user, monkeypatch):
+    monkeypatch.setattr(settings, "SELF_CHAT_INVITE_URL", "https://t.me/+T5nhnyDyzhhmZjUy")
+    await grant_course_access(db_session, user, story_course.id, "self", commit=True)
+    await _login(client, db_session, user)
+    html = (await client.get("/cabinet/lessons")).text
+    assert 'href="https://t.me/+T5nhnyDyzhhmZjUy"' in html
+    assert "Войти в чат учеников" in html

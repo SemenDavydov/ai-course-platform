@@ -130,7 +130,7 @@ async def _notify_purchase(
         )
         if chat_invite_url:
             if tariff_slug == "self":
-                welcome_text += f"\n\n💬 Общий чат учеников:\n{chat_invite_url}"
+                welcome_text += f"\n\n💬 Чат учеников:\n{chat_invite_url}"
             else:
                 closed = "VIP-канал" if tariff_slug == "vip" else "чат с куратором"
                 welcome_text += f"\n\n💬 Закрытый {closed}:\n{chat_invite_url}"
@@ -154,7 +154,7 @@ async def _notify_purchase(
         if chat_invite_url:
             btn_label = {
                 "vip": "💬 VIP-канал",
-                "self": "💬 Общий чат учеников",
+                "self": "💬 Чат учеников",
             }.get(tariff_slug, "💬 Чат с куратором")
             keyboard.inline_keyboard.append(
                 [InlineKeyboardButton(text=btn_label, url=chat_invite_url)]

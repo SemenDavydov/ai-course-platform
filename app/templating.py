@@ -17,14 +17,14 @@ def _telegram_username() -> str:
 
 
 def chat_invite_url_for(tariff_slug: str | None) -> str:
-    """Invite-ссылка в TG-чат/канал по тарифу: Pro/VIP — закрытые, self — общий."""
+    """Invite-ссылка в TG-чат/канал по тарифу — у каждого тарифа свой чат."""
     slug = (tariff_slug or "").strip().lower()
     if slug == "vip":
         return (settings.VIP_CHAT_INVITE_URL or "").strip()
     if slug == "pro":
         return (settings.PRO_CHAT_INVITE_URL or "").strip()
     if slug == "self":
-        return community_invite_url()
+        return (settings.SELF_CHAT_INVITE_URL or "").strip() or community_invite_url()
     return ""
 
 
@@ -35,7 +35,7 @@ def chat_invite_label_for(tariff_slug: str | None) -> str:
     if slug == "pro":
         return "Войти в чат с куратором"
     if slug == "self":
-        return "Войти в общий чат учеников"
+        return "Войти в чат учеников"
     return "Войти в Telegram"
 
 

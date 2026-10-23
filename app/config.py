@@ -58,6 +58,8 @@ class Settings(BaseSettings):
 
     # Invite-ссылки в закрытые Telegram-каналы после оплаты
     PRO_CHAT_INVITE_URL: str = ""
+    # Тариф «Самостоятельный» — чат учеников (пусто = публичный канал WEBINAR_CHAT_INVITE_URL)
+    SELF_CHAT_INVITE_URL: str = ""
     VIP_CHAT_INVITE_URL: str = ""
 
     # Уведомление админу о VIP-покупке
