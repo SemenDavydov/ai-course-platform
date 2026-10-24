@@ -14,7 +14,7 @@ from app.models.user import User
 from app.models.material import Material
 from app.models.course import Course, Lesson
 from app.services.auth import get_optional_user
-from app.services.access import course_lessons_locked, user_has_course
+from app.services.access import user_can_watch, user_has_course
 from app.config import settings
 
 router = APIRouter(prefix="/api/v1/materials", tags=["materials"])
@@ -65,10 +65,9 @@ async def download_material(
     lesson = await db.get(Lesson, material.lesson_id)
     if lesson and not await user_has_course(db, user, lesson.course_id):
         raise HTTPException(status_code=403, detail="Access denied")
-    if lesson:
-        course = await db.get(Course, lesson.course_id)
-        if course_lessons_locked(course):
-            raise HTTPException(status_code=403, detail="Lessons are temporarily locked")
+    if lesson and not await user_can_watch(db, user, lesson.course_id):
+        # Купили в период продаж — материалы откроются вместе с уроками.
+        raise HTTPException(status_code=403, detail="Lessons are temporarily locked")
 
     file_path = os.path.join("uploads", "materials", material.file_name)
     if not os.path.exists(file_path):

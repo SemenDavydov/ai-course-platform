@@ -33,6 +33,8 @@ from app.services.payment import PaymentService
 from app.services.proonline import ProOnlineClient, ProOnlineError
 from app.services.access import (
     access_is_active,
+    format_opening,
+    lessons_opening_at,
     get_primary_course,
     list_accessible_courses,
     paid_credit,
@@ -899,6 +901,18 @@ async def process_lesson(callback: CallbackQuery, db: AsyncSession):
     user = await get_or_create_user(callback.from_user.id, db)
     if not await user_has_course(db, user, lesson.course_id):
         await _safe_edit(callback, "❌ Нет доступа к этому курсу")
+        return
+
+    opening = lessons_opening_at(await get_access(db, user.id, lesson.course_id))
+    if opening:
+        back = f"module_{lesson.module_id}" if lesson.module_id else "course_story"
+        await _safe_edit(
+            callback,
+            f"🔒 Уроки откроются <b>{format_opening(opening)}</b> — сразу после окончания продаж.",
+            InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="◀️ Назад", callback_data=back)]]
+            ),
+        )
         return
 
     course = await db.get(Course, lesson.course_id)

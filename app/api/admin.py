@@ -4,7 +4,7 @@ from fastapi import File, UploadFile
 from fastapi import APIRouter, Depends, HTTPException, Request, Form, Cookie, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, update, func
+from sqlalchemy import String, cast, select, delete, update, func
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -20,6 +20,7 @@ from app.services.access import (
     access_is_active,
     grant_course_access,
     list_user_accesses,
+    reschedule_pending_openings,
     revoke_course_access,
 )
 from app.services import ratelimit
@@ -426,11 +427,15 @@ async def admin_users(
     offset = (page - 1) * per_page
 
     query = select(User)
+    search = (search or "").strip()
     if search:
+        like = f"%{search}%"
+        # telegram_id — BIGINT: без cast PostgreSQL падает на LIKE (раньше любой поиск = 500).
         query = query.where(
-            (User.username.contains(search)) |
-            (User.telegram_id.contains(search)) |
-            (User.email.contains(search))
+            User.username.ilike(like)
+            | User.email.ilike(like)
+            | User.name.ilike(like)
+            | cast(User.telegram_id, String).like(like)
         )
 
     users = await db.execute(
@@ -440,7 +445,7 @@ async def admin_users(
     )
     users = users.scalars().all()
 
-    total = await db.scalar(select(func.count()).select_from(User))
+    total = await db.scalar(select(func.count()).select_from(query.subquery()))
 
     return templates.TemplateResponse(
         "admin/users.html",
@@ -1130,12 +1135,16 @@ async def admin_set_sales_schedule(
     from urllib.parse import quote
 
     try:
-        await set_sales_schedule(
+        schedule = await set_sales_schedule(
             db,
             enabled=enabled in ("1", "on", "true"),
             start=_parse_msk_input(sales_start),
             end=_parse_msk_input(sales_end),
         )
+        # Купившие в этот период ждут конца продаж — двигаем их дату открытия
+        # вслед за новой датой конца (расписание выключено — уроки открываются сразу).
+        await reschedule_pending_openings(db, schedule.end if schedule.active else None)
+        await db.commit()
     except ValueError as e:
         msg = str(e)
         if "does not match format" in msg:

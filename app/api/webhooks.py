@@ -15,8 +15,15 @@ from app.models.payment import Payment
 from app.models.webhook_event import WebhookEvent
 from app.models.course import Course, Tariff
 from app.services.payment import PaymentService
-from app.services.access import get_access, grant_course_access, get_primary_course
+from app.services.access import (
+    format_opening,
+    get_access,
+    get_primary_course,
+    grant_course_access,
+    lessons_opening_at,
+)
 from app.services.tariffs import tariff_label
+from app.services.site_settings import lessons_open_at_for_purchase
 from app.services.proonline import verify_webhook_signature
 from app.bot.bot import bot
 from app.config import settings
@@ -95,19 +102,29 @@ async def _notify_purchase(
     chat_invite_url = chat_invite_url_for(tariff_slug) or None
     chat_label = chat_invite_label_for(tariff_slug)
 
-    # Срочный доступ (self): показываем дату окончания.
+    # Срочный доступ (self): дата окончания. Купили в период продаж: дата открытия уроков.
     access_until = None
+    lessons_open_label = None
     if payment.course_id:
         access = await get_access(db, user.id, payment.course_id)
         if access and access.expires_at:
             access_until = access.expires_at.strftime("%d.%m.%Y")
+        opening = lessons_opening_at(access)
+        if opening:
+            lessons_open_label = format_opening(opening)
 
     if tariff_slug == "self":
-        access_text = f" на 2 месяца — до {access_until}.\n\n" if access_until else " на 2 месяца.\n\n"
+        span = " на 2 месяца с момента открытия уроков" if lessons_open_label else " на 2 месяца"
+        access_text = f"{span} — до {access_until}.\n\n" if access_until else f"{span}.\n\n"
     elif tariff_slug == "pro":
         access_text = " на 3 месяца после окончания обучения.\n\n"
     else:
         access_text = " бессрочно.\n\n"
+    lessons_line = (
+        f"🔒 Уроки откроются {lessons_open_label} — после окончания продаж.\n\n"
+        if lessons_open_label
+        else "📅 Уроки уже доступны — можно начинать обучение.\n\n"
+    )
     from app.services.auth import create_login_token
 
     login_token = await create_login_token(db, user)
@@ -124,9 +141,13 @@ async def _notify_purchase(
             f"🎉 <b>Поздравляю с покупкой!</b>\n\n"
             f"✅ Доступ к курсу «{course_title}» ({tariff_name}) открыт"
             + access_text
-            + "📅 Уроки уже доступны — можно начинать обучение.\n\n"
-            f"🔐 Видео защищены персональными водяными знаками.\n\n"
-            f"📚 Нажмите «Перейти к курсу», чтобы начать обучение."
+            + lessons_line
+            + "🔐 Видео защищены персональными водяными знаками.\n\n"
+            + (
+                "💬 А пока — присоединяйтесь к чату."
+                if lessons_open_label
+                else "📚 Нажмите «Перейти к курсу», чтобы начать обучение."
+            )
         )
         if chat_invite_url:
             if tariff_slug == "self":
@@ -178,6 +199,7 @@ async def _notify_purchase(
             chat_invite_url=chat_invite_url,
             chat_label=chat_label,
             access_until=access_until,
+            lessons_open_label=lessons_open_label,
         )
         enqueue_email(
             user.email,
@@ -310,7 +332,10 @@ async def yookassa_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         tariff_slug = payment.tariff_slug or "pro"
         if payment.course_id:
-            await grant_course_access(db, user, payment.course_id, tariff_slug)
+            await grant_course_access(
+                db, user, payment.course_id, tariff_slug,
+                opens_at=await lessons_open_at_for_purchase(db),
+            )
         else:
             user.has_access = True
             user.access_granted_at = datetime.utcnow()
@@ -470,7 +495,10 @@ async def proonline_webhook(request: Request, db: AsyncSession = Depends(get_db)
 
     tariff_slug = payment.tariff_slug or "pro"
     if payment.course_id:
-        await grant_course_access(db, user, payment.course_id, tariff_slug)
+        await grant_course_access(
+            db, user, payment.course_id, tariff_slug,
+            opens_at=await lessons_open_at_for_purchase(db),
+        )
     else:
         user.has_access = True
         user.access_granted_at = datetime.utcnow()

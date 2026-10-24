@@ -14,18 +14,29 @@ from app.services.tariffs import PRO, SELF, VIP, access_expiry_for, tariff_rank
 
 # Moscow is UTC+3 year-round (kept for any date helpers).
 MSK = timezone(timedelta(hours=3))
-# Историческая дата старта потока; уроки уже открыты для всех с доступом.
-TRAINING_START = datetime(2026, 9, 21, 14, 0, tzinfo=MSK)
-TRAINING_START_LABEL = "21.09.2026 в 14:00 МСК"
-
-
-def course_lessons_locked(course: Course | None, *, now: datetime | None = None) -> bool:
-    """Уроки открыты: прелок до старта потока снят."""
-    return False
 
 
 def _as_utc(dt: datetime) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def lessons_opening_at(
+    access: UserCourseAccess | None, *, now: datetime | None = None
+) -> datetime | None:
+    """Когда откроются уроки по этому доступу (None — уже открыты или доступа нет).
+
+    Купившим в период продаж уроки открываются по его окончании (opens_at).
+    """
+    if access is None or access.opens_at is None:
+        return None
+    opens = _as_utc(access.opens_at)
+    return opens if opens > (now or datetime.now(timezone.utc)) else None
+
+
+def format_opening(dt: datetime) -> str:
+    """«01.11.2026 в 23:59 МСК» — для текстов «уроки откроются …»."""
+    m = _as_utc(dt).astimezone(MSK)
+    return f"{m:%d.%m.%Y} в {m:%H:%M} МСК"
 
 
 def access_is_active(
@@ -128,8 +139,15 @@ async def get_active_access(
 
 
 async def user_has_course(db: AsyncSession, user: User, course_id: int) -> bool:
+    """Курс куплен и доступ действует (уроки при этом могут быть ещё закрыты)."""
     access = await get_access(db, user.id, course_id)
     return access_is_active(access)
+
+
+async def user_can_watch(db: AsyncSession, user: User, course_id: int) -> bool:
+    """Можно смотреть уроки: доступ действует и уроки уже открыты."""
+    access = await get_access(db, user.id, course_id)
+    return access_is_active(access) and lessons_opening_at(access) is None
 
 
 async def list_user_accesses(
@@ -167,44 +185,53 @@ async def grant_course_access(
     course_id: int,
     tariff_slug: str,
     *,
+    opens_at: datetime | None = None,
     commit: bool = False,
 ) -> UserCourseAccess:
     """Создаёт или апгрейдит доступ.
 
-    - self: срок SELF_ACCESS_DAYS с момента выдачи; pro/vip/legacy — бессрочно.
+    - self: срок SELF_ACCESS_DAYS с момента открытия уроков; pro/vip/legacy — бессрочно.
+    - opens_at: купили в период продаж -> уроки откроются по его окончании.
+      Применяется к новому (или истёкшему) доступу; апгрейд действующего
+      дату открытия не трогает — уже учащийся ученик не теряет уроки.
     - Апгрейд по рангу legacy < self < pro < vip; апгрейд до pro/vip снимает срок.
     - Действующий бессрочный доступ никогда не заменяется срочным (self поверх
       активного pro/vip/legacy ничего не меняет).
     - Истёкший доступ заменяется любым новым грантом.
     """
     now = datetime.now(timezone.utc)
+    if opens_at is not None and _as_utc(opens_at) <= now:
+        opens_at = None
     access = await get_access(db, user.id, course_id)
-    new_expires_at = access_expiry_for(tariff_slug, now)
     if access is None:
         access = UserCourseAccess(
             user_id=user.id,
             course_id=course_id,
             tariff_slug=tariff_slug,
             granted_at=now,
-            expires_at=new_expires_at,
+            opens_at=opens_at,
+            expires_at=access_expiry_for(tariff_slug, opens_at or now),
         )
         db.add(access)
     else:
         active = access_is_active(access, now=now)
-        downgrade_to_expiring = (
-            active and access.expires_at is None and new_expires_at is not None
-        )
         if not active:
             access.tariff_slug = tariff_slug
             access.granted_at = now
-            access.expires_at = new_expires_at
+            access.opens_at = opens_at
+            access.expires_at = access_expiry_for(tariff_slug, opens_at or now)
             access.expiry_reminder_sent_at = None
-        elif not downgrade_to_expiring and tariff_rank(tariff_slug) >= tariff_rank(
-            access.tariff_slug
-        ):
-            access.tariff_slug = tariff_slug
-            access.expires_at = new_expires_at
-            access.expiry_reminder_sent_at = None
+        else:
+            # Срок для апгрейда считаем от открытия уроков по текущему доступу.
+            base = lessons_opening_at(access, now=now) or now
+            new_expires_at = access_expiry_for(tariff_slug, base)
+            downgrade_to_expiring = access.expires_at is None and new_expires_at is not None
+            if not downgrade_to_expiring and tariff_rank(tariff_slug) >= tariff_rank(
+                access.tariff_slug
+            ):
+                access.tariff_slug = tariff_slug
+                access.expires_at = new_expires_at
+                access.expiry_reminder_sent_at = None
 
     user.has_access = True
     if user.access_granted_at is None:
@@ -214,6 +241,35 @@ async def grant_course_access(
         await db.commit()
         await db.refresh(access)
     return access
+
+
+async def reschedule_pending_openings(
+    db: AsyncSession, new_opening: datetime | None, *, now: datetime | None = None
+) -> int:
+    """Админ сдвинул конец продаж (или выключил расписание): двигаем дату открытия
+    уроков у всех, кто ещё ждёт. Срок self сдвигается на ту же величину.
+    new_opening=None или в прошлом — открываем уроки сейчас. Возвращает число записей."""
+    now = now or datetime.now(timezone.utc)
+    target = _as_utc(new_opening) if new_opening else None
+    if target is not None and target <= now:
+        target = None
+    result = await db.execute(
+        select(UserCourseAccess).where(
+            UserCourseAccess.opens_at.is_not(None), UserCourseAccess.opens_at > now
+        )
+    )
+    changed = 0
+    for access in result.scalars().all():
+        old = _as_utc(access.opens_at)
+        new = target or now
+        delta = new - old
+        if delta == timedelta(0):
+            continue
+        access.opens_at = target
+        if access.expires_at is not None:
+            access.expires_at = _as_utc(access.expires_at) + delta
+        changed += 1
+    return changed
 
 
 async def revoke_course_access(

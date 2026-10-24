@@ -11,7 +11,7 @@ from app.database import get_db
 from app.models.lesson_progress import LessonProgress
 from app.models.course import Lesson
 from app.services.auth import get_current_user
-from app.services.access import user_has_course
+from app.services.access import user_can_watch
 
 router = APIRouter(prefix="/api/v1/progress", tags=["progress"])
 
@@ -48,7 +48,7 @@ async def update_progress(
     if not lesson:
         raise HTTPException(status_code=404, detail="Урок не найден")
 
-    if not await user_has_course(db, user, lesson.course_id):
+    if not await user_can_watch(db, user, lesson.course_id):
         raise HTTPException(status_code=403, detail="Нет доступа к этому курсу")
 
     # Ищем существующую запись

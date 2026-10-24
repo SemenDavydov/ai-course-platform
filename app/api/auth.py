@@ -336,15 +336,31 @@ async def password_reset_request(
 # POST /auth/password-reset/confirm
 # ---------------------------------------------------------------------------
 
+def _set_password_page(request: Request, token: str, mode: str):
+    """Страница из письма: GET не тратит токен (почтовики предзагружают ссылки)."""
+    return templates.TemplateResponse(
+        "auth/set_password.html",
+        {"request": request, "token": (token or "").strip(), "mode": mode},
+    )
+
+
+@router.get("/password-reset/confirm", response_class=HTMLResponse)
+async def password_reset_page(request: Request, token: str = ""):
+    return _set_password_page(request, token, "reset")
+
+
 @router.post("/password-reset/confirm")
 async def password_reset_confirm(
     body: TokenPasswordRequest,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    ok = await auth_service.reset_password(db, body.token, body.password)
-    if not ok:
+    user = await auth_service.reset_password(db, body.token, body.password)
+    if not user:
         raise HTTPException(status_code=400, detail="Ссылка недействительна или истекла")
-    return {"detail": "Пароль изменён"}
+    # Сразу входим — не заставляем вводить только что придуманный пароль.
+    _set_session_cookie(response, await auth_service.create_session(db, user))
+    return {"detail": "Пароль изменён", "redirect": "/cabinet/lessons"}
 
 
 # ---------------------------------------------------------------------------
@@ -370,13 +386,19 @@ async def password_setup_request(
 # POST /auth/password-setup/confirm
 # ---------------------------------------------------------------------------
 
+@router.get("/password-setup/confirm", response_class=HTMLResponse)
+async def password_setup_page(request: Request, token: str = ""):
+    return _set_password_page(request, token, "setup")
+
+
 @router.post("/password-setup/confirm")
 async def password_setup_confirm(
     body: TokenPasswordRequest,
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    ok = await auth_service.confirm_password_setup(db, body.token, body.password)
-    if not ok:
+    user = await auth_service.confirm_password_setup(db, body.token, body.password)
+    if not user:
         raise HTTPException(status_code=400, detail="Ссылка недействительна или истекла")
-    return {"detail": "Пароль установлен. Теперь вы можете войти."}
+    _set_session_cookie(response, await auth_service.create_session(db, user))
+    return {"detail": "Пароль установлен. Теперь вы можете войти.", "redirect": "/cabinet/lessons"}

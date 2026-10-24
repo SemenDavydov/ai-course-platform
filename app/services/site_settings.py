@@ -136,6 +136,17 @@ async def effective_landing_mode(db: AsyncSession, now: datetime | None = None) 
     return await get_landing_mode(db)
 
 
+async def lessons_open_at_for_purchase(
+    db: AsyncSession, now: datetime | None = None
+) -> datetime | None:
+    """Купили сейчас — когда открыть уроки: во время продаж — по их окончании,
+    иначе (расписания нет / продажи закончились) — сразу (None)."""
+    schedule = await get_sales_schedule(db)
+    if schedule.phase(now) == PHASE_OPEN:
+        return schedule.end
+    return None
+
+
 async def new_sales_closed_reason(db: AsyncSession, now: datetime | None = None) -> str | None:
     """Почему сейчас нельзя оформить НОВУЮ покупку (None — можно).
     Без расписания ограничений нет (как раньше); апгрейды сюда не относятся."""

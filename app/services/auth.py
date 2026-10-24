@@ -8,7 +8,7 @@ from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func, select
 from fastapi import Cookie, Depends, HTTPException, Request
 
 from app.database import get_db
@@ -37,6 +37,22 @@ def _render(template_name: str, **kwargs) -> str:
     return _jinja_env.get_template(template_name).render(**kwargs)
 
 
+def normalize_email(email: str | None) -> str:
+    return (email or "").strip().lower()
+
+
+async def find_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
+    """Поиск по email без учёта регистра: у части старых аккаунтов email записан
+    с заглавными буквами, а пользователь вводит строчными (и наоборот)."""
+    result = await db.execute(
+        select(User)
+        .where(func.lower(User.email) == normalize_email(email))
+        .order_by(User.id.desc())
+        .limit(1)
+    )
+    return result.scalars().first()
+
+
 # ---------------------------------------------------------------------------
 # Регистрация
 # ---------------------------------------------------------------------------
@@ -53,13 +69,8 @@ async def register_user(
     для чувствительных действий (смена email/удаление аккаунта), но не для доступа к курсу.
     Raises ValueError("email_taken") если email уже занят.
     """
-    result = await db.execute(
-        select(User)
-        .where(User.email == email)
-        .order_by(User.id.desc())
-        .limit(1)
-    )
-    if result.scalars().first():
+    email = normalize_email(email)
+    if await find_user_by_email(db, email):
         raise ValueError("email_taken")
 
     user = User(
@@ -141,13 +152,7 @@ async def login(db: AsyncSession, email: str, password: str) -> Optional[User]:
     Raises ValueError("password_not_set") если пользователь мигрирован (password_hash IS NULL).
     Raises ValueError("not_found") если email не найден.
     """
-    result = await db.execute(
-        select(User)
-        .where(User.email == email)
-        .order_by(User.id.desc())
-        .limit(1)
-    )
-    user = result.scalars().first()
+    user = await find_user_by_email(db, email)
     if not user:
         raise ValueError("not_found")
 
@@ -223,15 +228,12 @@ async def prepare_password_reset_email(db: AsyncSession, email: str) -> Optional
     Готовит письмо со ссылкой для сброса пароля.
     Возвращает (to, subject, html_body) или None если email не найден/не подходит.
     """
-    result = await db.execute(
-        select(User)
-        .where(User.email == email)
-        .order_by(User.id.desc())
-        .limit(1)
-    )
-    user = result.scalars().first()
-    if not user or not user.password_hash:
-        return None  # для мигрированных — отдельный флоу (setup)
+    user = await find_user_by_email(db, email)
+    if not user:
+        return None
+    if not user.password_hash:
+        # Аккаунт из Telegram-бота без пароля: раньше тут письмо молча не уходило.
+        return await prepare_password_setup_email(db, email)
 
     token = secrets.token_urlsafe(32)
     user.password_reset_token = token
@@ -240,31 +242,31 @@ async def prepare_password_reset_email(db: AsyncSession, email: str) -> Optional
 
     reset_url = f"{settings.SITE_URL}/auth/password-reset/confirm?token={token}"
     html = _render("reset_password.html", reset_url=reset_url)
-    return (email, "Сброс пароля", html)
+    return (user.email, "Сброс пароля", html)
 
 
-async def reset_password(db: AsyncSession, token: str, new_password: str) -> bool:
+async def reset_password(db: AsyncSession, token: str, new_password: str) -> Optional[User]:
     """
     Устанавливает новый пароль по токену сброса.
-    Возвращает True при успехе, False если токен не найден или истёк.
+    Возвращает пользователя при успехе, None если токен не найден или истёк.
     """
     result = await db.execute(
         select(User).where(User.password_reset_token == token)
     )
     user = result.scalar_one_or_none()
     if not user:
-        return False
+        return None
 
     if user.password_reset_sent_at:
         expires = user.password_reset_sent_at.replace(tzinfo=timezone.utc) + timedelta(hours=PASSWORD_RESET_EXPIRY_HOURS)
         if datetime.now(timezone.utc) > expires:
-            return False
+            return None
 
     await user.aset_password(new_password)
     user.password_reset_token = None
     user.password_reset_sent_at = None
     await db.commit()
-    return True
+    return user
 
 
 # ---------------------------------------------------------------------------
@@ -276,13 +278,7 @@ async def prepare_password_setup_email(db: AsyncSession, email: str) -> Optional
     Готовит письмо мигрированному пользователю (password_hash IS NULL)
     со ссылкой для установки пароля.
     """
-    result = await db.execute(
-        select(User)
-        .where(User.email == email)
-        .order_by(User.id.desc())
-        .limit(1)
-    )
-    user = result.scalars().first()
+    user = await find_user_by_email(db, email)
     # Отправляем только если пользователь найден и пароль не установлен
     if not user or user.password_hash:
         return None
@@ -294,33 +290,33 @@ async def prepare_password_setup_email(db: AsyncSession, email: str) -> Optional
 
     setup_url = f"{settings.SITE_URL}/auth/password-setup/confirm?token={token}"
     html = _render("set_password_migration.html", setup_url=setup_url)
-    return (email, "Установите пароль для входа на сайт", html)
+    return (user.email, "Установите пароль для входа на сайт", html)
 
 
-async def confirm_password_setup(db: AsyncSession, token: str, new_password: str) -> bool:
+async def confirm_password_setup(db: AsyncSession, token: str, new_password: str) -> Optional[User]:
     """
     Устанавливает пароль мигрированному пользователю.
     Использует тот же поле password_reset_token, но с более длинным сроком.
-    Возвращает True при успехе.
+    Возвращает пользователя при успехе, иначе None.
     """
     result = await db.execute(
         select(User).where(User.password_reset_token == token)
     )
     user = result.scalar_one_or_none()
     if not user:
-        return False
+        return None
 
     if user.password_reset_sent_at:
         expires = user.password_reset_sent_at.replace(tzinfo=timezone.utc) + timedelta(days=PASSWORD_SETUP_EXPIRY_DAYS)
         if datetime.now(timezone.utc) > expires:
-            return False
+            return None
 
     await user.aset_password(new_password)
     user.email_verified = True  # считаем email подтверждённым после установки пароля
     user.password_reset_token = None
     user.password_reset_sent_at = None
     await db.commit()
-    return True
+    return user
 
 
 # ---------------------------------------------------------------------------

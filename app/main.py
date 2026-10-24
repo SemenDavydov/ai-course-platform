@@ -17,6 +17,8 @@ from app.models.course import Course, Module, Tariff
 from app.services.auth import get_optional_user
 from app.services.access import (
     access_is_active,
+    format_opening,
+    lessons_opening_at,
     get_primary_course,
     list_user_accesses,
     paid_credit,
@@ -142,6 +144,7 @@ async def root(
     story_tariff_slug = ""
     story_access = None
     story_access_until = ""
+    story_lessons_open_label = ""
     self_expired = False
     if current_user:
         accesses = await list_user_accesses(db, current_user.id, include_expired=True)
@@ -159,6 +162,9 @@ async def root(
         story_tariff_slug = (story_access.tariff_slug if has_story_access else "") or ""
         if has_story_access and story_access.expires_at:
             story_access_until = story_access.expires_at.strftime("%d.%m.%Y")
+        opening = lessons_opening_at(story_access) if has_story_access else None
+        if opening:
+            story_lessons_open_label = format_opening(opening)
         user_json = json.dumps({
             "id": current_user.id,
             "email": current_user.email,
@@ -233,6 +239,7 @@ async def root(
         "upgrade_credit": upgrade_credit,
         "upgrade_prices": upgrade_prices,
         "story_access_until": story_access_until,
+        "story_lessons_open_label": story_lessons_open_label,
         "installment_slugs": tariffs_mod.INSTALLMENT_SLUGS,
         "landing_mode": landing_mode,
         "community_invite_url": community_invite_url(),

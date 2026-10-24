@@ -58,6 +58,14 @@
     Meta Platforms Inc. признана экстремистской, её продукты запрещены на территории РФ
   </p>
 </div>
+{% if countdown %}
+<div class="mb-10 rounded-3xl border border-[var(--glass-border)] bg-[var(--card-bg)] px-4 py-6 sm:px-8">
+  {% include "partials/sales_countdown.html" %}
+  <p class="text-center text-sm text-[var(--mist)] -mt-4">
+    Программа курса уже видна ниже. Пока ждёте — загляните в чат.
+  </p>
+</div>
+{% endif %}
 {% if modules_with_progress %}
   {% for block in modules_with_progress %}
   <section class="mb-10">
@@ -70,10 +78,11 @@
         {% set lesson = item.lesson %}
         {% set pct = item.percent_watched %}
         {% set done = item.is_completed %}
-        <a href="/cabinet/lessons/{{ lesson.id }}"
-           class="group rounded-3xl border border-[var(--glass-border)] bg-[var(--card-bg)] backdrop-blur-sm hover:border-[rgba(232,164,180,0.4)] hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col">
+        <a {% if lessons_locked %}aria-disabled="true" title="Уроки откроются после окончания продаж"{% else %}href="/cabinet/lessons/{{ lesson.id }}"{% endif %}
+           class="group rounded-3xl border border-[var(--glass-border)] bg-[var(--card-bg)] backdrop-blur-sm hover:border-[rgba(232,164,180,0.4)] hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col{% if lessons_locked %} opacity-60 pointer-events-none select-none{% endif %}">
           <div class="bg-[var(--dusk)] px-4 py-3 flex items-center justify-between border-b border-[var(--glass-border)]">
             <span class="text-[var(--mist)] text-xs font-medium">Урок {{ loop.index }}</span>
+            {% if lessons_locked %}<span class="text-[var(--mist)] text-xs"><i class="fa-solid fa-lock" aria-label="Закрыт"></i></span>{% endif %}
             {% if done %}
               <span class="text-[var(--cyan)] text-xs font-semibold"><i class="fa-solid fa-circle-check"></i></span>
             {% elif pct > 0 %}
@@ -108,10 +117,11 @@
         {% set lesson = item.lesson %}
         {% set pct = item.percent_watched %}
         {% set done = item.is_completed %}
-        <a href="/cabinet/lessons/{{ lesson.id }}"
-           class="group rounded-3xl border border-[var(--glass-border)] bg-[var(--card-bg)] hover:border-[rgba(126,202,212,0.35)] transition-all overflow-hidden flex flex-col">
+        <a {% if lessons_locked %}aria-disabled="true" title="Уроки откроются после окончания продаж"{% else %}href="/cabinet/lessons/{{ lesson.id }}"{% endif %}
+           class="group rounded-3xl border border-[var(--glass-border)] bg-[var(--card-bg)] hover:border-[rgba(126,202,212,0.35)] transition-all overflow-hidden flex flex-col{% if lessons_locked %} opacity-60 pointer-events-none select-none{% endif %}">
           <div class="bg-[var(--dusk)] px-4 py-3 flex items-center justify-between border-b border-[var(--glass-border)]">
             <span class="text-[var(--mist)] text-xs">Урок {{ lesson.order }}</span>
+            {% if lessons_locked %}<span class="text-[var(--mist)] text-xs"><i class="fa-solid fa-lock" aria-label="Закрыт"></i></span>{% endif %}
             {% if done %}<span class="text-[var(--cyan)] text-xs"><i class="fa-solid fa-circle-check"></i></span>{% endif %}
           </div>
           <div class="p-4">

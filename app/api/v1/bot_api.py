@@ -16,7 +16,7 @@ from app.models.material import Material
 from app.models.user import User
 from app.models.course import Course, Lesson
 from app.services.video import VideoService
-from app.services.access import get_primary_course, user_has_course
+from app.services.access import get_primary_course, user_can_watch
 
 router = APIRouter(prefix="/api/v1/bot", tags=["bot-api"])
 
@@ -129,7 +129,7 @@ async def watch_video(
         if (
             not user
             or not lesson
-            or not await user_has_course(db, user, lesson.course_id)
+            or not await user_can_watch(db, user, lesson.course_id)
         ):
             return templates.TemplateResponse(
                 "video/player.html",

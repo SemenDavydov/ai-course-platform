@@ -205,6 +205,10 @@
                                 {% else %}
                                     <span class="text-gray-400">бессрочно</span>
                                 {% endif %}
+                                {% set opening = lessons_opening_at(access) %}
+                                {% if opening %}
+                                    <div class="mt-1"><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800">🔒 уроки с {{ format_opening(opening) }}</span></div>
+                                {% endif %}
                             </td>
                             <td class="px-4 py-2">
                                 <form method="post" action="/admin/users/{{ user.id }}/revoke-course"

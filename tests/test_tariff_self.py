@@ -497,7 +497,8 @@ async def test_admin_toggle_on_expired_grants_instead_of_revoking(client, db_ses
 async def test_offer_describes_self_tariff(client):
     html = (await client.get("/offer")).text
     assert "AI STORY: воплоти свою историю" in html
-    assert "2 (два) месяца (60 календарных дней) с момента оплаты" in html
+    assert "2 (два) месяца (60 календарных дней) с момента открытия доступа к материалам" in html
+    assert "открывается по окончании этого периода" in html
     assert "рассрочка для него не предоставляется" in html
     assert "доплатив разницу" in html
     assert "9 990 (девять" not in html  # устаревшие цены убраны

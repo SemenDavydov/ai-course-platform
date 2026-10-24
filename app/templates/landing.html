@@ -1092,7 +1092,11 @@
                 {% if story_access_until %}· доступ до <span class="text-[var(--pearl)] font-semibold">{{ story_access_until }}</span>{% endif %}
             </p>
             <p class="mt-4 text-[var(--mist)] text-sm sm:text-base">
+                {% if story_lessons_open_label %}
+                Уроки откроются <span class="text-[var(--pearl)] font-semibold">{{ story_lessons_open_label }}</span> — сразу после окончания продаж. Чат уже доступен.
+                {% else %}
                 Уроки уже доступны в личном кабинете — можно начинать обучение.
+                {% endif %}
             </p>
             {% set invite_url = chat_invite_url_for(story_tariff_slug) %}
             <div class="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">

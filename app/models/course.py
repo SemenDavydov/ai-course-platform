@@ -100,6 +100,9 @@ class UserCourseAccess(Base):
     # NULL = бессрочно. Тариф self — доступ на ограниченный срок.
     expires_at = Column(DateTime(timezone=True), nullable=True, index=True)
     expiry_reminder_sent_at = Column(DateTime(timezone=True), nullable=True)
+    # Когда открываются уроки: куплено в период продаж -> по его окончании.
+    # NULL = сразу (старые доступы, выдача из админки, апгрейд действующего).
+    opens_at = Column(DateTime(timezone=True), nullable=True)
 
     user = relationship("User", backref="course_accesses")
     course = relationship("Course")

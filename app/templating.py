@@ -7,7 +7,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
 from app.config import settings
-from app.services.access import access_is_active
+from app.services.access import access_is_active, format_opening, lessons_opening_at
 from app.services.site_settings import community_invite_url
 from app.services.tariffs import tariff_label
 
@@ -98,3 +98,5 @@ templates.env.globals["chat_invite_url_for"] = chat_invite_url_for
 templates.env.globals["chat_invite_label_for"] = chat_invite_label_for
 templates.env.globals["tariff_label"] = tariff_label
 templates.env.globals["access_is_active"] = access_is_active
+templates.env.globals["lessons_opening_at"] = lessons_opening_at
+templates.env.globals["format_opening"] = format_opening

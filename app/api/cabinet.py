@@ -5,6 +5,7 @@ Prefix: /cabinet
 import os
 import io
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form
@@ -21,12 +22,13 @@ from app.services.auth import get_current_user
 from app.services import tariffs as tariffs_mod
 from app.services.site_settings import new_sales_closed_reason
 from app.services.access import (
-    TRAINING_START_LABEL,
     access_is_active,
-    course_lessons_locked,
+    format_opening,
     get_access,
+    lessons_opening_at,
     list_accessible_courses,
     list_user_accesses,
+    user_can_watch,
     user_has_course,
     get_primary_course,
 )
@@ -159,7 +161,8 @@ async def lessons_list(
 
     accesses = await list_user_accesses(db, user.id)
     access_map = {a.course_id: a for a in accesses}
-    lessons_locked = course_lessons_locked(course)
+    # Купили в период продаж — уроки откроются по его окончании.
+    opening = lessons_opening_at(access_map.get(course.id))
 
     return templates.TemplateResponse("cabinet/lessons.html", {
         "request": request,
@@ -169,9 +172,20 @@ async def lessons_list(
         "modules_with_progress": modules_with_progress,
         "orphan_lessons": orphan_lessons,
         "access_map": access_map,
-        "lessons_locked": lessons_locked,
-        "training_start_label": TRAINING_START_LABEL,
+        "lessons_locked": opening is not None,
+        "countdown": _opening_countdown(opening) if opening else None,
     })
+
+
+def _opening_countdown(opening: datetime) -> dict:
+    """Контекст partials/sales_countdown.html для отсчёта до открытия уроков."""
+    return {
+        "phase": "before",
+        "target_iso": opening.isoformat(),
+        "server_now_iso": datetime.now(timezone.utc).isoformat(),
+        "title": "До открытия уроков осталось",
+        "when_text": f"Уроки откроются {format_opening(opening)} — после окончания продаж",
+    }
 
 
 @router.get("/lessons/{lesson_id}", response_class=HTMLResponse)
@@ -204,7 +218,7 @@ async def lesson_player(
 
     course_result = await db.execute(select(Course).where(Course.id == lesson.course_id))
     course = course_result.scalar_one_or_none()
-    if course_lessons_locked(course):
+    if not await user_can_watch(db, user, lesson.course_id):
         return RedirectResponse(
             f"/cabinet/lessons?course_id={lesson.course_id}",
             status_code=302,
