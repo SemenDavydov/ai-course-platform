@@ -21,9 +21,10 @@ def _build_ssl_context() -> ssl.SSLContext:
     return ctx
 
 
-def send_email(to: str, subject: str, html_body: str) -> bool:
+def send_email(to: str, subject: str, html_body: str, text_body: str | None = None) -> bool:
     """
-    Отправляет HTML-письмо через SMTP.
+    Отправляет HTML-письмо через SMTP (опционально — с текстовой версией:
+    письма только с HTML спам-фильтры оценивают хуже).
     Возвращает True при успехе, False при ошибке.
     """
     if not settings.SMTP_HOST or not settings.SMTP_USER or not settings.SMTP_PASSWORD:
@@ -35,6 +36,8 @@ def send_email(to: str, subject: str, html_body: str) -> bool:
         msg["From"] = settings.SMTP_FROM or settings.SMTP_USER
         msg["To"] = to
         msg["Subject"] = subject
+        if text_body:
+            msg.attach(MIMEText(text_body, "plain", "utf-8"))
         msg.attach(MIMEText(html_body, "html", "utf-8"))
 
         if settings.SMTP_PORT == 465:
