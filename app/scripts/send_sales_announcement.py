@@ -90,24 +90,38 @@ async def _sales_end_text() -> str:
     return f"{end.day} {_MONTHS_GEN[end.month - 1]}"
 
 
-def main() -> None:
+async def _load(exclude: set[str], need_recipients: bool) -> tuple[str, list[str]]:
+    """Всё чтение из БД — в одном event loop: пул asyncpg привязан к циклу,
+    второй asyncio.run на тех же соединениях падает «attached to a different loop»."""
+    try:
+        sales_end_text = await _sales_end_text()
+        recipients = await _recipients(exclude) if need_recipients else []
+    finally:
+        # Закрываем пул в этом же цикле: соединения не переживут его закрытие.
+        engine = AsyncSessionLocal.kw.get("bind")
+        if engine is not None:
+            await engine.dispose()
+    return sales_end_text, recipients
+
+
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--exclude", action="append", default=[], help="email, которому не отправлять")
     parser.add_argument("--test-to", help="отправить одно тестовое письмо на этот адрес")
     parser.add_argument("--send", action="store_true", help="боевая отправка по списку")
     parser.add_argument("--log-dir", default="var/mailings")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     exclude = {e.strip().lower() for e in args.exclude}
     journal = _journal(Path(args.log_dir))
     sent = _already_sent(journal)
-    sales_end_text = asyncio.run(_sales_end_text())
+    sales_end_text, recipients = asyncio.run(_load(exclude, need_recipients=not args.test_to))
     html, text = _render(sales_end_text)
 
     if args.test_to:
         targets = [args.test_to.strip().lower()]
     else:
-        targets = [e for e in asyncio.run(_recipients(exclude)) if e not in sent]
+        targets = [e for e in recipients if e not in sent]
 
     print(f"Кампания: {CAMPAIGN} | окно продаж до: {sales_end_text}")
     print(f"Исключены: {sorted(exclude) or '—'} | уже отправлено ранее: {len(sent)}")

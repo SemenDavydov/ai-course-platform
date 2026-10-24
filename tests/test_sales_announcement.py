@@ -57,3 +57,52 @@ def test_send_email_attaches_text_part(monkeypatch):
     assert email_mod.send_email("to@example.com", "Тема", "<b>html</b>", "text")
     types = [part.get_content_type() for part in sent["msg"].get_payload()]
     assert types == ["text/plain", "text/html"]
+
+
+def test_main_end_to_end_with_pooled_engine(tmp_path, monkeypatch, capsys):
+    """Как на проде: пул соединений + весь main(). Раньше падало
+    «attached to a different loop» из-за двух asyncio.run на одном пуле."""
+    import asyncio
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.services.site_settings import set_sales_schedule
+    from tests.conftest import TEST_DATABASE_URL, async_session_maker
+
+    async def seed():
+        async with async_session_maker() as db:
+            now = datetime.now(timezone.utc)
+            await set_sales_schedule(db, enabled=True, start=now - timedelta(days=1),
+                                     end=datetime(2026, 10, 29, 20, 59, tzinfo=timezone.utc))
+            for email in ("one@example.com", "two@example.com", "skip@example.com"):
+                db.add(WaitlistApplication(name="n", phone="1", email=email, accepted_privacy=True))
+            await db.commit()
+
+    asyncio.run(seed())
+    pooled = create_async_engine(TEST_DATABASE_URL, pool_size=2)  # с пулом, как app.database
+    monkeypatch.setattr(mailing, "AsyncSessionLocal", async_sessionmaker(pooled, expire_on_commit=False))
+    monkeypatch.setattr(mailing, "PAUSE_SECONDS", 0)
+    sent = []
+    monkeypatch.setattr(mailing, "send_email", lambda to, subj, html, text: sent.append(to) or True)
+    try:
+        # 1) пробный прогон — ничего не отправляет
+        mailing.main(["--exclude", "skip@example.com", "--log-dir", str(tmp_path)])
+        out = capsys.readouterr().out
+        assert "окно продаж до: 29 октября" in out
+        assert "one@example.com" in out and "skip@example.com" not in out.split("К отправке")[1]
+        assert sent == []
+
+        # 2) тест на один адрес — попадает в журнал
+        mailing.main(["--test-to", "one@example.com", "--log-dir", str(tmp_path)])
+        assert sent == ["one@example.com"]
+
+        # 3) боевая отправка — one@ уже в журнале, второй раз не получит
+        mailing.main(["--exclude", "skip@example.com", "--send", "--log-dir", str(tmp_path)])
+        assert sent == ["one@example.com", "two@example.com"]
+
+        # 4) повторный запуск — некому отправлять
+        mailing.main(["--exclude", "skip@example.com", "--send", "--log-dir", str(tmp_path)])
+        assert sent == ["one@example.com", "two@example.com"]
+    finally:
+        asyncio.run(pooled.dispose())
