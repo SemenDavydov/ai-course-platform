@@ -1,12 +1,13 @@
 """
-Рассылка «Стартовали продажи» по предзаписи (waitlist_applications).
+Рассылки по предзаписи (waitlist_applications). Кампании — см. CAMPAIGNS.
 
     # посмотреть получателей (ничего не отправляет)
-    venv/bin/python -m app.scripts.send_sales_announcement --exclude a@x.ru --exclude b@y.ru
+    venv/bin/python -m app.scripts.send_sales_announcement --campaign sales-4days-2026-10 \
+        --exclude a@x.ru --exclude-buyers
     # тест на один адрес (адрес попадает в журнал — второй раз ему не уйдёт)
-    venv/bin/python -m app.scripts.send_sales_announcement --test-to me@x.ru
+    venv/bin/python -m app.scripts.send_sales_announcement --campaign ... --test-to me@x.ru
     # боевая отправка
-    venv/bin/python -m app.scripts.send_sales_announcement --exclude ... --send
+    venv/bin/python -m app.scripts.send_sales_announcement --campaign ... --exclude ... --send
 
 Повторный запуск безопасен: отправленные адреса пишутся в журнал
 var/mailings/<campaign>.sent и пропускаются.
@@ -24,28 +25,25 @@ from urllib.parse import urlparse
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy import func, select
 
+from dataclasses import dataclass
+from typing import Callable
+
 from app.config import settings
 from app.database import AsyncSessionLocal
+from app.models.course import Course, UserCourseAccess
 from app.models.site import WaitlistApplication
+from app.models.user import User
 from app.services.email import send_email
 from app.services.site_settings import MSK, _MONTHS_GEN, get_sales_schedule
 
 logger = logging.getLogger("sales_announcement")
 
-CAMPAIGN = "sales-open-2026-10"
-SUBJECT = "Стартовали продажи AI STORY — успей занять место в потоке 2.0"
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 PAUSE_SECONDS = 3  # не шлём пачкой — почтовики так реже режут в спам
 
 
-def _render(sales_end_text: str) -> tuple[str, str]:
-    site_url = (settings.SITE_URL or "").rstrip("/")
-    site_host = urlparse(site_url).netloc or site_url
-    env = Environment(loader=FileSystemLoader("app/templates/emails"), autoescape=select_autoescape(["html"]))
-    html = env.get_template("sales_open.html").render(
-        site_url=site_url, site_host=site_host, sales_end_text=sales_end_text
-    )
-    text = (
+def _text_sales_open(site_url: str, site_host: str, sales_end_text: str) -> str:
+    return (
         "Успей занять своё место в потоке 2.0!\n"
         "Стартовали продажи моего обучения AI STORY.\n\n"
         f"Тарифы, программа и покупка: {site_url}/\n\n"
@@ -60,12 +58,62 @@ def _render(sales_end_text: str) -> tuple[str, str]:
         "Вопросы — мне в ТГ: @kolobesyatv или менеджеру: @Simba1328\n\n"
         f"Вы получили это письмо, потому что оставили заявку на предзапись на сайте {site_host}."
     )
-    return html, text
 
 
-def _journal(log_dir: Path) -> Path:
+def _text_sales_last_days(site_url: str, site_host: str, sales_end_text: str) -> str:
+    return (
+        "ОСТАЛОСЬ 4 ДНЯ\n\n"
+        "Привет, на связи Лиза! Ты в моём списке предзаписи на поток 2.0 по обучению ИИ с нуля!\n"
+        "Через четыре дня продажи завершаются, а мест на поток становится всё меньше, решайся!\n\n"
+        "С помощью этого обучения всего за 1 месяц ты станешь универсальным креатором и будешь "
+        "работать в любом стиле от 3D до полного реализма, как профессионал!\n\n"
+        f"Приобрести курс можно на сайте: {site_url}/\n\n"
+        f"Окно продаж — до {sales_end_text}!\n"
+        "Места ограничены по тарифам.\n\n"
+        "Тарифы PRO и VIP можно выгодно оформить в рассрочку на 6 месяцев.\n\n"
+        "Буду рада видеть тебя в числе моих учеников!\n"
+        "После оплаты выбранного тарифа тебе придёт ссылка на ТГ-чат — дождись её!\n\n"
+        "Вопросы — мне в ТГ: @kolobesyatv или менеджеру: @Simba1328\n\n"
+        f"Вы получили это письмо, потому что оставили заявку на предзапись на сайте {site_host}."
+    )
+
+
+@dataclass(frozen=True)
+class Campaign:
+    subject: str
+    template: str
+    text: Callable[[str, str, str], str]
+
+
+CAMPAIGNS: dict[str, Campaign] = {
+    "sales-open-2026-10": Campaign(
+        "Стартовали продажи AI STORY — успей занять место в потоке 2.0",
+        "sales_open.html",
+        _text_sales_open,
+    ),
+    "sales-4days-2026-10": Campaign(
+        "Осталось 4 дня — продажи AI STORY завершаются",
+        "sales_last_days.html",
+        _text_sales_last_days,
+    ),
+}
+DEFAULT_CAMPAIGN = "sales-open-2026-10"
+
+
+def _render(sales_end_text: str, campaign: str = DEFAULT_CAMPAIGN) -> tuple[str, str]:
+    c = CAMPAIGNS[campaign]
+    site_url = (settings.SITE_URL or "").rstrip("/")
+    site_host = urlparse(site_url).netloc or site_url
+    env = Environment(loader=FileSystemLoader("app/templates/emails"), autoescape=select_autoescape(["html"]))
+    html = env.get_template(c.template).render(
+        site_url=site_url, site_host=site_host, sales_end_text=sales_end_text
+    )
+    return html, c.text(site_url, site_host, sales_end_text)
+
+
+def _journal(log_dir: Path, campaign: str = DEFAULT_CAMPAIGN) -> Path:
     log_dir.mkdir(parents=True, exist_ok=True)
-    return log_dir / f"{CAMPAIGN}.sent"
+    return log_dir / f"{campaign}.sent"
 
 
 def _already_sent(journal: Path) -> set[str]:
@@ -81,6 +129,19 @@ async def _recipients(exclude: set[str]) -> list[str]:
     return [e for e in emails if e not in exclude and EMAIL_RE.match(e)]
 
 
+async def _buyers() -> set[str]:
+    """Email всех, у кого есть доступ к AI STORY: «решайся, купи» им не шлём."""
+    async with AsyncSessionLocal() as db:
+        rows = await db.execute(
+            select(func.lower(func.trim(User.email)))
+            .join(UserCourseAccess, UserCourseAccess.user_id == User.id)
+            .join(Course, Course.id == UserCourseAccess.course_id)
+            .where(Course.slug == "ai-story", User.email.is_not(None))
+            .distinct()
+        )
+        return {e for (e,) in rows if e}
+
+
 async def _sales_end_text() -> str:
     async with AsyncSessionLocal() as db:
         schedule = await get_sales_schedule(db)
@@ -90,41 +151,51 @@ async def _sales_end_text() -> str:
     return f"{end.day} {_MONTHS_GEN[end.month - 1]}"
 
 
-async def _load(exclude: set[str], need_recipients: bool) -> tuple[str, list[str]]:
+async def _load(
+    exclude: set[str], need_recipients: bool, exclude_buyers: bool = False
+) -> tuple[str, list[str], set[str]]:
     """Всё чтение из БД — в одном event loop: пул asyncpg привязан к циклу,
     второй asyncio.run на тех же соединениях падает «attached to a different loop»."""
     try:
         sales_end_text = await _sales_end_text()
-        recipients = await _recipients(exclude) if need_recipients else []
+        buyers = await _buyers() if exclude_buyers else set()
+        recipients = await _recipients(exclude | buyers) if need_recipients else []
     finally:
         # Закрываем пул в этом же цикле: соединения не переживут его закрытие.
         engine = AsyncSessionLocal.kw.get("bind")
         if engine is not None:
             await engine.dispose()
-    return sales_end_text, recipients
+    return sales_end_text, recipients, buyers
 
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--campaign", default=DEFAULT_CAMPAIGN, choices=sorted(CAMPAIGNS))
     parser.add_argument("--exclude", action="append", default=[], help="email, которому не отправлять")
+    parser.add_argument("--exclude-buyers", action="store_true", help="не слать тем, кто уже купил AI STORY")
     parser.add_argument("--test-to", help="отправить одно тестовое письмо на этот адрес")
     parser.add_argument("--send", action="store_true", help="боевая отправка по списку")
     parser.add_argument("--log-dir", default="var/mailings")
     args = parser.parse_args(argv)
 
     exclude = {e.strip().lower() for e in args.exclude}
-    journal = _journal(Path(args.log_dir))
+    campaign = CAMPAIGNS[args.campaign]
+    journal = _journal(Path(args.log_dir), args.campaign)
     sent = _already_sent(journal)
-    sales_end_text, recipients = asyncio.run(_load(exclude, need_recipients=not args.test_to))
-    html, text = _render(sales_end_text)
+    sales_end_text, recipients, buyers = asyncio.run(
+        _load(exclude, need_recipients=not args.test_to, exclude_buyers=args.exclude_buyers)
+    )
+    html, text = _render(sales_end_text, args.campaign)
 
     if args.test_to:
         targets = [args.test_to.strip().lower()]
     else:
         targets = [e for e in recipients if e not in sent]
 
-    print(f"Кампания: {CAMPAIGN} | окно продаж до: {sales_end_text}")
-    print(f"Исключены: {sorted(exclude) or '—'} | уже отправлено ранее: {len(sent)}")
+    print(f"Кампания: {args.campaign} | тема: {campaign.subject} | окно продаж до: {sales_end_text}")
+    print(f"Исключены вручную: {sorted(exclude) or '—'} | уже отправлено ранее: {len(sent)}")
+    if args.exclude_buyers:
+        print(f"Исключены как купившие: {sorted(buyers) or '—'}")
     print(f"К отправке ({len(targets)}):")
     for e in targets:
         print("  -", e)
@@ -136,7 +207,7 @@ def main(argv: list[str] | None = None) -> None:
     ok = failed = 0
     with journal.open("a", encoding="utf-8") as log:
         for i, email in enumerate(targets):
-            if send_email(email, SUBJECT, html, text):
+            if send_email(email, campaign.subject, html, text):
                 log.write(email + "\n")
                 log.flush()
                 ok += 1

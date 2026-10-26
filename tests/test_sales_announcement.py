@@ -106,3 +106,66 @@ def test_main_end_to_end_with_pooled_engine(tmp_path, monkeypatch, capsys):
         assert sent == ["one@example.com", "two@example.com"]
     finally:
         asyncio.run(pooled.dispose())
+
+
+def test_render_last_days_campaign(monkeypatch):
+    monkeypatch.setattr(mailing.settings, "SITE_URL", "https://davydovaai.ru")
+    html, text = mailing._render("29 октября", "sales-4days-2026-10")
+    for part in ("ОСТАЛОСЬ 4 ДНЯ", "на связи Лиза", "до 29 октября", "от 3D до полного реализма",
+                 "рассрочку на 6 месяцев", "@kolobesyatv", "@Simba1328", 'href="https://davydovaai.ru/"'):
+        assert part in html, part
+    assert "8 мест" not in html  # в этом письме места без цифр
+    assert text.startswith("ОСТАЛОСЬ 4 ДНЯ")
+    assert mailing.CAMPAIGNS["sales-4days-2026-10"].subject.startswith("Осталось 4 дня")
+
+
+def test_campaigns_have_separate_journals(tmp_path):
+    a = mailing._journal(tmp_path, "sales-open-2026-10")
+    b = mailing._journal(tmp_path, "sales-4days-2026-10")
+    a.write_text("x@example.com\n", encoding="utf-8")
+    assert mailing._already_sent(b) == set()
+
+
+def test_exclude_buyers_end_to_end(tmp_path, monkeypatch, capsys):
+    import asyncio
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.models.course import Course
+    from app.models.user import User
+    from app.services.access import grant_course_access
+    from app.services.site_settings import set_sales_schedule
+    from datetime import datetime, timedelta, timezone
+    from tests.conftest import TEST_DATABASE_URL, async_session_maker
+
+    async def seed():
+        async with async_session_maker() as db:
+            now = datetime.now(timezone.utc)
+            await set_sales_schedule(db, enabled=True, start=now - timedelta(days=1),
+                                     end=datetime(2026, 10, 29, 20, 59, tzinfo=timezone.utc))
+            course = Course(title="AI STORY", description="d", price=1, is_published=True, slug="ai-story")
+            buyer = User(email="Bought@Mail.ru", registration_source="web")
+            db.add_all([course, buyer])
+            await db.flush()
+            await grant_course_access(db, buyer, course.id, "pro")
+            for email in ("bought@mail.ru", "lead@mail.ru", "manual@mail.ru"):
+                db.add(WaitlistApplication(name="n", phone="1", email=email, accepted_privacy=True))
+            await db.commit()
+
+    asyncio.run(seed())
+    pooled = create_async_engine(TEST_DATABASE_URL, pool_size=2)
+    monkeypatch.setattr(mailing, "AsyncSessionLocal", async_sessionmaker(pooled, expire_on_commit=False))
+    monkeypatch.setattr(mailing, "PAUSE_SECONDS", 0)
+    sent = []
+    monkeypatch.setattr(mailing, "send_email", lambda to, subj, html, text: sent.append((to, subj)) or True)
+    # старый журнал первой кампании не должен мешать второй
+    mailing._journal(tmp_path, "sales-open-2026-10").write_text("lead@mail.ru\n", encoding="utf-8")
+    try:
+        mailing.main(["--campaign", "sales-4days-2026-10", "--exclude", "manual@mail.ru",
+                      "--exclude-buyers", "--send", "--log-dir", str(tmp_path)])
+        out = capsys.readouterr().out
+        assert "Исключены как купившие: ['bought@mail.ru']" in out
+        assert [to for to, _ in sent] == ["lead@mail.ru"]
+        assert sent[0][1].startswith("Осталось 4 дня")
+    finally:
+        asyncio.run(pooled.dispose())
