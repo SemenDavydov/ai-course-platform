@@ -169,3 +169,14 @@ def test_exclude_buyers_end_to_end(tmp_path, monkeypatch, capsys):
         assert sent[0][1].startswith("Осталось 4 дня")
     finally:
         asyncio.run(pooled.dispose())
+
+
+def test_render_last_day_campaign(monkeypatch):
+    monkeypatch.setattr(mailing.settings, "SITE_URL", "https://davydovaai.ru")
+    html, text = mailing._render("29 октября", "sales-lastday-2026-10")
+    for part in ("СЕГОДНЯ ПОСЛЕДНИЙ ДЕНЬ ПРОДАЖ", "профессиональным креатором", "Следующий поток пока не планируется",
+                 "29 октября, 23:59 МСК", "Обучение стартует уже завтра", "@kolobesyatv", "@Simba1328",
+                 'href="https://davydovaai.ru/"', "оставили заявку на предзапись"):
+        assert part in html, part
+    assert text.startswith("СЕГОДНЯ ПОСЛЕДНИЙ ДЕНЬ ПРОДАЖ")
+    assert mailing.CAMPAIGNS["sales-lastday-2026-10"].subject == "Сегодня последний день продаж AI STORY"

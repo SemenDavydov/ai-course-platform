@@ -78,6 +78,21 @@ def _text_sales_last_days(site_url: str, site_host: str, sales_end_text: str) ->
     )
 
 
+def _text_sales_last_day(site_url: str, site_host: str, sales_end_text: str) -> str:
+    return (
+        "СЕГОДНЯ ПОСЛЕДНИЙ ДЕНЬ ПРОДАЖ\n\n"
+        "Сегодня последний день продаж моего курса AI STORY, решайся на обучение, если ты хочешь "
+        "стать настоящим универсальным, а главное профессиональным креатором, которых на рынке "
+        "пока ещё единицы!\n\n"
+        "Следующий поток пока не планируется, поэтому хватай эту возможность по самым выгодным ценам!\n\n"
+        "Обучение стартует уже завтра, буду рада видеть тебя в числе моих учеников!\n\n"
+        f"Приобрести курс и узнать всю информацию можно на сайте: {site_url}/\n"
+        "После оплаты выбранного тарифа тебе придёт ссылка на ТГ-чат — дождись её!\n\n"
+        "Вопросы — мне в ТГ: @kolobesyatv или менеджеру: @Simba1328\n\n"
+        f"Вы получили это письмо, потому что оставили заявку на предзапись на сайте {site_host}."
+    )
+
+
 @dataclass(frozen=True)
 class Campaign:
     subject: str
@@ -95,6 +110,11 @@ CAMPAIGNS: dict[str, Campaign] = {
         "Осталось 4 дня — продажи AI STORY завершаются",
         "sales_last_days.html",
         _text_sales_last_days,
+    ),
+    "sales-lastday-2026-10": Campaign(
+        "Сегодня последний день продаж AI STORY",
+        "sales_last_day.html",
+        _text_sales_last_day,
     ),
 }
 DEFAULT_CAMPAIGN = "sales-open-2026-10"
