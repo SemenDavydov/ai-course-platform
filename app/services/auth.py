@@ -9,9 +9,13 @@ from typing import Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from fastapi import Cookie, Depends, HTTPException, Request
 
 from app.database import get_db
+from app.models.course import UserCourseAccess
+from app.models.lesson_progress import LessonProgress
+from app.models.payment import Payment
 from app.models.user import User
 from app.models.user_session import UserSession
 from app.config import settings
@@ -378,3 +382,57 @@ async def consume_login_token(
 
     await db.refresh(user)
     return user
+
+
+async def _bot_user_has_data(db: AsyncSession, user: User) -> bool:
+    """Запись бота можно удалить, только если в ней нет ничего ценного."""
+    if user.has_access or user.password_hash or user.is_admin or user.role != "user":
+        return True
+    for model in (Payment, UserCourseAccess, LessonProgress):
+        found = await db.execute(select(model.id).where(model.user_id == user.id).limit(1))
+        if found.first():
+            return True
+    return False
+
+
+async def link_telegram(
+    db: AsyncSession,
+    token: str,
+    telegram_id: int,
+    *,
+    username: Optional[str] = None,
+    first_name: Optional[str] = None,
+    last_name: Optional[str] = None,
+) -> str:
+    """Привязывает Telegram к аккаунту сайта по одноразовому токену из кабинета.
+
+    Пустая запись, которую бот завёл на этот Telegram, удаляется. Запись с
+    покупками не трогаем: объединять их должен человек. Возвращает
+    "linked", "expired" или "conflict".
+    """
+    user = await consume_login_token(db, token)
+    if not user:
+        return "expired"
+    if user.telegram_id == telegram_id:
+        return "linked"
+    if user.telegram_id is not None:
+        return "conflict"
+
+    result = await db.execute(select(User).where(User.telegram_id == telegram_id))
+    bot_user = result.scalar_one_or_none()
+    if bot_user:
+        if await _bot_user_has_data(db, bot_user):
+            return "conflict"
+        await db.delete(bot_user)
+        await db.flush()  # telegram_id уникален: сначала освобождаем его
+
+    user.telegram_id = telegram_id
+    user.username = user.username or username
+    user.first_name = user.first_name or first_name
+    user.last_name = user.last_name or last_name
+    try:
+        await db.commit()
+    except IntegrityError:  # тот же Telegram привязали параллельно
+        await db.rollback()
+        return "conflict"
+    return "linked"

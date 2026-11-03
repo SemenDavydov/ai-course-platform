@@ -63,7 +63,7 @@ def test_main_end_to_end_with_pooled_engine(tmp_path, monkeypatch, capsys):
     """Как на проде: пул соединений + весь main(). Раньше падало
     «attached to a different loop» из-за двух asyncio.run на одном пуле."""
     import asyncio
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timezone
 
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -72,8 +72,7 @@ def test_main_end_to_end_with_pooled_engine(tmp_path, monkeypatch, capsys):
 
     async def seed():
         async with async_session_maker() as db:
-            now = datetime.now(timezone.utc)
-            await set_sales_schedule(db, enabled=True, start=now - timedelta(days=1),
+            await set_sales_schedule(db, enabled=True, start=datetime(2026, 10, 20, tzinfo=timezone.utc),
                                      end=datetime(2026, 10, 29, 20, 59, tzinfo=timezone.utc))
             for email in ("one@example.com", "two@example.com", "skip@example.com"):
                 db.add(WaitlistApplication(name="n", phone="1", email=email, accepted_privacy=True))
@@ -135,13 +134,12 @@ def test_exclude_buyers_end_to_end(tmp_path, monkeypatch, capsys):
     from app.models.user import User
     from app.services.access import grant_course_access
     from app.services.site_settings import set_sales_schedule
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timezone
     from tests.conftest import TEST_DATABASE_URL, async_session_maker
 
     async def seed():
         async with async_session_maker() as db:
-            now = datetime.now(timezone.utc)
-            await set_sales_schedule(db, enabled=True, start=now - timedelta(days=1),
+            await set_sales_schedule(db, enabled=True, start=datetime(2026, 10, 20, tzinfo=timezone.utc),
                                      end=datetime(2026, 10, 29, 20, 59, tzinfo=timezone.utc))
             course = Course(title="AI STORY", description="d", price=1, is_published=True, slug="ai-story")
             buyer = User(email="Bought@Mail.ru", registration_source="web")

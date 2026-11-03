@@ -92,6 +92,7 @@ _u = _telegram_username()
 templates = CompatibleJinja2Templates(directory="app/templates")
 templates.env.globals["telegram_bot_url"] = f"https://t.me/{_u}" if _u else "#"
 templates.env.globals["telegram_bot_username"] = _u
+templates.env.globals["bot_enabled"] = settings.BOT_ENABLED
 templates.env.globals["instagram_url"] = (settings.INSTAGRAM_URL or "").strip()
 templates.env.globals["tiktok_url"] = (settings.TIKTOK_URL or "").strip()
 templates.env.globals["chat_invite_url_for"] = chat_invite_url_for

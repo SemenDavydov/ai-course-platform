@@ -7,7 +7,7 @@ import jwt
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.filters import Command, CommandStart
+from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -28,7 +28,7 @@ from app.models.user import User
 from app.models.course import Course, Lesson, Module, Tariff
 from app.models.material import Material
 from app.models.payment import Payment
-from app.services.auth import create_login_token
+from app.services.auth import create_login_token, link_telegram
 from app.services.payment import PaymentService
 from app.services.proonline import ProOnlineClient, ProOnlineError
 from app.services.access import (
@@ -194,7 +194,30 @@ def _main_menu_keyboard(has_any_access: bool, has_story: bool, has_legacy: bool)
 
 
 @dp.message(CommandStart())
-async def cmd_start(message: Message, db: AsyncSession):
+async def cmd_start(message: Message, db: AsyncSession, command: CommandObject | None = None):
+    # Кнопка «Открыть уроки в боте» из кабинета: t.me/<bot>?start=link_<token>
+    if command and command.args and command.args.startswith("link_"):
+        status = await link_telegram(
+            db,
+            command.args.removeprefix("link_"),
+            message.from_user.id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name,
+        )
+        if status == "expired":
+            await message.answer(
+                "⏳ Ссылка устарела. Нажмите «Открыть уроки в боте» в личном кабинете ещё раз."
+            )
+            return
+        if status == "conflict":
+            await message.answer(
+                "⚠️ Не получилось привязать этот Telegram автоматически: он или аккаунт "
+                "на сайте уже связаны с другой записью. Напишите менеджеру: @Simba1328"
+            )
+            return
+        await message.answer("✅ Telegram привязан к вашему аккаунту на сайте.")
+
     query = select(User).where(User.telegram_id == message.from_user.id)
     result = await db.execute(query)
     existing_user = result.scalar_one_or_none()
@@ -241,7 +264,10 @@ async def cmd_start(message: Message, db: AsyncSession):
         await asyncio.sleep(1.0)
 
     await message.answer(
-        "Хочешь узнать подробнее или сразу выбрать тариф? 👇",
+        "Хочешь узнать подробнее или сразу выбрать тариф? 👇\n\n"
+        "Уже купили курс на сайте? Откройте "
+        f'<a href="{settings.SITE_URL}/cabinet/lessons">личный кабинет</a> '
+        "и нажмите «Открыть уроки в боте».",
         reply_markup=_main_menu_keyboard(False, False, False),
     )
 

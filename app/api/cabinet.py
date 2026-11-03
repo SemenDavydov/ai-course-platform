@@ -18,7 +18,7 @@ from app.database import get_db
 from app.models.course import Course, Lesson, Module, Tariff
 from app.models.lesson_progress import LessonProgress
 from app.models.material import Material
-from app.services.auth import get_current_user
+from app.services.auth import create_login_token, get_current_user
 from app.services import tariffs as tariffs_mod
 from app.services.site_settings import new_sales_closed_reason
 from app.services.access import (
@@ -94,6 +94,21 @@ async def _render_lessons_paywall(
 @router.get("", response_class=HTMLResponse)
 async def cabinet_index(request: Request):
     return RedirectResponse("/cabinet/lessons", status_code=302)
+
+
+@router.get("/telegram")
+async def open_in_telegram(request: Request, db: AsyncSession = Depends(get_db)):
+    """Открывает бота; ещё не привязанный аккаунт получает одноразовую ссылку привязки."""
+    try:
+        user = await get_current_user(request, db)
+    except HTTPException:
+        return RedirectResponse("/auth/open-lessons", status_code=302)
+    bot_url = templates.env.globals["telegram_bot_url"]
+    if user.telegram_id:
+        return RedirectResponse(bot_url, status_code=302)
+    # shortcut: токен один на пользователя и гасит ссылку из письма об оплате; вход по паролю работает, отдельное поле — если будут жалобы.
+    token = await create_login_token(db, user)
+    return RedirectResponse(f"{bot_url}?start=link_{token}", status_code=302)
 
 
 @router.get("/lessons", response_class=HTMLResponse)

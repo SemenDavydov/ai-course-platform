@@ -53,6 +53,15 @@
     {{ chat_invite_label_for(access_map[course.id].tariff_slug) }}
   </a>
   {% endif %}
+  {% if bot_enabled and telegram_bot_username %}
+  <a href="/cabinet/telegram"
+     target="_blank"
+     rel="noopener noreferrer"
+     class="mt-2 ml-4 inline-flex items-center gap-2 text-sm font-semibold text-[var(--cyan)] hover:opacity-80 transition">
+    <i class="fab fa-telegram" aria-hidden="true"></i>
+    Открыть уроки в боте
+  </a>
+  {% endif %}
   {% endif %}
   <p class="meta-disclaimer">
     Meta Platforms Inc. признана экстремистской, её продукты запрещены на территории РФ
