@@ -29,6 +29,8 @@ PASSWORD_SETUP_EXPIRY_DAYS = 7
 LOGIN_TOKEN_EXPIRY_MINUTES = 15
 # Письмо об оплате открывают не сразу и часто из почтового приложения.
 EMAIL_LOGIN_TOKEN_MINUTES = 60 * 24
+# Ссылка привязки Telegram приходит и письмом: 15 минут на письмо мало.
+TELEGRAM_LINK_MINUTES = 60
 
 # Jinja2 env для email-шаблонов (синхронный, для Celery-задач)
 _jinja_env = Environment(
@@ -384,6 +386,25 @@ async def consume_login_token(
     return user
 
 
+async def find_other_account(db: AsyncSession, email: str, user_id: int) -> Optional[User]:
+    """Другой аккаунт с этим email (не сам пользователь)."""
+    result = await db.execute(
+        select(User)
+        .where(func.lower(User.email) == normalize_email(email), User.id != user_id)
+        .order_by(User.id.desc())
+        .limit(1)
+    )
+    return result.scalars().first()
+
+
+async def prepare_telegram_link_email(db: AsyncSession, account: User) -> tuple[str, str, str]:
+    """Письмо владельцу аккаунта со ссылкой привязки Telegram: (to, subject, html)."""
+    token = await create_login_token(db, account)
+    bot_name = (settings.BOT_USERNAME or "").strip().lstrip("@")
+    html = _render("link_telegram.html", link_url=f"https://t.me/{bot_name}?start=link_{token}")
+    return (account.email, "Привяжите Telegram к аккаунту AI STORY", html)
+
+
 async def _bot_user_has_data(db: AsyncSession, user: User) -> bool:
     """Запись бота можно удалить, только если в ней нет ничего ценного."""
     if user.has_access or user.password_hash or user.is_admin or user.role != "user":
@@ -410,7 +431,7 @@ async def link_telegram(
     покупками не трогаем: объединять их должен человек. Возвращает
     "linked", "expired" или "conflict".
     """
-    user = await consume_login_token(db, token)
+    user = await consume_login_token(db, token, ttl_minutes=TELEGRAM_LINK_MINUTES)
     if not user:
         return "expired"
     if user.telegram_id == telegram_id:

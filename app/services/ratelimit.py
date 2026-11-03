@@ -43,6 +43,9 @@ LOGIN_TOKEN_IP = Limit("login_token_ip", 20, 10 * 60)
 ADMIN_LOGIN_IP = Limit("admin_login_ip", 5, 15 * 60)
 PAYMENT_USER = Limit("payment_user", 5, 10 * 60)
 WAITLIST_IP = Limit("waitlist_ip", 5, 60 * 60)
+# Письма привязки Telegram: бот не должен стать способом слать почту на чужие адреса.
+LINK_EMAIL = Limit("link_email", 3, 60 * 60)
+LINK_TG = Limit("link_tg", 5, 60 * 60)
 
 
 class RateLimitExceeded(Exception):

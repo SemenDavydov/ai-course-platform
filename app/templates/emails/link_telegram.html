@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Привяжите Telegram</title>
+  <style>
+    body { margin: 0; padding: 0; background: #f0efe9; font-family: Georgia, 'Times New Roman', serif; color: #1c1917; }
+    .wrapper { max-width: 560px; margin: 40px auto; background: #ffffff; overflow: hidden; border: 1px solid #e7e5e0; }
+    .header { background: #1c1917; padding: 32px 40px; text-align: center; }
+    .header h1 { margin: 0; color: #fafaf8; font-size: 22px; font-weight: normal; letter-spacing: 0.02em; }
+    .body { padding: 36px 40px; font-family: Arial, sans-serif; }
+    .body p { font-size: 15px; line-height: 1.7; margin: 0 0 18px; }
+    .btn { display: inline-block; margin: 8px 0 16px; padding: 14px 32px; background: #c45c26; color: #ffffff !important; text-decoration: none; font-size: 15px; font-weight: bold; }
+    .note { font-size: 13px !important; color: #78716c; }
+    .footer { padding: 20px 40px; background: #f0efe9; font-size: 12px; color: #78716c; text-align: center; font-family: Arial, sans-serif; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>Привяжите Telegram</h1>
+    </div>
+    <div class="body">
+      <p>Здравствуйте!</p>
+      <p>В нашем Telegram-боте указали ваш email. На сайте у вас уже есть аккаунт. Нажмите кнопку, чтобы связать его с Telegram: откроется бот, и аккаунты объединятся.</p>
+      <p style="text-align:center;">
+        <a class="btn" href="{{ link_url }}">Привязать Telegram</a>
+      </p>
+      <p class="note">Ссылка действует 1 час и срабатывает один раз. Не пересылайте её никому.</p>
+      <p class="note">Если это были не вы, просто проигнорируйте письмо: без нажатия на кнопку ничего не изменится.</p>
+    </div>
+    <div class="footer">
+      © 2026 AI STORY · Davydova AI
+    </div>
+  </div>
+</body>
+</html>

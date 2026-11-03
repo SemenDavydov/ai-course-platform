@@ -28,7 +28,15 @@ from app.models.user import User
 from app.models.course import Course, Lesson, Module, Tariff
 from app.models.material import Material
 from app.models.payment import Payment
-from app.services.auth import create_login_token, link_telegram
+from app.services import ratelimit
+from app.services.auth import (
+    create_login_token,
+    find_other_account,
+    link_telegram,
+    normalize_email,
+    prepare_telegram_link_email,
+)
+from app.tasks import enqueue_email
 from app.services.payment import PaymentService
 from app.services.proonline import ProOnlineClient, ProOnlineError
 from app.services.access import (
@@ -512,8 +520,9 @@ async def process_pay_card(callback: CallbackQuery, state: FSMContext, db: Async
         )
         return
 
-    course = await get_primary_course(db)
-    await create_payment_and_send(callback.message, user, course, tariff_slug, db)
+    if not await _offer_site_link(callback.message, user, user.email, db):
+        course = await get_primary_course(db)
+        await create_payment_and_send(callback.message, user, course, tariff_slug, db)
     try:
         await callback.answer()
     except Exception:
@@ -539,18 +548,68 @@ async def process_pay_installment(callback: CallbackQuery, state: FSMContext, db
         return
     await state.update_data(pay_mode="installment")
     user = await get_or_create_user(callback.from_user.id, db)
-    course = await get_primary_course(db)
-    await create_installment_and_send(callback, user, course, tariff_slug, db)
+    if not user.email:
+        await state.set_state(Form.waiting_for_email)
+        await _safe_edit(
+            callback,
+            "📧 Укажите ваш email:",
+            InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="◀️ Отмена", callback_data="back_to_start")]
+                ]
+            ),
+        )
+        return
+    if not await _offer_site_link(callback.message, user, user.email, db):
+        course = await get_primary_course(db)
+        await create_installment_and_send(callback.message, user, course, tariff_slug, db)
+    try:
+        await callback.answer()
+    except Exception:
+        pass
+
+
+async def _offer_site_link(message: types.Message, user: User, email: str, db: AsyncSession) -> bool:
+    """Email принадлежит другому аккаунту сайта: не платим, а привязываем Telegram.
+
+    Привязка только через письмо на этот адрес: по введённому email объединять
+    нельзя, иначе любой получит чужой оплаченный курс. True — оплату не продолжать.
+    """
+    account = await find_other_account(db, email, user.id)
+    if not account:
+        return False
+    if account.telegram_id:
+        await message.answer(
+            "⚠️ Этот email уже привязан к другому Telegram. Напишите менеджеру: @Simba1328"
+        )
+        return True
+    try:
+        await ratelimit.check(ratelimit.LINK_TG, user.telegram_id)
+        await ratelimit.check(ratelimit.LINK_EMAIL, normalize_email(email))
+    except ratelimit.RateLimitExceeded:
+        await message.answer("📧 Письмо уже отправлено. Проверьте почту и папку «Спам».")
+        return True
+    to, subject, html = await prepare_telegram_link_email(db, account)
+    enqueue_email(to, subject, html)
+    await message.answer(
+        "📧 Этот email уже зарегистрирован на сайте. Мы отправили на него письмо: "
+        "нажмите в нём кнопку, чтобы привязать Telegram к вашему аккаунту. "
+        "Ссылка действует 1 час."
+    )
+    return True
 
 
 @dp.message(Form.waiting_for_email)
 async def process_email(message: Message, state: FSMContext, db: AsyncSession):
-    email = message.text.strip()
+    email = normalize_email(message.text)
     if "@" not in email or "." not in email:
         await message.answer("Введите корректный email (name@domain.ru):")
         return
 
     user = await get_or_create_user(message.from_user.id, db)
+    if await _offer_site_link(message, user, email, db):
+        await state.clear()
+        return
     user.email = email
     await db.commit()
 
@@ -562,7 +621,10 @@ async def process_email(message: Message, state: FSMContext, db: AsyncSession):
         await state.clear()
         return
 
-    await create_payment_and_send(message, user, course, tariff_slug, db)
+    if data.get("pay_mode") == "installment":
+        await create_installment_and_send(message, user, course, tariff_slug, db)
+    else:
+        await create_payment_and_send(message, user, course, tariff_slug, db)
     await state.clear()
 
 
@@ -657,7 +719,7 @@ async def create_payment_and_send(
 
 
 async def create_installment_and_send(
-    callback: CallbackQuery,
+    message: types.Message,
     user: User,
     course: Course | None,
     tariff_slug: str,
@@ -667,10 +729,9 @@ async def create_installment_and_send(
     import uuid
 
     if not course:
-        await _safe_edit(
-            callback,
+        await message.answer(
             "Курс временно недоступен.",
-            InlineKeyboardMarkup(
+            reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[
                     [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")]
                 ]
@@ -680,10 +741,9 @@ async def create_installment_and_send(
 
     client = ProOnlineClient()
     if not client.configured:
-        await _safe_edit(
-            callback,
+        await message.answer(
             "Рассрочка временно недоступна. Оплатите картой или напишите нам.",
-            InlineKeyboardMarkup(
+            reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[
                     [InlineKeyboardButton(text="💳 Картой", callback_data="pay_card")],
                     [InlineKeyboardButton(text="◀️ Назад", callback_data="buy")],
@@ -701,10 +761,10 @@ async def create_installment_and_send(
     )
     tariff = t_result.scalar_one_or_none()
     if not tariff:
-        await _safe_edit(callback, "Тариф не найден.")
+        await message.answer("Тариф не найден.")
         return
     if tariff.slug not in tariffs.INSTALLMENT_SLUGS:
-        await _safe_edit(callback, "Этот тариф оплачивается только картой.")
+        await message.answer("Этот тариф оплачивается только картой.")
         return
 
     existing = await get_access(db, user.id, course.id)
@@ -715,10 +775,9 @@ async def create_installment_and_send(
     if not reason and amount <= 0:
         reason = "Этот тариф уже оплачен"
     if reason:
-        await _safe_edit(
-            callback,
+        await message.answer(
             _html(reason),
-            InlineKeyboardMarkup(
+            reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[[InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")]]
             ),
         )
@@ -741,10 +800,9 @@ async def create_installment_and_send(
         )
     except ProOnlineError as exc:
         logger.error("Bot ProOnline session failed: %s", exc)
-        await _safe_edit(
-            callback,
+        await message.answer(
             "Не удалось создать анкету рассрочки. Попробуйте позже или оплатите картой.",
-            InlineKeyboardMarkup(
+            reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[
                     [InlineKeyboardButton(text="💳 Картой", callback_data="pay_card")],
                     [InlineKeyboardButton(text="◀️ Назад", callback_data="buy")],
@@ -790,7 +848,7 @@ async def create_installment_and_send(
             [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_start")],
         ]
     )
-    await _safe_edit(callback, text, keyboard)
+    await message.answer(text, reply_markup=keyboard)
 
 
 async def _show_story_modules(callback: CallbackQuery, db: AsyncSession):
