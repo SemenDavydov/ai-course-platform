@@ -1,0 +1,24 @@
+# Конфиг gitleaks (github.com/gitleaks/gitleaks).
+#
+# Проверка истории (то, что ушло на GitHub) — именно её гоняем перед пушем:
+#   gitleaks git --redact --no-banner
+# Проверка рабочей папки (найдёт и .env — это нормально, он не в git):
+#   gitleaks dir . --redact --no-banner
+#
+# Коммит-хук не ставим: правило одно — секреты живут только в .env,
+# а .env в .gitignore. Хук нужен, когда в команде много людей.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Чужой код и тестовые данные библиотек — не наши секреты"
+paths = [
+  # Зависимости: тестовые хеши passlib, примеры ключей в jwt/dnspython,
+  # строковые константы sqlalchemy. Свой код там не лежит.
+  '''^\.venv/''',
+  '''^venv/''',
+  '''(^|/)node_modules/''',
+  # Шаблон .env без значений — в репозитории по смыслу.
+  '''^\.env\.example$''',
+]

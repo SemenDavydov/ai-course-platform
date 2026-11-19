@@ -267,12 +267,12 @@ async def cmd_start(message: Message, db: AsyncSession, command: CommandObject |
         await message.answer(
             "Внутри — 7 модулей: профессия, сценарии, герой, генерация, монтаж, "
             "коммерция и монетизация.\n\n"
-            "Тарифы и цены — в разделе «О курсе AI STORY»."
+            "Цена и условия — в разделе «О курсе AI STORY»."
         )
         await asyncio.sleep(1.0)
 
     await message.answer(
-        "Хочешь узнать подробнее или сразу выбрать тариф? 👇\n\n"
+        "Хочешь узнать подробнее или сразу купить курс? 👇\n\n"
         "Уже купили курс на сайте? Откройте "
         f'<a href="{settings.SITE_URL}/cabinet/lessons">личный кабинет</a> '
         "и нажмите «Открыть уроки в боте».",
@@ -366,7 +366,7 @@ async def process_about(callback: CallbackQuery, db: AsyncSession):
                 old = f" <s>{int(t.old_price)}₽</s>" if t.old_price else ""
                 lines.append(f"• <b>{_html(t.name)}</b> — {int(t.price)}₽{old}")
             lines.append("\nПосле оплаты доступ к урокам открывается сразу.")
-            rows.append([InlineKeyboardButton(text="💰 Выбрать тариф", callback_data="buy")])
+            rows.append([InlineKeyboardButton(text="💰 Купить курс", callback_data="buy")])
         elif available:
             # Действующий доступ, но есть апгрейд (self → Pro/VIP, Pro → VIP).
             rows.append([InlineKeyboardButton(text="⬆️ Улучшить тариф", callback_data="buy")])

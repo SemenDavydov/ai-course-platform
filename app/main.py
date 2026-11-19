@@ -110,7 +110,7 @@ def _countdown_context(schedule: SalesSchedule, now: datetime) -> dict | None:
     if phase == PHASE_OPEN:
         title = "До конца продаж осталось"
         when_text = f"Продажи до {format_msk(schedule.end, long=True)} МСК"
-        strip_label, strip_cta, strip_href = "До конца продаж", "Выбрать тариф", "#tariffs"
+        strip_label, strip_cta, strip_href = "До конца продаж", "Купить курс", "#tariffs"
     else:
         title = "До старта продаж осталось"
         when_text = f"Старт продаж {format_msk(schedule.start, long=True)} МСК"

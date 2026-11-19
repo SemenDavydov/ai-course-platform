@@ -275,7 +275,7 @@ async def test_landing_countdown_open(client, db_session, story_course):
     await _window(db_session, timedelta(hours=-1), timedelta(days=2))
     html = (await client.get("/")).text
     assert "До конца продаж осталось" in html
-    assert 'class="sales-strip"' in html and "Выбрать тариф →" in html
+    assert 'class="sales-strip"' in html and "Купить курс →" in html
     assert "data-progress-start=" in html
     assert html.index("До конца продаж осталось") < html.index("Купить Pro")  # над тарифами
     assert "pt-[6.25rem]" in html
