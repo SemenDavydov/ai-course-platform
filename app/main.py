@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, Depends
@@ -139,7 +138,7 @@ async def root(
     current_user=Depends(get_optional_user),
     db=Depends(get_db),
 ):
-    user_json = "null"
+    user_data = None
     has_story_access = False
     story_tariff_slug = ""
     story_access = None
@@ -165,7 +164,7 @@ async def root(
         opening = lessons_opening_at(story_access) if has_story_access else None
         if opening:
             story_lessons_open_label = format_opening(opening)
-        user_json = json.dumps({
+        user_data = {
             "id": current_user.id,
             "email": current_user.email,
             "email_verified": current_user.email_verified,
@@ -173,7 +172,7 @@ async def root(
             "has_story_access": has_story_access,
             "story_tariff_slug": story_tariff_slug,
             "accepted_offer": current_user.accepted_offer,
-        })
+        }
 
     course = await get_primary_course(db)
     modules = []
@@ -193,7 +192,7 @@ async def root(
         )
         tariffs = list(t_result.scalars().all())
         if story_access is not None:
-            # Истёкший self → только Pro/VIP; действующий self → апгрейд до Pro/VIP.
+            # Только то, что этому ученику можно купить (продление, апгрейд).
             tariffs = [
                 t for t in tariffs if purchase_block_reason(story_access, t.slug) is None
             ]
@@ -227,7 +226,8 @@ async def root(
         "request": request,
         "app_name": settings.APP_NAME,
         "current_user": current_user,
-        "current_user_json": user_json,
+        # tojson в шаблоне экранирует < > & — строка из БД не закроет <script>.
+        "current_user_data": user_data,
         "course": course,
         "modules": modules,
         "tariffs": tariffs,

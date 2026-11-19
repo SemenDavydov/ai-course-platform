@@ -37,6 +37,7 @@ from app.services.auth import (
     prepare_telegram_link_email,
 )
 from app.tasks import enqueue_email
+from email_validator import EmailNotValidError, validate_email
 from app.services.payment import PaymentService
 from app.services.proonline import ProOnlineClient, ProOnlineError
 from app.services.access import (
@@ -600,8 +601,10 @@ async def _offer_site_link(message: types.Message, user: User, email: str, db: A
 
 @dp.message(Form.waiting_for_email)
 async def process_email(message: Message, state: FSMContext, db: AsyncSession):
-    email = normalize_email(message.text)
-    if "@" not in email or "." not in email:
+    try:
+        # Тот же валидатор, что у регистрации на сайте: строка уходит в чеки и на страницы.
+        email = normalize_email(validate_email(normalize_email(message.text), check_deliverability=False).normalized)
+    except EmailNotValidError:
         await message.answer("Введите корректный email (name@domain.ru):")
         return
 

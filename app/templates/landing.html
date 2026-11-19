@@ -1386,6 +1386,11 @@
                         <input id="waitlist-social" type="text" name="social" maxlength="255"
                                placeholder="Необязательно">
                     </div>
+                    {# Ловушка для ботов: человек это поле не видит и не заполняет. #}
+                    <div aria-hidden="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden">
+                        <label for="waitlist-website">Сайт</label>
+                        <input id="waitlist-website" type="text" name="website" tabindex="-1" autocomplete="off">
+                    </div>
                     <label class="waitlist-consent">
                         <input type="checkbox" name="accepted_privacy" value="true" required>
                         <span>
@@ -1883,7 +1888,7 @@
         nodes.forEach(n => io.observe(n));
     })();
 
-    const CURRENT_USER = {{ current_user_json | safe }};
+    const CURRENT_USER = {{ current_user_data | tojson }};
     const HAS_STORY_ACCESS = {{ 'true' if has_story_access else 'false' }};
     // Действующий «Самостоятельный» может купить Pro/VIP (апгрейд).
     const CAN_UPGRADE = {{ 'true' if can_upgrade else 'false' }};
