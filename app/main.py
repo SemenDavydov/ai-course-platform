@@ -75,7 +75,15 @@ SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "SAMEORIGIN",
     "Referrer-Policy": "strict-origin-when-cross-origin",
+    # Отключаем API, которыми сайт не пользуется: если на страницу попадёт
+    # чужой скрипт, камеру и геолокацию он уже не запросит.
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
 }
+
+# HSTS только на HTTPS-проде: на http://127.0.0.1 браузер запомнил бы
+# принудительный HTTPS для всего localhost и сломал бы другие локальные
+# проекты. cookie_secure уже означает "DEBUG=False и SITE_URL на https".
+HSTS_VALUE = "max-age=31536000; includeSubDomains"
 
 
 @app.middleware("http")
@@ -83,6 +91,8 @@ async def security_headers(request: Request, call_next):
     response = await call_next(request)
     for name, value in SECURITY_HEADERS.items():
         response.headers.setdefault(name, value)
+    if settings.cookie_secure:
+        response.headers.setdefault("Strict-Transport-Security", HSTS_VALUE)
     return response
 
 # Подключаем роутеры

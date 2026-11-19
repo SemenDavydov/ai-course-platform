@@ -26,8 +26,13 @@ settings.EMAIL_BACKGROUND = False
 import importlib
 importlib.import_module("app.models")
 
-# Тестовая БД
-TEST_DATABASE_URL = "postgresql+asyncpg://postgres:Rtdbykfd13@localhost:5432/aicourse_test"
+# Тестовая БД. Пароль здесь не хардкодим: он совпадал с продовым, а файл лежит
+# в git (находка gitleaks 2026-11-19). Задайте TEST_DATABASE_URL в окружении,
+# иначе берётся локальный postgres с паролем по умолчанию.
+TEST_DATABASE_URL = os.environ.get(
+    "TEST_DATABASE_URL",
+    "postgresql+asyncpg://postgres:postgres@localhost:5432/aicourse_test",
+)
 
 engine_test = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
 async_session_maker = async_sessionmaker(engine_test, expire_on_commit=False)

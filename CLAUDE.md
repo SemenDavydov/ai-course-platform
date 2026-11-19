@@ -22,11 +22,26 @@ alembic upgrade head
 alembic revision --autogenerate -m "description"
 alembic downgrade -1
 
-# Run all tests
+# Run all tests (пароль тестовой БД — в переменной окружения, не в коде)
+$env:TEST_DATABASE_URL="postgresql+asyncpg://postgres:ПАРОЛЬ@localhost:5432/aicourse_test"
 pytest tests/
 
 # Run a single test file
 pytest tests/test_payments.py -v
+
+# Поиск забытых секретов (gitleaks). Перед пушем — по истории:
+gitleaks git --redact --no-banner
+# По рабочей папке (найдёт и .env — это нормально, он в .gitignore):
+gitleaks dir . --redact --no-banner
+
+# Скан уязвимостей (ZAP). Только по локальной копии, не по проду:
+# 1) схема и данные в тестовую БД
+$env:ZAP_DB_URL="postgresql+asyncpg://postgres:ПАРОЛЬ@localhost:5432/aicourse_test"
+.venv\Scripts\python.exe scripts\zap_seed_local.py
+# 2) uvicorn на :8099 с этой БД, затем
+docker run --rm --add-host=host.docker.internal:host-gateway -v "${PWD}\var\zap:/zap/wrk:rw" `
+  ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://host.docker.internal:8099 `
+  -r zap-baseline.html -I -m 3
 ```
 
 ## Architecture

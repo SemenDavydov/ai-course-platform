@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
@@ -45,6 +47,18 @@ async def test_security_headers(client: AsyncClient):
     assert r.headers["X-Content-Type-Options"] == "nosniff"
     assert r.headers["X-Frame-Options"] == "SAMEORIGIN"
     assert r.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+    assert "camera=()" in r.headers["Permissions-Policy"]
+    # В тестах DEBUG=True, то есть cookie_secure=False: HSTS на http слать нельзя.
+    assert "Strict-Transport-Security" not in r.headers
+
+
+@pytest.mark.asyncio
+async def test_hsts_sent_only_on_https(client: AsyncClient):
+    from app.config import settings
+
+    with patch.object(type(settings), "cookie_secure", property(lambda self: True)):
+        r = await client.get("/offer")
+    assert r.headers["Strict-Transport-Security"] == "max-age=31536000; includeSubDomains"
 
 
 @pytest.mark.asyncio
