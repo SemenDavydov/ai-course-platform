@@ -55,7 +55,8 @@ async def test_reminder_sent_once(db_session, story_course, monkeypatch):
     access = await get_access(db_session, user.id, story_course.id)
     until = access.expires_at.strftime("%d.%m.%Y")
     assert until in subject and until in html
-    assert "https://davydovaai.ru/#tariffs" in html
+    assert "https://davydovaai.ru/cabinet/lessons" in html
+    assert "продлить" in html and "Pro" not in html
     assert access.expiry_reminder_sent_at is not None
 
 

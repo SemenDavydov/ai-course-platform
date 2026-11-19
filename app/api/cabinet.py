@@ -66,7 +66,7 @@ async def _user_needs_paywall(db: AsyncSession, user) -> bool:
 async def _render_lessons_paywall(
     request: Request, db: AsyncSession, user, course: Course | None, tariffs: list[Tariff]
 ):
-    # Истёкший «Самостоятельный» повторно не продаём — только Pro/VIP.
+    # Истёкший «Самостоятельный»: показываем, что срок вышел, и даём продлить.
     self_expired = False
     if course:
         access = await get_access(db, user.id, course.id)
@@ -75,8 +75,6 @@ async def _render_lessons_paywall(
             and access.tariff_slug == tariffs_mod.SELF
             and not access_is_active(access)
         )
-    if self_expired:
-        tariffs = [t for t in tariffs if t.slug != tariffs_mod.SELF]
     # Paywall видят только без действующего доступа — это всегда «новая покупка».
     sales_closed_reason = await new_sales_closed_reason(db)
 

@@ -55,11 +55,11 @@ async def _send_telegram_reminder(user: User, course_title: str, until: str) -> 
     text = (
         f"⏳ Доступ к курсу «{course_title}» по тарифу «Самостоятельный» "
         f"закончится <b>{until}</b>.\n\n"
-        "Успейте досмотреть уроки — или перейдите на Pro/VIP: поддержка куратора "
-        "и доступ без ограничения двумя месяцами."
+        "Успейте досмотреть уроки. После окончания срока доступ можно продлить, "
+        "оформив тариф снова."
     )
     keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="⬆️ Улучшить тариф", callback_data="buy")]]
+        inline_keyboard=[[InlineKeyboardButton(text="📖 К урокам", callback_data="course_story")]]
     )
     try:
         await bot.send_message(chat_id=user.telegram_id, text=text, reply_markup=keyboard)
@@ -79,7 +79,7 @@ async def _send_reminder(access: UserCourseAccess) -> bool:
         html = _jinja.get_template("access_expiring.html").render(
             course_title=course_title,
             access_until=until,
-            upgrade_url=f"{site}/#tariffs",
+            site_url=f"{site}/",
             lessons_url=f"{site}/cabinet/lessons",
         )
         # smtplib синхронный — в потоке, чтобы не блокировать цикл.

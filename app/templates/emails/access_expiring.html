@@ -27,17 +27,13 @@
       <p>Здравствуйте!</p>
       <p>Ваш доступ к материалам курса <strong>«{{ course_title }}»</strong> по тарифу
         <strong>«Самостоятельный»</strong> закончится <strong>{{ access_until }}</strong>.</p>
-      <p>Успейте досмотреть уроки — или продолжите обучение без ограничения двумя месяцами.</p>
+      <p>Успейте досмотреть уроки!</p>
+      <p style="text-align:center;">
+        <a class="btn" href="{{ lessons_url }}">Продолжить уроки</a>
+      </p>
       <div class="box">
-        <p><strong>Pro</strong> — проверка домашних заданий и поддержка куратора.</p>
-        <p><strong>VIP</strong> — личный чат и zoom-разборы с Лизой.</p>
+        <p>После окончания срока доступ можно продлить ещё на 2 месяца — оформите тариф снова на сайте <a href="{{ site_url }}">{{ site_url }}</a>.</p>
       </div>
-      <p style="text-align:center;">
-        <a class="btn" href="{{ upgrade_url }}">Перейти на Pro или VIP</a>
-      </p>
-      <p style="text-align:center;">
-        <a class="btn btn-secondary" href="{{ lessons_url }}">Продолжить уроки</a>
-      </p>
     </div>
     <div class="footer">
       © 2026 AI STORY · Davydova AI

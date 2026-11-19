@@ -266,8 +266,7 @@ async def cmd_start(message: Message, db: AsyncSession, command: CommandObject |
         await message.answer(
             "Внутри — 7 модулей: профессия, сценарии, герой, генерация, монтаж, "
             "коммерция и монетизация.\n\n"
-            "Три тарифа: <b>Самостоятельный</b> — доступ ко всем материалам на 2 месяца, "
-            "<b>Pro</b> и <b>VIP</b> — с поддержкой куратора."
+            "Тарифы и цены — в разделе «О курсе AI STORY»."
         )
         await asyncio.sleep(1.0)
 
@@ -339,7 +338,7 @@ def _access_status_lines(existing) -> list[str]:
     if not access_is_active(existing):
         return [
             f"Срок тарифа <b>{label}</b> закончился.",
-            "Продолжить обучение можно на тарифе Pro или VIP.",
+            "Чтобы продолжить обучение, оформите тариф снова.",
         ]
     lines = [f"Ваш тариф: <b>{label}</b>"]
     if existing.expires_at:

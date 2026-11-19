@@ -1424,11 +1424,11 @@
 
         {% if self_expired %}
         <p class="reveal mt-6 max-w-2xl mx-auto text-center text-sm sm:text-base text-[var(--mist)]">
-            Срок тарифа «Самостоятельный» закончился — продолжите обучение на тарифе Pro или VIP.
+            Срок тарифа «Самостоятельный» закончился — продлите доступ, оформив тариф снова.
         </p>
         {% endif %}
 
-        <div class="reveal reveal-delay-1 mt-10 grid grid-cols-1 md:grid-cols-2 {% if tariffs|length >= 3 %}lg:grid-cols-3 max-w-6xl{% else %}max-w-4xl{% endif %} gap-6 mx-auto">
+        <div class="reveal reveal-delay-1 mt-10 grid grid-cols-1 {% if tariffs|length >= 3 %}md:grid-cols-2 lg:grid-cols-3 max-w-6xl{% elif tariffs|length == 2 %}md:grid-cols-2 max-w-4xl{% else %}max-w-md{% endif %} gap-6 mx-auto">
             {% for t in tariffs %}
             <article class="tariff-card rounded-3xl p-7 sm:p-8 flex flex-col {% if t.slug == 'vip' %}is-vip{% endif %}">
                 <header class="mb-6">
@@ -1482,6 +1482,7 @@
             {% endfor %}
         </div>
 
+        {% if tariffs|selectattr('slug', 'in', installment_slugs)|list %}
         <div class="reveal reveal-delay-2 mt-8 max-w-4xl mx-auto">
             <article class="tariff-card rounded-3xl p-7 sm:p-8 text-center">
                 <h3 class="font-display text-xl sm:text-2xl text-[var(--pearl)] font-semibold tracking-wide uppercase">
@@ -1506,6 +1507,7 @@
                 </div>
             </article>
         </div>
+        {% endif %}
         {% endif %}
     </div>
 </section>
@@ -1593,6 +1595,7 @@
                 </div>
             </div>
 
+            {% if tariffs|selectattr('slug', 'in', ['pro', 'vip'])|list %}
             <div class="faq-item">
                 <button type="button" onclick="toggleFaq(this)"
                         class="w-full text-left py-5 flex items-center justify-between gap-4 font-medium text-[var(--pearl)] hover:text-[var(--rose-deep)] transition-colors">
@@ -1605,6 +1608,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
 
             <div class="faq-item">
                 <button type="button" onclick="toggleFaq(this)"

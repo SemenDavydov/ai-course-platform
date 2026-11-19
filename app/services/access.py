@@ -66,11 +66,7 @@ def purchase_block_reason(
         return None
 
     if not access_is_active(existing):
-        if tariff_slug == SELF:
-            return (
-                "Срок тарифа «Самостоятельный» закончился. Повторно его купить "
-                "нельзя — доступны тарифы Pro и VIP."
-            )
+        # Истекает только self; продлевается покупкой любого тарифа, в том числе self.
         return None
 
     if existing.tariff_slug == VIP:
@@ -79,7 +75,7 @@ def purchase_block_reason(
         until = existing.expires_at.strftime("%d.%m.%Y") if existing.expires_at else ""
         return (
             f"Доступ по тарифу «Самостоятельный» уже действует до {until}. "
-            "Доступен апгрейд до Pro или VIP"
+            "Продлить его можно после окончания срока."
         )
     if existing.tariff_slug == tariff_slug:
         return "У вас уже есть доступ по этому тарифу"

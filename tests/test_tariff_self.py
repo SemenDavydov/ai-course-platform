@@ -227,7 +227,7 @@ async def test_self_installment_rejected_without_calling_proonline(client, db_se
         ("self", False, "self", False),
         ("self", False, "pro", True),
         ("self", False, "vip", True),
-        ("self", True, "self", False),
+        ("self", True, "self", True),  # продление после окончания срока
         ("self", True, "pro", True),
         ("self", True, "vip", True),
         ("pro", False, "self", False),
@@ -260,12 +260,13 @@ async def test_active_self_message_shows_expiry_date(client, db_session, story_c
 
 
 @pytest.mark.asyncio
-async def test_expired_self_message_offers_upgrade(client, db_session, story_course, user):
+async def test_expired_self_can_be_renewed_at_full_price(client, db_session, story_course, user):
     await grant_course_access(db_session, user, story_course.id, "self", commit=True)
     await _expire(db_session, user, story_course)
     await _login(client, db_session, user)
-    r, _ = await _buy(client, "self")
-    assert "Pro и VIP" in r.json()["detail"]
+    r, m = await _buy(client, "self")
+    assert r.status_code == 200, r.text
+    assert m.await_args.kwargs["amount"] == 8990  # после истечения зачёта нет
 
 
 # ---------------------------------------------------------------------------
@@ -374,13 +375,13 @@ async def test_landing_shows_three_tariffs(client, db_session, story_course):
 
 
 @pytest.mark.asyncio
-async def test_landing_hides_self_after_expiry(client, db_session, story_course, user):
+async def test_landing_offers_self_renewal_after_expiry(client, db_session, story_course, user):
     await _sales_mode(db_session)
     await grant_course_access(db_session, user, story_course.id, "self", commit=True)
     await _expire(db_session, user, story_course)
     await _login(client, db_session, user)
     html = (await client.get("/")).text
-    assert "Купить Самостоятельный" not in html
+    assert "Купить Самостоятельный" in html  # можно продлить
     assert "Купить Pro" in html and "Купить VIP" in html
     assert "Срок тарифа «Самостоятельный» закончился" in html
 
@@ -405,7 +406,7 @@ async def test_paywall_for_expired_self(client, db_session, story_course, user):
     await _login(client, db_session, user)
     html = (await client.get("/cabinet/lessons")).text
     assert "Вы ещё не оплатили курс" in html  # paywall
-    assert 'data-slug="self"' not in html
+    assert 'data-slug="self"' in html  # продление прямо из кабинета
     assert 'data-slug="pro"' in html and 'data-slug="vip"' in html
     assert "Срок тарифа «Самостоятельный» закончился" in html
 

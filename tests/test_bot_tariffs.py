@@ -147,7 +147,7 @@ async def test_bot_enforces_purchase_rules(db_session, story_course, tg_user):
 
 
 @pytest.mark.asyncio
-async def test_buy_after_expired_self_offers_only_pro_vip(db_session, story_course, tg_user):
+async def test_buy_after_expired_self_offers_renewal(db_session, story_course, tg_user):
     await grant_course_access(db_session, tg_user, story_course.id, "self", commit=True)
     access = await get_access(db_session, tg_user.id, story_course.id)
     access.expires_at = datetime.now(timezone.utc) - timedelta(days=1)
@@ -160,7 +160,7 @@ async def test_buy_after_expired_self_offers_only_pro_vip(db_session, story_cour
     assert "уже куплен" not in text
     btns = _buttons(cb)
     assert "tariff_pro" in btns and "tariff_vip" in btns
-    assert "tariff_self" not in btns
+    assert "tariff_self" in btns  # продление после окончания срока
 
 
 @pytest.mark.asyncio
